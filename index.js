@@ -118,7 +118,7 @@ export default {
      * @return {Promise<*>}
      */
     Vue.prototype[emitEventProp] = function (eventName, payload, options = eventsOptions) {
-      return runCallbacks({ events, eventName, payload, eventOrigin: this, options });
+      return runCallbacks({ events, eventName, payload, eventOrigin: this, eventOptions: options });
     };
 
     /**
@@ -258,8 +258,8 @@ function addListener ({ events, eventName, subscriberId, callback, options, list
  * @return {Promise<*>}
  */
 async function runCallbacks ({ events, eventName, payload, eventOptions, eventOrigin }) {
-  let event = events && events[eventName];
-  let listenersTally = event && event.length;
+  let listeners = events && events[eventName];
+  let listenersTally = listeners && listeners.length;
   let meta = {
     eventName,
     // make sure we don't mutate the actual options
@@ -272,7 +272,7 @@ async function runCallbacks ({ events, eventName, payload, eventOptions, eventOr
 
   if (listenersTally) {
     let _listeners;
-    if (eventOptions.reverse) _listeners = events[eventName].reverse(); else _listeners = events[eventName];
+    if (eventOptions.reverse) _listeners = listeners.reverse(); else _listeners = listeners;
 
     if (eventOptions.stop) listenersTally = 1;
     // console.debug(`[vue-hooked-async-events] index-66: runCallbacks() - eventName: %o, \neventOrigin: %o, \n_listeners: %o`, eventName, eventOrigin, _listeners.map(li => li.listenerOrigin._uid));
