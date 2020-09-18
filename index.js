@@ -13,15 +13,19 @@ export default {
     let emitEventProp = isCorrectCustomName('emitEvent', options) || '$emitEvent';
     let eraseEventProp = isCorrectCustomName('eraseEvent', options) || '$eraseEvent';
     let fallSilentProp = isCorrectCustomName('fallSilent', options) || '$fallSilent';
+    let callbacksOptions = options.callbacksOptions || { stop: false, expire: 0, once: false };
+    let eventsOptions = options.eventsOptions || { reverse: false, stop: false, linger: 0, isAsync: false };
 
     /**
      * mix into vue
      */
     Vue.mixin({
-      data () {return {
-        shouldFallSilent: true,
-      }},
-      beforeCreate:  function beforeCreate () {
+      data () {
+        return {
+          shouldFallSilent: true
+        };
+      },
+      beforeCreate: function beforeCreate () {
         this._uniqID = Math.random().toString(36).substr(2, 9);
       },
 
@@ -43,7 +47,7 @@ export default {
      * @param callback
      * @param options
      */
-    Vue.prototype[onEventProp] = function (eventName, callback, options = { stop: false, expire: 0, once: false }) {
+    Vue.prototype[onEventProp] = function (eventName, callback, options = callbacksOptions) {
       const args = {
         events,
         subscriberId:   this._uniqID,
@@ -101,7 +105,7 @@ export default {
      * @param callback
      * @param options
      */
-    Vue.prototype[onceEventProp] = function (eventName, callback, options = { stop: false, expire: 0 }) {
+    Vue.prototype[onceEventProp] = function (eventName, callback, options = callbacksOptions) {
       options.once = true;
       Vue.prototype[onEventProp](eventName, callback, options);
     };
@@ -113,12 +117,7 @@ export default {
      * @param options
      * @return {Promise<*>}
      */
-    Vue.prototype[emitEventProp] = function (eventName, payload, options = {
-      reverse: false,
-      stop:    false,
-      linger:  0,
-      isAsync: false
-    }) {
+    Vue.prototype[emitEventProp] = function (eventName, payload, options = eventsOptions) {
       return runCallbacks({ events, eventName, payload, eventOrigin: this, options });
     };
 
@@ -264,7 +263,7 @@ async function runCallbacks ({ events, eventName, payload, eventOptions, eventOr
   let meta = {
     eventName,
     // make sure we don't mutate the actual options
-    eventOptions: Object.assign({}, eventOptions),
+    eventOptions:    Object.assign({}, eventOptions),
     callbackOptions: {},
     eventOrigin,
     listenersTally
