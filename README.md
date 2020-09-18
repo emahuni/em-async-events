@@ -198,8 +198,10 @@ Removing event from events object for all listeners (example):
 
 
 ### Customization
-If you use some plugins, which have some conflicting function names (or you just don't like default ones), you can rename all of them according to your preferences.
-NOTE: use this feature at your own risk as it will warn you only for Vue basic properties:
+- renaming functions:
+    - If you use some plugins, which have some conflicting function names (or you just don't like default ones), you can rename all of them according to your preferences.
+NOTE: use this feature at your own risk as it will warn you only for Vue basic properties.
+- default callback and event options
 ```
     "$options", "$parent", "$root", "$children", "$refs", "$vnode", "$slots", "$scopedSlots", "$createElement", "$attrs", "$listeners", "$el"
 ```
@@ -212,7 +214,10 @@ NOTE: use this feature at your own risk as it will warn you only for Vue basic p
         onceEvent: '$hearOnce',
         emitEvent: '$fireEvent',
         eraseEvent: '$deleteEvent',
-        fallSilent: '$noMore'
+        fallSilent: '$noMore',
+        // default options that you don't have to set all the time
+        callbackOptions: { stop: true, /*...*/ },
+        eventOptions: { reverse: true, isHook: true, /*...*/ }
     });
 
     // later in component...
