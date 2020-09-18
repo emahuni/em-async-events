@@ -2,6 +2,14 @@
 [![npm](https://img.shields.io/npm/v/vue-hooked-async-events.svg)](vue-hooked-async-events) ![npm](https://img.shields.io/npm/dt/vue-hooked-async-events.svg)
 
 Easier and more useful Vue event bus management with zero dependencies.
+
+## Features
+- stoppable events and listeners
+- automated event management:
+  - auto-removal of listeners on destruction
+  - expirable listeners that listen for a specified time before they are almost removed
+- async and hookable events that get responses from listeners  
+
 ## Installation
 ```javascript
 import Vue from 'vue';
@@ -49,6 +57,7 @@ There are several methods used to manage events.
 
 ### Listening to events:
 Listening to event or events:
+- all options can be mixed to get the desired behaviour
 ```javascript
 created() {
   this.$onEvent('some-event', this.eventCallback);
@@ -73,15 +82,33 @@ methods: {
 
     // metadata is information about the event and the listener itself eg:
     metadata == {
-      eventName: "opened-exlist-item", eventOptions: {/*opts passed to event*/},
+      eventName: "some-event", 
+      eventOptions: {/*opts passed to event*/},
       callbackOptions: {/*opts passed to listener*/},
-      eventOrigin: VueComponent /*vue compo that emitted the event*/, listenersTally: 1
+      eventOrigin: VueComponent /*vue compo that emitted the event*/,
+      listenersTally: 6 // number of listeners for this event
     };
-  
-    return /*whatever response you want to the event if it's a hook; see below*/
-    // you can also return { payload, directives: {}}
-  }
-  eventCallback2 (payload, metadata) {
+  },
+
+  async eventCallback1 (payload, metadata) {
+    // if you are going to return anything to event make sure you use 'isHook' option and callback is async 
+    return /*whatever response you want to return to the event only if it's a hook; see below*/
+  },
+
+  async eventCallback2 (payload, metadata) {
+    // you can get reponses from all callback this way in each callback
+    // ... do whatever this does
+    let newPayload = { blah: 'any new payload of any type for this callback to pass back'};
+    // see if there is any callback that already prepared the results chain if not create it
+    payload = (payload && Array.isArray(payload.$results$) && payload || { $results$: [] });
+    // now add the new response from this callback
+    payload.$results$.push(newPayload);
+    // passed to the next callback as payload and finally to the event,
+    // which can find all data in payload.$results$[]
+    return payload;
+  },
+
+  eventCallback3 (payload, metadata) {
     // you can also change how the event will behave by modifying the eventOptions or callbackOptions
     // eg: stop invoking any subsequent callbacks on the event
     metadata.callbackOptions.stop = true; // or 
@@ -92,20 +119,24 @@ methods: {
 
 ### Emitting events:
 Emitting events is simple, but this package takes it to another level of usability with async events.
+- all options can be mixed to get the desired behaviour
 ```javascript
 methods: {
   async fireEvents() {
+    // send payload/data to listeners of 'some-event'
     this.$emitEvent('some-event', { test: 'one' });
+
     // fire event callbacks in reverse order
     this.$emitEvent('some-event2', { test: 'one' }, { reverse: true });
-    // why? EG: Consider the following components hierachy c=>c=>c=>c
-    // it will register events from the parent down to the last grandchild, 
-    // so when run, the event listeners' callbacks are run in the same order.
-    // To run in the other order from the last grandchild to the parent 
-    // emit the event with a reverse option. You will soon get why more below
+    // why? EG: Consider the following components hierachy parent=>child=>grandchild=>greatGrandchild
+    // it will register events from the parent down to the last greatGrandchild that listens to 'some-event2'.
+    // So when run, the event listeners' callbacks are run in the same order.
+    // However, to run in the other order from the last greatGrandchild to the parent 
+    // emit the event with a 'reverse' option. You will soon get why this is important, more below...
 
-    // stop on the first listener callback
+    // stop on the first listener callback (guaranteeing event is handled only once, by first listener)
     this.$emitEvent('some-event3', { test: 'one' }, { stop: true });
+
     // linger for 5000ms for new listeners on the event. 
     this.$emitEvent('some-event3', { test: 'one' }, { linger: 5000 });
     // Why? burst race conditions, use with care
@@ -199,7 +230,7 @@ NOTE: use this feature at your own risk as it will warn you only for Vue basic p
 ```
 
 ## Author
-Emmanuel Mahuni, changed a lot of things in the package to make even more awesome.
+Emmanuel Mahuni, changed a lot of things in the package to make it even more awesome.
 
 #### Attribution
 This package was adopted from https://github.com/p1pchenk0/vue-handy-subscriptions 's idea, just had to make it another package as it departs a lot from the original.
