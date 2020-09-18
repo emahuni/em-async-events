@@ -137,9 +137,9 @@ methods: {
     // stop on the first listener callback (guaranteeing event is handled only once, by first listener)
     this.$emitEvent('some-event3', { test: 'one' }, { stop: true });
 
-    // linger for 5000ms for new listeners on the event. 
+    // linger for 5000ms for new listeners on the event. Can't be async/expect any return values
     this.$emitEvent('some-event3', { test: 'one' }, { linger: 5000 });
-    // Why? burst race conditions, use with care
+    // Why? bust race conditions, use with care
     
     // get info from the last listener (this is where you MAY need to use reverse invocation order)
     const endResult = await this.$emitEvent('some-event', { test: 'one' }, { isAsync: true, reverse: true });

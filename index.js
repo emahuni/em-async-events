@@ -26,7 +26,7 @@ export default {
         };
       },
       beforeCreate: function beforeCreate () {
-        this._uniqID = Math.random().toString(36).substr(2, 9);
+        this._uniqID = genUniqID();
       },
 
       beforeDestroy: function beforeDestroy () {
@@ -38,8 +38,9 @@ export default {
      * plugin local state
      * @type {{_events: {}}}
      */
-    Vue.prototype[asyncEventsProp] = { _events: {} };
+    Vue.prototype[asyncEventsProp] = { _events: {}, _lingeringEvents: {} };
     let events = Vue.prototype[asyncEventsProp]._events;
+    let lingeringEvents = Vue.prototype[asyncEventsProp]._lingeringEvents;
 
     /**
      * add event listener
@@ -50,6 +51,7 @@ export default {
     Vue.prototype[onEventProp] = function (eventName, callback, options = callbacksOptions) {
       const args = {
         events,
+        lingeringEvents,
         subscriberId:   this._uniqID,
         listenerOrigin: this,
         options
@@ -118,7 +120,7 @@ export default {
      * @return {Promise<*>}
      */
     Vue.prototype[emitEventProp] = function (eventName, payload, options = eventsOptions) {
-      return runCallbacks({ events, eventName, payload, eventOrigin: this, eventOptions: options });
+      return runCallbacks({ events, lingeringEvents, eventName, payload, eventOrigin: this, eventOptions: options });
     };
 
     /**
@@ -187,6 +189,13 @@ export default {
 };
 
 
+/**
+ * generate unique id to be used when tracking events and listeners
+ * @return {string}
+ */
+function genUniqID () {
+  return Math.random().toString(36).substr(2, 9);
+}
 
 /**
  * assert if object is empty
@@ -229,14 +238,23 @@ function isCorrectCustomName (prop, options) {
 /**
  * Add event listener
  * @param events
+ * @param lingeringEvents
  * @param eventName
  * @param subscriberId
  * @param callback
  * @param options
  * @param listenerOrigin
  */
-function addListener ({ events, eventName, subscriberId, callback, options, listenerOrigin }) {
-  // todo check if listener has an event lingering for it, if so then trigger this listener's event
+function addListener ({ events, lingeringEvents, eventName, subscriberId, callback, options, listenerOrigin }) {
+  // check if listener has an events lingering for it, if so then trigger these events on listener to handle
+  if (lingeringEvents[eventName]) {
+    for (let _event of lingeringEvents[eventName]) {
+      const [payload, meta] = _event.args;
+      meta.callbackOptions = options;
+      callback(payload, meta);
+    }
+  }
+
   (events[eventName] || (events[eventName] = [])).push({
     eventName,
     subscriberId,
@@ -251,13 +269,14 @@ function addListener ({ events, eventName, subscriberId, callback, options, list
 /**
  * Run event callbacks
  * @param events
+ * @param lingeringEvents
  * @param eventName
  * @param payload
  * @param eventOptions
  * @param eventOrigin
  * @return {Promise<*>}
  */
-async function runCallbacks ({ events, eventName, payload, eventOptions, eventOrigin }) {
+async function runCallbacks ({ events, lingeringEvents, eventName, payload, eventOptions, eventOrigin }) {
   let listeners = events && events[eventName];
   let listenersTally = listeners && listeners.length;
   let meta = {
@@ -269,6 +288,17 @@ async function runCallbacks ({ events, eventName, payload, eventOptions, eventOr
     listenersTally
   };
   let res = payload;
+
+  if (eventOptions.linger && lingeringEvents) {
+    const id = genUniqID();
+    // stash the arguments for later use on new listeners
+    (lingeringEvents[eventName] || (lingeringEvents[eventName] = [])).push({ id, args: [payload, meta] });
+    // order the splice after linger ms later
+    setTimeout(() => {
+      const i = lingeringEvents[eventName].findIndex(le => le.id === id);
+      lingeringEvents[eventName].splice(i, 1);
+    }, eventOptions.linger);
+  }
 
   if (listenersTally) {
     let _listeners;
