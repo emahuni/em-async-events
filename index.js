@@ -13,6 +13,7 @@ export default {
     let emitEventProp = isCorrectCustomName('emitEvent', options) || '$emitEvent';
     let eraseEventProp = isCorrectCustomName('eraseEvent', options) || '$eraseEvent';
     let fallSilentProp = isCorrectCustomName('fallSilent', options) || '$fallSilent';
+    let chainCallbackPayloadProp = isCorrectCustomName('chainCallbackPayload', options) || '$chainCallbackPayload';
     let callbacksOptions = options.callbacksOptions || { stop: false, expire: 0, once: false };
     let eventsOptions = options.eventsOptions || { reverse: false, stop: false, linger: 0, isAsync: false };
 
@@ -121,6 +122,20 @@ export default {
      */
     Vue.prototype[emitEventProp] = function (eventName, payload, options = eventsOptions) {
       return runCallbacks({ events, lingeringEvents, eventName, payload, eventOrigin: this, eventOptions: options });
+    };
+
+    /**
+     * emit event and run callbacks subscribed to the event
+     * @param payload
+     * @param newPayload
+     * @param meta
+     * @return {Promise<*>}
+     */
+    Vue.prototype[chainCallbackPayloadProp] = function (payload, newPayload, meta) {
+      // see if there is any callback that already prepared the results chain if not create it
+      payload = (payload && Array.isArray(payload.$results$) && payload || { $results$: [] });
+      payload.$results$.push(newPayload);
+      return payload;
     };
 
     /**

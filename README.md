@@ -101,15 +101,12 @@ methods: {
 
   async eventCallback2 (payload, metadata) {
     // you can get reponses from all callback this way in each callback
-    // ... do whatever this does
+    // ... do whatever this callback does
     let newPayload = { blah: 'any new payload of any type for this callback to pass back'};
-    // see if there is any callback that already prepared the results chain if not create it
-    payload = (payload && Array.isArray(payload.$results$) && payload || { $results$: [] });
-    // now add the new response from this callback
-    payload.$results$.push(newPayload);
-    // passed to the next callback as payload and finally to the event,
-    // which can find all data in payload.$results$[]
-    return payload;
+    return this.$chainCallbackPayload(payload, newPayload, metadata);
+    // passed to the next callback as payload, and finally to the emitted event,
+    // which can find all results in payload.$results$[]
+    // do the above in every callback that will be part of this chain
   },
 
   eventCallback3 (payload, metadata) {
