@@ -4,11 +4,17 @@
 Easier and more useful Vue event bus management with zero dependencies.
 
 ## Features
-- stoppable events and listeners
-- automated event management:
+- **stoppable events and listeners**; stop an event from firing on other callbacks when it hits a specific callback or on the first callback
+- **automated event management:**
   - auto-removal of listeners on destruction
   - expirable listeners that listen for a specified time before they are almost removed
-- async/hookable events that get responses from listeners  
+- **async/hookable events** that get responses from listeners
+- **lingering events;** these are events that are fired and used by current listeners, but wait for newer listeners until a specified time before being discarded.
+- **multiple callbacks and events registrations:** 
+    - handle multiple events with one callback.
+    - invoke/fire multiple callbacks from multiple events.
+    - register these using atomic statements.
+- doesn't pollute your Vue prototype
 
 ## Installation
 ```javascript
@@ -19,7 +25,7 @@ Vue.use(HookedAsyncEvents);
 ```
 
 ## Events management
-
+This package aims to address the above features and avoid some thorny issues that other event buses have:
 ### Standard event bus approach & its issues
 To create a global event system the standard is to create an event bus:
 ```javascript
@@ -30,12 +36,11 @@ To create a global event system the standard is to create an event bus:
 
 #### Issues
 - Major issue with using standard event bus is that it creates a new `Vue` instance with lots of unused methods and properties. 
-- It is managed by Vue, thereby creating a lot of overhead.
+- It is managed by Vue since it'll be a complete Vue component, thereby creating a lot of overhead.
+`vue-hooked-async-events` on the other hand creates a simple object containing awesome events-related functionalities that doesn't add any overhead or watchers/observers of any kind. 
 
- `vue-hooked-async-events` on the other hand creates a simple object containing awesome events-related functionalities. 
-
-- You can't just write `this.$eventBus.off()` in order to unsubscribe only this component from all events it was subscribed to, that will instead remove all events from everywhere.
-- You remove events manually. You have to make sure you manually remove events in the component you listen from:
+- You can't quickly remove events by just writing `this.$eventBus.off()` to unsubscribe only `this` component's events. Even if it is typed it will remove all events it was subscribed to that have a common event type amongst components eg: `this.$eventBus.off('some-event')`.
+- You have to make sure you manually remove events in the component you listen from eg:
 ```javascript
     beforeDestroy() {
         this.$eventBus.off('event-one', this.methodOne);
@@ -46,11 +51,10 @@ To create a global event system the standard is to create an event bus:
     }
 ```
 
-This package is responsible for automatic event bus unsubscription when component is being destroyed.
-Instead of above you should write:
+So with `vue-hooked-async-events` you instead write:
 ```javascript
 ```
-**Yes. Correct. Nothing.** Plugin will handle all of this by itself, unsubscribing current component inside of its `beforeDestroy` hook.
+**Yes. Correct. Nothing.** Plugin will handle all of this by itself, unsubscribing current component listeners in its `beforeDestroy` hook.
  
 ## Methods
 There are several methods used to manage events.
@@ -68,7 +72,7 @@ created() {
   this.$onEvent('some-event', this.eventCallback3, { stop: true });
   // automatically stop listening after 5000 milliseconds
   this.$onEvent('some-event', this.eventCallback3, { expire: 5000 });
-  // multiple events being listen to by one callback
+  // multiple events being listened to by one callback
   this.$onEvent(['second-event', 'third-event'], this.commonCallback);
   // fire multiple callbacks (even for multiple events)
   this.$onEvent('some-event', [this.eventCallback1, this.eventCallback2]);
