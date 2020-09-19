@@ -6,9 +6,9 @@ Easier and more useful Vue event bus management with zero dependencies.
 ## Features
 - **stoppable events and listeners**; stop an event from firing on other callbacks when it hits a specific callback or on the first callback
 - **automated event management:**
-  - auto-removal of listeners on destruction
-  - expirable listeners that listen for a specified time before they are almost removed
-- **async/hookable events** that get responses from listeners
+  - auto-removal of listeners on destruction.
+  - expirable listeners that listen for a specified time before they are removed.
+- **async/hookable events** that get responses from listeners.
 - **lingering events;** these are events that are fired and used by current listeners, but wait for newer listeners until a specified time before being discarded.
 - **multiple callbacks and events registrations:** 
     - handle multiple events with one callback.
