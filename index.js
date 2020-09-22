@@ -121,6 +121,7 @@ export default {
      * @return {Promise<*>}
      */
     Vue.prototype[emitEventProp] = function (eventName, payload, options = defaultEventOptions) {
+      // console.debug('[vue-hooked-async-events]-124: () - context of this: ', this);
       return runEventCallbacks({
         events,
         lingeringEvents,
@@ -345,20 +346,6 @@ function getOriginLevel (origin) {
 }
 
 /**
- * get the closest listener's index to the event level given
- * @param listeners
- * @param eventLevel
- * @return {*}
- */
-function closestListenerIndex (listeners, eventLevel) {
-  if (!Array.isArray(listeners) || !listeners.length) return;
-  // get the closest listener's level to eventLevel
-  let lv = closest(listeners.map(l => l.level), eventLevel);
-  // return the index of the listener in listeners array
-  return listeners.findIndex(l => l.level === lv);
-}
-
-/**
  * Run event callbacks
  * @param events
  * @param lingeringEvents
@@ -404,29 +391,30 @@ async function _runEventCallbacks ({ events, eventName, eventOptions, eventOrigi
   let res = payload;
   let listenersTally = listeners && listeners.length;
 
+  // console.debug(`[vue-hooked-async-events] index-66: runCallbacks() - eventName: %o, \neventOrigin: %o, \n_listeners: %o\neventMeta: %o`, eventName, eventOrigin, listeners, eventMeta);
+
   if (listenersTally) {
-    const { cli, upTo, downTo, stop, selfOnly } = getBroadcastListenerLevelRange({
+    const { upListeners, closestListeners, downListeners, stop } = getBroadcastListenerLevelRange({
       ...arguments[0],
       eventLevel: eventMeta.level
     });
 
-    // console.debug(`[vue-hooked-async-events] index-66: runCallbacks() - eventName: %o, \neventOrigin: %o, \n_listeners: %o`, eventName, eventOrigin, listeners);
-    // for (let listenerIndex = 0; listenerIndex < listenersTally; listenerIndex++) {
-    let upi = cli, downi = cli, stopNow = false;
+    let i = 0, stopNow = false;
+    let upListener, closestListener, downListener;
     do {
-      let upListener;
-      if (!isNil(upTo)) upListener = listeners[upi];
+      upListener = upListeners[i];
+      closestListener = closestListeners[i];
+      downListener = downListeners[i];
 
-      let downListener;
-      if (!isNil(downTo) && (upi !== downi || isNil(upTo))) downListener = listeners[downi];
+      // console.debug(`[vue-hooked-async-events]-423: _runEventCallbacks() - upListener: %o, downListener: %o`, upListener, downListener);
 
-      // console.debug(`[index]-423: _runEventCallbacks() - upListener: %o, downListener: %o`, upListener, downListener);
+      const upClosestDownListeners = [closestListener, upListener, downListener].filter(l => !isNil(l));
+      // console.debug(`[vue-hooked-async-events]-426: _runEventCallbacks() - upClosestDownListeners: %o`, upClosestDownListeners);
 
-      const upDownListeners = [upListener, downListener].filter(l => !isNil(l));
-      // console.debug(`[index]-426: _runEventCallbacks() - upDownListeners: %o`, upDownListeners);
       // run both up and down listeners (which ever is available)
-      for (let listener of upDownListeners) {
-        // console.debug(`[index]-425: _runEventCallbacks() - listener: %o`, listener);
+      for (let listener of upClosestDownListeners) {
+        // console.debug(`[vue-hooked-async-events]-430: _runEventCallbacks() - listener: %o`, listener);
+
         if (eventOptions.isAsync) {
           res = await runCallback({ payload: res, eventMeta, listener });
         } else {
@@ -441,8 +429,9 @@ async function _runEventCallbacks ({ events, eventName, eventOptions, eventOrigi
 
       if (stopNow) break;
 
+      i++;
       // todo cater for linger and expire changes from listener
-    } while (!selfOnly && upi-- >= upTo && downi++ <= downTo);
+    } while (upListener || downListener || closestListener);
   }
 
   return res;
@@ -466,39 +455,6 @@ function runCallback ({ payload, eventMeta, listener }) {
   return listener.callback(payload, eventMeta);
 }
 
-
-/**
- * find the closest listener where the event was fired
- * @param selfOnly
- * @param listeners
- * @param up
- * @param down
- * @param eventLevel
- * @param eventOrigin
- * @return {{upTo: *, closestListenerIndex: (*), downTo: *}}
- */
-function closestListenerInfo ({ selfOnly, listeners, up, down, eventLevel, eventOrigin }) {
-  const lTally = listeners.length;
-  const lTally_1 = lTally > 0 ? lTally - 1 : lTally;
-
-  /**
-   * closest listener index
-   * @type {*}
-   */
-  let cli = selfOnly ? listeners.findIndex(l => l.listenerOrigin._uid === eventOrigin._uid) : closestListenerIndex(listeners, eventLevel);
-  // make sure cli is valid
-  if (isNil(cli) || cli < 0) cli = lTally_1;
-
-  // we are not going to have undefined for both upTo and downTo coz both up and down are never -1 at the same time
-  let upTo = up < 0 ? undefined : up === Infinity ? 0 : cli >= lTally_1 ? lTally_1 : cli - up;
-  let downTo = down < 0 ? undefined : down === Infinity ? lTally_1 : cli >= lTally_1 ? lTally_1 : cli + down;
-
-  // make sure values are valid
-  if (upTo < 0) upTo = 0;
-  if (downTo > lTally_1) downTo = lTally_1;
-
-  return { cli, upTo, downTo };
-}
 
 /**
  * linger a given event it it's lingerable
@@ -628,19 +584,107 @@ function getBroadcastListenerLevelRange ({ eventName, eventOptions, eventOrigin,
   down = isNil(down) ? -1 : down;
   stop = isNil(stop) ? false : stop;
 
+  let ranged = listenersInRange({ listeners, eventLevel, up, down, selfOnly, eventOrigin });
 
-  // get info about closest listener to event
-  const closestInfo = closestListenerInfo({
-    selfOnly,
-    up,
-    down,
-    listeners,
-    eventLevel,
-    eventOrigin
-  });
-
-  return { stop, selfOnly, ...closestInfo };
+  return { stop, selfOnly, ...ranged };
 }
+
+
+/**
+ * get all listeners that are in range of the given bounds
+ * @param listeners
+ * @param level
+ * @param up
+ * @param down
+ * @param selfOnly
+ * @return {*}
+ */
+function listenersInRange ({ listeners, eventLevel, up, down, selfOnly, eventOrigin }) {
+  // console.debug(`[vue-hooked-async-events]-603: listenersInRange() - arguments: %o`, arguments);
+
+  let closest, upListeners = [], closestListeners = [], downListeners = [];
+
+  if (selfOnly) {
+    closestListeners = [listeners.find(l => l.listenerOrigin._uid === eventOrigin._uid)].filter(l => !isNil(l));
+  } else {
+    let i = 0;
+    let minDiff = 1000;
+
+    // sort listeners by level
+    listeners.sort((a, b) => a.level - b.level);
+    for (i in listeners) {
+      /**
+       * get the diff btw event level and current listener level
+       * @type {number}
+       */
+      const levelDiff = Math.abs(eventLevel - listeners[i].level);
+
+      /**
+       * pick up, closest and down listeners (mutates i)
+       */
+      const pickCls = () => {
+        let tmp, ii;
+
+        minDiff = levelDiff;
+        closest = listeners[i];
+
+        /** up **/
+        if (up > 0) {
+          ii = i;
+          tmp = listeners[--ii];
+          if (!!tmp) {
+            upListeners = [tmp];
+            // get all listeners on the same level as current upListeners level or if infinity, to the top
+            while ((tmp = listeners[--ii]) &&
+            (up === Infinity || up === 1 && tmp.level === upListeners[0].level)) {
+              upListeners.push(tmp);
+            }
+          } else {
+            upListeners = [];
+          }
+        }
+
+        /** closest **/
+        // keep the closest listeners on the same level
+        closestListeners = [closest];
+        // find all listeners that're on the same level as closest and keep em
+        while ((tmp = listeners[++i]) && tmp.level === closest.level) closestListeners.push(tmp);
+
+        /** down **/
+        if (!!tmp && down > 0) {
+          ii = i;
+          downListeners = [tmp];
+          // get all listeners on the same level as current downListeners level or if infinity, to the bottom
+          while ((tmp = listeners[++ii]) &&
+          (down === Infinity || down === 1 && tmp.level === downListeners[0].level)) {
+            downListeners.push(tmp);
+          }
+        } else {
+          downListeners = [];
+        }
+      };
+
+      // check if current listener level is closer to level
+      if (levelDiff < minDiff) {
+        /** only pick the closest if it's within range limits **/
+        // pick if we expect if to be above and is above level
+        if (up > 0 && listeners[i].level < eventLevel) pickCls();
+        // pick if we expect if to be below and is below level
+        else if (down > 0 && listeners[i].level > eventLevel) pickCls();
+        // pick if we expect if to be on the same level and is on the same level
+        else if ((up === 0 || down === 0) && listeners[i].level === eventLevel) pickCls();
+        // pick if expect infinity and ...
+        else if (up === Infinity && listeners[i].level < eventLevel) pickCls();
+        else if (down === Infinity && listeners[i].level > eventLevel) pickCls();
+      }
+    }
+
+    // rangeLs = upListeners.concat(closestListeners.concat(downListeners));
+
+    return { upListeners, closestListeners, downListeners };
+  }
+}
+
 
 /**
  * remove all event listeners
