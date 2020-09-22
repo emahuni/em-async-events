@@ -127,13 +127,15 @@ methods: {
     // send payload/data to listeners of 'some-event'
     this.$emitEvent('some-event', { test: 'one' });
 
-    // fire event callbacks in reverse order
-    this.$emitEvent('some-event2', { test: 'one' }, { reverse: true });
-    // why? EG: Consider the following components hierachy parent=>child=>grandchild=>greatGrandchild
-    // it will register events from the parent down to the last greatGrandchild that listens to 'some-event2'.
-    // So when run, the event listeners' callbacks are run in the same order.
-    // However, to run in the other order from the last greatGrandchild to the parent 
-    // emit the event with a 'reverse' option. You will soon get why this is important, more below...
+    // fire event callbacks of a specific range (default is 'first-parent')
+    this.$emitEvent('some-event2', { test: 'one' }, { levelRange: 'ancestors' });
+    // why? EG: Consider the following components hierachy all listening to the same event:
+    //        grandparent=>parent=>child=>grandchild=>greatGrandchild
+    // if event was fired at grandchild then all listeners from parent to grandparent'll handle event.
+    // The following will be handled by the child listener only
+    this.$emitEvent('some-event2', { test: 'one' }, { levelRange: 'first-parent' });
+    // same as 
+    this.$emitEvent('some-event2', { test: 'one' }, { levelRange: 'parents', stop: true });
 
     // stop on the first listener callback (guaranteeing event is handled only once, by first listener)
     this.$emitEvent('some-event3', { test: 'one' }, { stop: true });
@@ -143,11 +145,38 @@ methods: {
     // Why? bust race conditions, use with care
     
     // get info from the last listener (this is where you MAY need to use reverse invocation order)
-    const endResult = await this.$emitEvent('some-event', { test: 'one' }, { isAsync: true, reverse: true });
+    const endResult = await this.$emitEvent('some-event', { test: 'one' }, { isAsync: true, levelRange: 'first-child' });
     // isAsync option is required for events that expect a response
   }     
 }
 ```
+
+Event range options offer precise control over which listeners are invoked. You target them using tokens based on the hierarchic position/level of component that emits the event (event origin) (see above example).
+
+ 
+Options are separated by a hyphen and constructed from the following tokens (eg: `parent-descendents` will invoke the parent and any descendents): 
+- `self`: will only invoke listeners in event origin (component that fired the event). Every other token will begin from origin as well.
+- `child` or `children`: will invoke listeners that are below event, whether they are direct descendents of event origin or not. Note, this won't go all the way down, just the next level only.
+- `descendent` or `descendents`: will invoke listeners that are below origin, whether they are direct descendents of event origin or not. Note, this will invoke up to the last-most-bottom listener. 
+- `child` or `children`: will invoke listeners that are below event, whether they are direct descendents of event origin or not. Note, this won't go all the way down, just the next level only.
+- `descendent` or `descendents`: will invoke listeners that are below origin, whether they are direct descendents of event origin or not. Note, this will invoke up to the last-most-bottom listener. 
+- same goes for `ancestors` or `parent`... but in the opposite direction.
+- `broadcast` - invokes every listener listening for event regardless of location.
+
+
+
+By level we mean the following. Consider there is a listener where there is an 👂🏽:
+  
+ compo0👂🏽=>compo1👂🏽=>compo2👂🏽=>compo3=>compo4=>compo5(origin)=>compo6=>compo7👂🏽=>compo8👂🏽=>compo9=>compo10👂🏽
+ 
+ sib0👂🏽=>sib👂🏽=>sib2👂🏽=>sib3=>sib4=>sib5(sibling)=>sib6=>sib7👂🏽=>sib8👂🏽=>sib9
+
+Relative to origin, where event is emitted:
+ - compo2 is level -1 and is `parent`(for the first one only) or `parents` (for all components on the same level but in other hierarchies.
+- compo1 is level -2 and is `ancestor` (for the first one only)  or `ancestors` (see above explanation), but including all the way up to any listeners before it eg: compo0.
+ - compo7 is level 1 and is `child` (for the first one only) or `children` (for all components on the same level but in other hierarchies.
+ - compo8 is level 2 and is `descendent` (for the first one only)  or `descendents` (see children explanation), but including all the way down to any listeners after it eg: compo10.
+                              
 
 ### Remove Event Listeners
 Removing event from events object for all listeners (example):

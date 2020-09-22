@@ -536,6 +536,7 @@ function getBroadcastListenerLevelRange ({ eventName, eventOptions, eventOrigin,
             break;
           case'descendent':
           case'descendant':
+            stop = true;
           case'descendents':
           case'descendants':
             down = Infinity;
@@ -543,6 +544,7 @@ function getBroadcastListenerLevelRange ({ eventName, eventOptions, eventOrigin,
 
 
           case'parent':
+            stop = true;
           case'parents':
             up = 1;
             break;
@@ -553,13 +555,15 @@ function getBroadcastListenerLevelRange ({ eventName, eventOptions, eventOrigin,
 
 
           case'sibling':
+            stop = true;
           case'siblings':
             up = 0;
             down = 0;
             break;
           case'kin':
-          case'kins':
           case'family':
+            stop = true;
+          case'kins':
           case'families':
             up = 1;
             down = 1;
@@ -679,14 +683,14 @@ function listenersInRange ({ listeners, eventLevel, up, down, selfOnly, eventOri
       if (levelDiff < minDiff) {
         /** only pick the closest if it's within range limits **/
         // pick if we expect if to be above and is above level
-        if (up > 0 && listeners[i].level < eventLevel) pickCls();
+        if (up > 0 && listeners[i].level <= eventLevel) pickCls();
         // pick if we expect if to be below and is below level
-        else if (down > 0 && listeners[i].level > eventLevel) pickCls();
+        else if (down > 0 && listeners[i].level >= eventLevel) pickCls();
         // pick if we expect if to be on the same level and is on the same level
         else if ((up === 0 || down === 0) && listeners[i].level === eventLevel) pickCls();
         // pick if expect infinity and ...
-        else if (up === Infinity && listeners[i].level < eventLevel) pickCls();
-        else if (down === Infinity && listeners[i].level > eventLevel) pickCls();
+        else if (up === Infinity && listeners[i].level <= eventLevel) pickCls();
+        else if (down === Infinity && listeners[i].level >= eventLevel) pickCls();
       }
     }
 
