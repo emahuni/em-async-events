@@ -1,12 +1,18 @@
 'use strict';
 
+let Options;
+
 export default {
   /**
    * install plugin
    * @param Vue
    * @param options
    */
-  install: function install (Vue, options = {}) {
+  install: function install (Vue, options = {
+    callbacksOptions: { stop: false, expire: 0, once: false },
+    eventsOptions:    { linger: 0, isAsync: false, levelRange: 'first-parent' },
+    debug:            false
+  }) {
     let asyncEventsProp = isCorrectCustomName('asyncEvents', options) || '$asyncEvents';
     let onEventProp = isCorrectCustomName('onEvent', options) || '$onEvent';
     let onceEventProp = isCorrectCustomName('onceEvent', options) || '$onceEvent';
@@ -14,8 +20,10 @@ export default {
     let eraseEventProp = isCorrectCustomName('eraseEvent', options) || '$eraseEvent';
     let fallSilentProp = isCorrectCustomName('fallSilent', options) || '$fallSilent';
     let chainCallbackPayloadProp = isCorrectCustomName('chainCallbackPayload', options) || '$chainCallbackPayload';
-    let defaultCallbackOptions = options.callbacksOptions || { stop: false, expire: 0, once: false };
-    let defaultEventOptions = options.eventsOptions || { stop: false, linger: 0, isAsync: false };
+    let defaultCallbackOptions = options.callbacksOptions;
+    let defaultEventOptions = options.eventsOptions;
+
+    Options = options;
 
     /**
      * mix into vue
@@ -399,7 +407,7 @@ async function _runEventCallbacks ({ events, eventName, eventOptions, eventOrigi
       eventLevel: eventMeta.level
     });
 
-    let i = 0, stopNow = false;
+    let i = 0, stopHere = false;
     let upListener, closestListener, downListener;
     do {
       upListener = upListeners[i];
@@ -413,7 +421,6 @@ async function _runEventCallbacks ({ events, eventName, eventOptions, eventOrigi
 
       // run both up and down listeners (which ever is available)
       for (let listener of upClosestDownListeners) {
-        // console.debug(`[vue-hooked-async-events]-430: _runEventCallbacks() - listener: %o`, listener);
 
         if (eventOptions.isAsync) {
           res = await runCallback({ payload: res, eventMeta, listener });
@@ -422,12 +429,16 @@ async function _runEventCallbacks ({ events, eventName, eventOptions, eventOrigi
         }
 
         if (eventOptions.stop || stop || listener.options.stop) {
-          stopNow = true;
+          stopHere = true;
           break;
+        }
+
+        if (Options.debug) {
+          console.debug(`[vue-hooked-async-events]-430: _runEventCallbacks() - listener: %o, \npayload: %o, \neventMeta: %o\nresponse: %o, \nstoppingHere: %o`, listener, payload, eventMeta, res, stopHere);
         }
       }
 
-      if (stopNow) break;
+      if (stopHere) break;
 
       i++;
       // todo cater for linger and expire changes from listener
