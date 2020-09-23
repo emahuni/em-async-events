@@ -8,10 +8,15 @@ export default {
    * @param Vue
    * @param options
    */
-  install: function install (Vue, options = {
-    callbacksOptions: { stopHere: false, expire: 0, once: false },
-    eventsOptions:    { linger: 0, isAsync: false, levelRange: 'first-parent' }
-  }) {
+  install: function install (Vue, options) {
+    options = Object.assign({
+      callbacksOptions: { stopHere: false, expire: 0, once: false },
+      eventsOptions:    { linger: 0, isAsync: false, levelRange: 'first-parent' },
+      debug:            Vue.config.devtools
+    }, options);
+
+    Options = options;
+
     let asyncEventsProp = isCorrectCustomName('asyncEvents', options) || '$asyncEvents';
     let onEventProp = isCorrectCustomName('onEvent', options) || '$onEvent';
     let onceEventProp = isCorrectCustomName('onceEvent', options) || '$onceEvent';
@@ -21,12 +26,6 @@ export default {
     let chainCallbackPayloadProp = isCorrectCustomName('chainCallbackPayload', options) || '$chainCallbackPayload';
     let defaultCallbackOptions = options.callbacksOptions;
     let defaultEventOptions = options.eventsOptions;
-
-    if (isNil(options.debug)) {
-      options.debug = Vue.config.devtools;
-    }
-
-    Options = options;
 
     /**
      * mix into vue
@@ -60,7 +59,9 @@ export default {
      * @param callback
      * @param options
      */
-    Vue.prototype[onEventProp] = function (eventName, callback, options = defaultCallbackOptions) {
+    Vue.prototype[onEventProp] = function (eventName, callback, options) {
+      options = Object.assign({}, defaultCallbackOptions, options);
+
       const args = {
         events,
         lingeringEvents,
@@ -119,7 +120,9 @@ export default {
      * @param callback
      * @param options
      */
-    Vue.prototype[onceEventProp] = function (eventName, callback, options = defaultCallbackOptions) {
+    Vue.prototype[onceEventProp] = function (eventName, callback, options) {
+      options = Object.assign({}, defaultCallbackOptions, options);
+
       options.once = true;
       Vue.prototype[onEventProp](eventName, callback, options);
     };
@@ -131,7 +134,9 @@ export default {
      * @param options
      * @return {Promise<*>}
      */
-    Vue.prototype[emitEventProp] = function (eventName, payload, options = defaultEventOptions) {
+    Vue.prototype[emitEventProp] = function (eventName, payload, options) {
+      options = Object.assign({}, defaultEventOptions, options);
+
       // console.debug('[vue-hooked-async-events]-124: () - context of this: ', this);
       return runEventCallbacks({
         events,
