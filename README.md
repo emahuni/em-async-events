@@ -250,8 +250,10 @@ NOTE: use this feature at your own risk as it will warn you only for Vue basic p
         // default options that you don't have to set all the time
         // callbacksOptions default = { stop: false, expire: 0, once: false }
         callbacksOptions: { stop: true, /*...*/ },
-        // eventsOptions default = { reverse: false, stop: false, linger: 0, isAsync: false }
-        eventsOptions: { reverse: true, isAsync: true, /*...*/ }
+        // eventsOptions default = { levelRange: 'first-parent', linger: 0, isAsync: false }
+        eventsOptions: { levelRange: 'ancestors', isAsync: true, /*...*/ },
+        // defaults to Vue.config.devtools option, which is usually true at development
+        debug: false,
     });
 
     // later in component...

@@ -10,8 +10,7 @@ export default {
    */
   install: function install (Vue, options = {
     callbacksOptions: { stop: false, expire: 0, once: false },
-    eventsOptions:    { linger: 0, isAsync: false, levelRange: 'first-parent' },
-    debug:            false
+    eventsOptions:    { linger: 0, isAsync: false, levelRange: 'first-parent' }
   }) {
     let asyncEventsProp = isCorrectCustomName('asyncEvents', options) || '$asyncEvents';
     let onEventProp = isCorrectCustomName('onEvent', options) || '$onEvent';
@@ -22,6 +21,10 @@ export default {
     let chainCallbackPayloadProp = isCorrectCustomName('chainCallbackPayload', options) || '$chainCallbackPayload';
     let defaultCallbackOptions = options.callbacksOptions;
     let defaultEventOptions = options.eventsOptions;
+
+    if (isNil(options.debug)) {
+      options.debug = Vue.config.devtools;
+    }
 
     Options = options;
 
@@ -34,11 +37,11 @@ export default {
           shouldFallSilent: true
         };
       },
-      beforeCreate: function beforeCreate () {
+      beforeCreate: function vueHookedAsyncEventsBeforeCreate () {
         this._uniqID = genUniqID();
       },
 
-      beforeDestroy: function beforeDestroy () {
+      beforeDestroy: function vueHookedAsyncEventsBeforeDestroy () {
         if (this.shouldFallSilent) this.$fallSilent();
       }
     });
@@ -304,6 +307,10 @@ function isCorrectCustomName (prop, options) {
  * @param listenerOrigin
  */
 function addListener ({ events, lingeringEvents, eventName, subscriberId, callback, options, listenerOrigin }) {
+  if(Options.debug) {
+    console.debug(`[vue-hooked-async-events]-307: addListener(): %o`, arguments[0]);
+  }
+
   const level = getOriginLevel(listenerOrigin);
   const listener = {
     eventName,
