@@ -227,79 +227,6 @@ export default {
 };
 
 
-/**
- * generate unique id to be used when tracking events and listeners
- * @return {string}
- */
-function genUniqID () {
-  return Math.random().toString(36).substr(2, 9);
-}
-
-/**
- * assert if object is empty
- * @param obj
- * @return {boolean}
- */
-function isEmpty (obj) {
-  return Object.keys(obj).length === 0;
-}
-
-/**
- * assert if object is array
- * @param obj
- * @return {boolean}
- */
-function isArray (obj) {
-  return Array.isArray(obj);
-}
-
-/**
- * assert if variable is undefined or null
- * @param variable
- * @return {boolean}
- */
-function isNil (variable) {
-  return variable === undefined || variable === null;
-}
-
-/**
- * get closest value in array
- * @param array
- * @param num
- * @return {*}
- */
-function closest (array, num) {
-  let i = 0;
-  let minDiff = 1000;
-  let ans;
-  for (i in array) {
-    const m = Math.abs(num - array[i]);
-    if (m < minDiff) {
-      minDiff = m;
-      ans = array[i];
-    }
-  }
-  return ans;
-}
-
-const vueReservedProps = ['$options', '$parent', '$root', '$children', '$refs', '$vnode', '$slots', '$scopedSlots', '$createElement', '$attrs', '$listeners', '$el'];
-
-/**
- * assert if prop type is not reserved
- * @param prop
- * @param options
- * @return {boolean|*}
- */
-function isCorrectCustomName (prop, options) {
-  if (vueReservedProps.includes(options[prop])) {
-    console.warn('[vue-hooked-async-events]: ' + options[prop] + ' is used by Vue. Use another name');
-
-    return false;
-  }
-
-  return options && typeof options[prop] === 'string' && options[prop];
-}
-
 
 /**
  * Add event listener
@@ -422,9 +349,9 @@ async function _runEventCallbacks ({ events, eventName, eventOptions, eventOrigi
     let i = 0, stopHere = false;
     let upListener, closestListener, downListener;
     do {
-      upListener = upListeners[i];
-      closestListener = closestListeners[i];
-      downListener = downListeners[i];
+      upListener = upListeners && upListeners[i];
+      closestListener = closestListeners && closestListeners[i];
+      downListener = downListeners && downListeners[i];
 
       // console.debug(`[vue-hooked-async-events]-423: _runEventCallbacks() - upListener: %o, downListener: %o`, upListener, downListener);
 
@@ -626,7 +553,7 @@ function getBroadcastListenerLevelRange ({ eventName, eventOptions, eventOrigin,
  * @return {*}
  */
 function listenersInRange ({ listeners, eventLevel, up, down, selfOnly, eventOrigin }) {
-  // console.debug(`[vue-hooked-async-events]-603: listenersInRange() - arguments: %o`, arguments);
+  // console.debug(`[vue-hooked-async-events]-603: listenersInRange() - arguments: %o`, arguments[0]);
 
   let closest, upListeners = [], closestListeners = [], downListeners = [];
 
@@ -704,11 +631,9 @@ function listenersInRange ({ listeners, eventLevel, up, down, selfOnly, eventOri
         else if (down === Infinity && listeners[i].level >= eventLevel) pickCls();
       }
     }
-
-    // rangeLs = upListeners.concat(closestListeners.concat(downListeners));
-
-    return { upListeners, closestListeners, downListeners };
   }
+
+  return { upListeners, closestListeners, downListeners };
 }
 
 
@@ -756,4 +681,79 @@ function removeGlobalEvent ({ events, eventName }) {
       delete events[eventName];
     }
   }
+}
+
+
+
+/**
+ * generate unique id to be used when tracking events and listeners
+ * @return {string}
+ */
+function genUniqID () {
+  return Math.random().toString(36).substr(2, 9);
+}
+
+/**
+ * assert if object is empty
+ * @param obj
+ * @return {boolean}
+ */
+function isEmpty (obj) {
+  return Object.keys(obj).length === 0;
+}
+
+/**
+ * assert if object is array
+ * @param obj
+ * @return {boolean}
+ */
+function isArray (obj) {
+  return Array.isArray(obj);
+}
+
+/**
+ * assert if variable is undefined or null
+ * @param variable
+ * @return {boolean}
+ */
+function isNil (variable) {
+  return variable === undefined || variable === null;
+}
+
+/**
+ * get closest value in array
+ * @param array
+ * @param num
+ * @return {*}
+ */
+function closest (array, num) {
+  let i = 0;
+  let minDiff = 1000;
+  let ans;
+  for (i in array) {
+    const m = Math.abs(num - array[i]);
+    if (m < minDiff) {
+      minDiff = m;
+      ans = array[i];
+    }
+  }
+  return ans;
+}
+
+const vueReservedProps = ['$options', '$parent', '$root', '$children', '$refs', '$vnode', '$slots', '$scopedSlots', '$createElement', '$attrs', '$listeners', '$el'];
+
+/**
+ * assert if prop type is not reserved
+ * @param prop
+ * @param options
+ * @return {boolean|*}
+ */
+function isCorrectCustomName (prop, options) {
+  if (vueReservedProps.includes(options[prop])) {
+    console.warn('[vue-hooked-async-events]: ' + options[prop] + ' is used by Vue. Use another name');
+
+    return false;
+  }
+
+  return options && typeof options[prop] === 'string' && options[prop];
 }
