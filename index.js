@@ -9,7 +9,7 @@ export default {
    * @param options
    */
   install: function install (Vue, options = {
-    callbacksOptions: { stop: false, expire: 0, once: false },
+    callbacksOptions: { stopHere: false, expire: 0, once: false },
     eventsOptions:    { linger: 0, isAsync: false, levelRange: 'first-parent' }
   }) {
     let asyncEventsProp = isCorrectCustomName('asyncEvents', options) || '$asyncEvents';
@@ -307,10 +307,6 @@ function isCorrectCustomName (prop, options) {
  * @param listenerOrigin
  */
 function addListener ({ events, lingeringEvents, eventName, subscriberId, callback, options, listenerOrigin }) {
-  if(Options.debug) {
-    console.debug(`[vue-hooked-async-events]-307: addListener(): %o`, arguments[0]);
-  }
-
   const level = getOriginLevel(listenerOrigin);
   const listener = {
     eventName,
@@ -320,6 +316,10 @@ function addListener ({ events, lingeringEvents, eventName, subscriberId, callba
     options,
     level
   };
+
+  if (Options.debug) {
+    console.debug(`[vue-hooked-async-events]-321: addListener() eventName: %o \n%o`, eventName, listener);
+  }
 
   // check if listener has an events lingering for it, if so then trigger these events on listener to handle
   if (lingeringEvents[eventName]) {
@@ -435,13 +435,13 @@ async function _runEventCallbacks ({ events, eventName, eventOptions, eventOrigi
           runCallback({ payload: res, eventMeta, listener });
         }
 
-        if (eventOptions.stop || stop || listener.options.stop) {
+        if (stop || listener.options.stopHere) {
           stopHere = true;
           break;
         }
 
         if (Options.debug) {
-          console.debug(`[vue-hooked-async-events]-430: _runEventCallbacks() - listener: %o, \npayload: %o, \neventMeta: %o\nresponse: %o, \nstoppingHere: %o`, listener, payload, eventMeta, res, stopHere);
+          console.debug(`[vue-hooked-async-events]-444: _runEventCallbacks() - listener: %o, \npayload: %o, \neventMeta: %o\nresponse: %o, \nstoppingHere: %o`, listener, payload, eventMeta, res, stopHere);
         }
       }
 
@@ -505,7 +505,6 @@ function lingerEvent ({ lingeringEvents, eventName, payload, eventOptions, event
  * @param eventOrigin
  * @param listeners
  * @param eventLevel
- * @return {{stop: *, selfOnly: *, cli: *, upTo: *, downTo: *}}
  */
 function getBroadcastListenerLevelRange ({ eventName, eventOptions, eventOrigin, listeners, eventLevel }) {
   let

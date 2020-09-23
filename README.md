@@ -68,8 +68,6 @@ created() {
   // listen once and remove
   this.$onEvent('some-event', this.eventCallback1, { once: true });
   this.$onceEvent('some-event', this.eventCallback2, { once: true });
-  // stop invoking other callbacks once this listener is executed
-  this.$onEvent('some-event', this.eventCallback3, { stop: true });
   // automatically stop listening after 5000 milliseconds
   this.$onEvent('some-event', this.eventCallback3, { expire: 5000 });
   // multiple events being listened to by one callback
@@ -110,10 +108,9 @@ methods: {
   },
 
   eventCallback3 (payload, metadata) {
-    // you can also change how the event will behave by modifying the eventOptions or callbackOptions
+    // you can also change how the event will behave by modifying the callbackOptions
     // eg: stop invoking any subsequent callbacks on the event
-    metadata.callbackOptions.stop = true; // or 
-    metadata.eventOptions.stop = true;
+    metadata.callbackOptions.stopHere = true;
   }
 }
 ```
@@ -132,14 +129,8 @@ methods: {
     // why? EG: Consider the following components hierachy all listening to the same event:
     //        grandparent=>parent=>child=>grandchild=>greatGrandchild
     // if event was fired at grandchild then all listeners from parent to grandparent'll handle event.
-    // The following will be handled by the child listener only
-    this.$emitEvent('some-event2', { test: 'one' }, { levelRange: 'first-parent' });
-    // same as 
-    this.$emitEvent('some-event2', { test: 'one' }, { levelRange: 'parents', stop: true });
-
     // stop on the first listener callback (guaranteeing event is handled only once, by first listener)
-    this.$emitEvent('some-event3', { test: 'one' }, { stop: true });
-
+    this.$emitEvent('some-event2', { test: 'one' }, { levelRange: 'first-parent' });
     // linger for 5000ms for new listeners on the event. Can't be async/expect any return values
     this.$emitEvent('some-event3', { test: 'one' }, { linger: 5000 });
     // Why? bust race conditions, use with care
