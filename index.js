@@ -12,8 +12,17 @@ export default {
     options = Object.assign({
       callbacksOptions: { stopHere: false, expire: 0, once: false },
       eventsOptions:    { linger: 0, isAsync: false, levelRange: 'first-parent' },
-      debug:            Vue.config.devtools
+      debug:            {
+        all:                    false,
+        addListener:            false,
+        invokeListener:         false,
+        lingerEvents:           false,
+        chainListenerCallbacks: false
+      }
     }, options);
+
+    // turn off debuggin if we are not going to show devtools/in production
+    if (!Vue.config.devtools) options.debug.all = false;
 
     Options = options;
 
@@ -26,6 +35,7 @@ export default {
     let chainCallbackPayloadProp = isCorrectCustomName('chainCallbackPayload', options) || '$chainCallbackPayload';
     let defaultCallbackOptions = options.callbacksOptions;
     let defaultEventOptions = options.eventsOptions;
+
 
     /**
      * mix into vue
@@ -155,6 +165,10 @@ export default {
      * @return {Promise<*>}
      */
     Vue.prototype[chainCallbackPayloadProp] = function (payload, newPayload) {
+      if (Options.debug.all && Options.debug.chainListenerCallbacks) {
+        console.debug(`[vue-hooked-async-events]-169: ${chainCallbackPayloadProp} payload: %o \nnewPayload: %o`, payload, newPayload);
+      }
+
       // see if there is any callback that already prepared the results chain if not create it
       payload = (payload && Array.isArray(payload.$results$) && payload || { $results$: [] });
       payload.$results$.push(newPayload);
@@ -249,7 +263,7 @@ function addListener ({ events, lingeringEvents, eventName, subscriberId, callba
     level
   };
 
-  if (Options.debug) {
+  if (Options.debug.all && Options.debug.addListener) {
     console.debug(`[vue-hooked-async-events]-321: addListener() eventName: %o \n%o`, eventName, listener);
   }
 
@@ -360,6 +374,7 @@ async function _runEventCallbacks ({ events, eventName, eventOptions, eventOrigi
 
       // run both up and down listeners (which ever is available)
       for (let listener of upClosestDownListeners) {
+        if (stop || listener.options.stopHere) stopHere = true;
 
         if (eventOptions.isAsync) {
           res = await runCallback({ payload: res, eventMeta, listener });
@@ -367,14 +382,11 @@ async function _runEventCallbacks ({ events, eventName, eventOptions, eventOrigi
           runCallback({ payload: res, eventMeta, listener });
         }
 
-        if (stop || listener.options.stopHere) {
-          stopHere = true;
-          break;
+        if (Options.debug.all && Options.debug.invokeListener) {
+          console.debug(`[vue-hooked-async-events]-380: Invoke Listener: %o, \npayload: %o, \neventMeta: %o\nresponse: %o, \nstoppingHere: %o`, listener, payload, eventMeta, res, stopHere);
         }
 
-        if (Options.debug) {
-          console.debug(`[vue-hooked-async-events]-444: _runEventCallbacks() - listener: %o, \npayload: %o, \neventMeta: %o\nresponse: %o, \nstoppingHere: %o`, listener, payload, eventMeta, res, stopHere);
-        }
+        if (stopHere) break;
       }
 
       if (stopHere) break;
@@ -416,12 +428,18 @@ function runCallback ({ payload, eventMeta, listener }) {
  */
 function lingerEvent ({ lingeringEvents, eventName, payload, eventOptions, eventMeta }) {
   if (eventOptions.linger && lingeringEvents) {
+    if (Options.debug.all && Options.debug.lingerEvents) {
+      console.debug(`[vue-hooked-async-events]-428: lingerEvent() eventName: %o \n%o`, eventName, eventMeta);
+    }
+
     const id = genUniqID();
+
     // stash the arguments for later use on new listeners
     (lingeringEvents[eventName] || (lingeringEvents[eventName] = [])).push({
       id,
       args: [payload, eventMeta]
     });
+
     // order the splice after linger ms later
     setTimeout(() => {
       const i = lingeringEvents[eventName].findIndex(le => le.id === id);

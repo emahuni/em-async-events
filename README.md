@@ -243,8 +243,15 @@ NOTE: use this feature at your own risk as it will warn you only for Vue basic p
         callbacksOptions: { stopHere: true, /*...*/ },
         // eventsOptions default = { levelRange: 'first-parent', linger: 0, isAsync: false }
         eventsOptions: { levelRange: 'ancestors', isAsync: true, /*...*/ },
-        // defaults to Vue.config.devtools option, which is usually true at development
-        debug: false,
+
+        // debugging options, useful when you want to see what's going on
+        debug: {
+            all:                    false, // toggles all debugging, but Vue.config.devtools option, which is usually true at development, turns it to false if it is false.
+            addListener:            false, // show add listener debug messages
+            invokeListener:         false, // show debug messages when listener is invoked
+            lingerEvents:           false, // show linger events debug messages
+            chainListenerCallbacks: false // show chainListenerCallbacks debug messages
+        }
     });
 
     // later in component...
