@@ -14,10 +14,10 @@ export default {
       eventsOptions:    { linger: 0, isAsync: false, levelRange: 'first-parent' },
       debug:            {
         all:                    false,
-        addListener:            false,
-        invokeListener:         false,
-        lingerEvents:           false,
-        chainListenerCallbacks: false
+        addListener:            true,
+        invokeListener:         true,
+        lingerEvents:           true,
+        chainListenerCallbacks: true
       }
     }, options);
 
@@ -59,7 +59,7 @@ export default {
      * plugin local state
      * @type {{_events: {}}}
      */
-    Vue.prototype[asyncEventsProp] = { _events: {}, _lingeringEvents: {} };
+    Vue.prototype[asyncEventsProp] = { _events: {}, _lingeringEvents: {}, options };
     let events = Vue.prototype[asyncEventsProp]._events;
     let lingeringEvents = Vue.prototype[asyncEventsProp]._lingeringEvents;
 
