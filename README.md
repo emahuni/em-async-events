@@ -249,7 +249,8 @@ NOTE: use this feature at your own risk as it will warn you only for Vue basic p
             all:                    false, // toggles all debugging, but Vue.config.devtools option, which is usually true at development, turns it to false if it is false.
             addListener:            true, // show add listener debug messages
             invokeListener:         true, // show debug messages when listener is invoked
-            lingerEvents:           true, // show linger events debug messages
+            emitEvent:              true, // show linger events debug messages
+            lingerEvent:            true, // show linger events debug messages
             chainListenerCallbacks: true // show chainListenerCallbacks debug messages
         }
       

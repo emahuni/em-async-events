@@ -15,8 +15,9 @@ export default {
       debug:            {
         all:                    false,
         addListener:            true,
+        emitEvent:              true,
         invokeListener:         true,
-        lingerEvents:           true,
+        lingerEvent:            true,
         chainListenerCallbacks: true
       }
     }, options);
@@ -264,7 +265,7 @@ function addListener ({ events, lingeringEvents, eventName, subscriberId, callba
   };
 
   if (Options.debug.all && Options.debug.addListener) {
-    console.debug(`[vue-hooked-async-events]-321: addListener() eventName: %o \n%o`, eventName, listener);
+    console.debug(`[vue-hooked-async-events]-321: ${Options.onEvent || '$onEvent(addListener)'} eventName: %o origin: %o \nListener: %o`, eventName, listenerOrigin && listenerOrigin.$options && listenerOrigin.$options.name || '???', listener);
   }
 
   // check if listener has an events lingering for it, if so then trigger these events on listener to handle
@@ -331,6 +332,10 @@ async function runEventCallbacks ({ eventName, eventOptions, eventOrigin, events
     listenersTally
   };
 
+  if (Options.debug.all && Options.debug.emitEvent) {
+    console.debug(`[vue-hooked-async-events]-152: ${Options.emitEvent || '$emitEvent'} eventName: %o origin: %o \npayload: %o\neventMeta: %o`, eventName, eventOrigin && eventOrigin.$options && eventOrigin.$options.name || '???', payload, eventMeta);
+  }
+
   lingerEvent({ ...arguments[0], eventMeta });
 
   return _runEventCallbacks({ events, listeners, eventName, payload, eventOptions, eventOrigin, eventMeta });
@@ -376,14 +381,14 @@ async function _runEventCallbacks ({ events, eventName, eventOptions, eventOrigi
       for (let listener of upClosestDownListeners) {
         if (stop || listener.options.stopHere) stopHere = true;
 
+        if (Options.debug.all && Options.debug.invokeListener) {
+          console.debug(`[vue-hooked-async-events]-380: Invoke Listener - eventName: %o, origin: %o, eventOrigin: %o, \npayload: %o, \nListener: %o\neventMeta: %o\nresponse: %o, \nstoppingHere: %o`, eventName, listener.listenerOrigin && listener.listenerOrigin.$options && listener.listenerOrigin.$options.name || '???', eventOrigin && eventOrigin.$options.name || '???', payload, listener, eventMeta, res, stopHere);
+        }
+
         if (eventOptions.isAsync) {
           res = await runCallback({ payload: res, eventMeta, listener });
         } else {
           runCallback({ payload: res, eventMeta, listener });
-        }
-
-        if (Options.debug.all && Options.debug.invokeListener) {
-          console.debug(`[vue-hooked-async-events]-380: Invoke Listener: %o, \npayload: %o, \neventMeta: %o\nresponse: %o, \nstoppingHere: %o`, listener, payload, eventMeta, res, stopHere);
         }
 
         if (stopHere) break;
@@ -428,8 +433,8 @@ function runCallback ({ payload, eventMeta, listener }) {
  */
 function lingerEvent ({ lingeringEvents, eventName, payload, eventOptions, eventMeta }) {
   if (eventOptions.linger && lingeringEvents) {
-    if (Options.debug.all && Options.debug.lingerEvents) {
-      console.debug(`[vue-hooked-async-events]-428: lingerEvent() eventName: %o \n%o`, eventName, eventMeta);
+    if (Options.debug.all && Options.debug.lingerEvent) {
+      console.debug(`[vue-hooked-async-events]-428: lingerEvent - eventName: %o \n%o`, eventName, eventMeta);
     }
 
     const id = genUniqID();
