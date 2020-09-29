@@ -68,8 +68,14 @@ created() {
   // listen once and remove
   this.$onEvent('some-event', this.eventCallback1, { once: true });
   this.$onceEvent('some-event', this.eventCallback2, { once: true });
+
   // automatically stop listening after 5000 milliseconds
   this.$onEvent('some-event', this.eventCallback3, { expire: 5000 });
+  // automatically run expiry callback function before unlistening after 10000 milliseconds 
+  this.$onEvent('some-event', this.eventCallback3, { expire: 10000, expiryCallback: async ()=>{
+    // do something that's even async it will wait for promise
+  }});
+
   // multiple events being listened to by one callback
   this.$onEvent(['second-event', 'third-event'], this.commonCallback);
   // fire multiple callbacks (even for multiple events)
@@ -157,6 +163,8 @@ Options are separated by a hyphen and constructed from the following tokens (eg:
 
 
 By level we mean the following. Consider there is a listener where there is an 👂🏽:
+
+(todo need to use graphics here and cleanup docs)
   
  compo0👂🏽=>compo1👂🏽=>compo2👂🏽=>compo3=>compo4=>compo5(origin)=>compo6=>compo7👂🏽=>compo8👂🏽=>compo9=>compo10👂🏽
  

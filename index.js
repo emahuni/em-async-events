@@ -10,7 +10,7 @@ export default {
    */
   install: function install (Vue, options) {
     options = Object.assign({
-      callbacksOptions: { stopHere: false, expire: 0, once: false },
+      callbacksOptions: { stopHere: false, expire: 0, expiryCallback: undefined, once: false },
       eventsOptions:    { linger: 0, isAsync: false, levelRange: 'first-parent' },
       debug:            {
         all:                    false,
@@ -290,7 +290,14 @@ function addListener ({ events, lingeringEvents, eventName, subscriberId, callba
 
   (events[eventName] || (events[eventName] = [])).push(listener);
 
-  if (options.expire) setTimeout(removeListeners, options.expire, ...arguments);
+  if (options.expire) {
+    setTimeout(async (...args)=>{
+      // run expiry callback if set, wait for it finish executing if it's async
+      if(!!options.expiryCallback) await options.expiryCallback(...args);
+      // noinspection JSCheckFunctionSignatures
+      removeListeners(...args);
+    }, options.expire, ...arguments);
+  }
 }
 
 /**
@@ -667,6 +674,8 @@ function listenersInRange ({ listeners, eventLevel, up, down, selfOnly, eventOri
  * @param subscriberId
  */
 function removeListeners ({ events, event, subscriberId }) {
+  if(!events[event]) return;
+
   for (let listenerIndex = 0; listenerIndex < events[event].length; listenerIndex++) {
     if (events[event][listenerIndex].subscriberId === subscriberId) {
       events[event].splice(listenerIndex, 1);
@@ -683,6 +692,8 @@ function removeListeners ({ events, event, subscriberId }) {
  * @param callback
  */
 function removeCallbacks ({ events, event, subscriberId, callback }) {
+  if(!events[event]) return;
+
   let indexOfSubscriber = events[event].findIndex(function (el) {
     return el.subscriberId === subscriberId && el.callback === callback;
   });
