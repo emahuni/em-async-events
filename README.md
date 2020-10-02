@@ -67,7 +67,7 @@ created() {
   this.$onEvent('some-event', this.eventCallback);
   // listen once and remove
   this.$onEvent('some-event', this.eventCallback1, { once: true });
-  this.$onceEvent('some-event', this.eventCallback2, { once: true });
+  this.$onceEvent('some-event', this.eventCallback2);
 
   // automatically stop listening after 5000 milliseconds
   this.$onEvent('some-event', this.eventCallback3, { expire: 5000 });
