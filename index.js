@@ -10,8 +10,8 @@ export default {
    */
   install: function install (Vue, options) {
     options = Object.assign({
-      callbacksOptions: { stopHere: false, expire: 0, expiryCallback: undefined, once: false },
-      eventsOptions:    { linger: 0, isAsync: false, levelRange: 'first-parent' },
+      callbacksOptions: { stopHere: false, expire: 0, expiryCallback: undefined, once: false, debug: false },
+      eventsOptions:    { linger: 0, lingerForOne: false, isAsync: false, range: 'first-parent', debug: false },
       debug:            {
         all:                    false,
         addListener:            true,
@@ -264,13 +264,14 @@ function addListener ({ events, lingeringEvents, eventName, subscriberId, callba
     level
   };
 
-  if (Options.debug.all && Options.debug.addListener) {
+  if (Options.debug.all && Options.debug.addListener || options.debug) {
     console.debug(`[vue-hooked-async-events]-321: ${Options.onEvent || '$onEvent(addListener)'} eventName: %o origin: %o \nListener: %o`, eventName, listenerOrigin && listenerOrigin.$options && listenerOrigin.$options.name || '???', listener);
   }
 
   // check if listener has an events lingering for it, if so then trigger these events on listener to handle
   if (lingeringEvents[eventName]) {
-    for (let _event of lingeringEvents[eventName]) {
+    for (let ei in lingeringEvents[eventName]) {
+      const _event = lingeringEvents[eventName][ei];
       const [payload, eventMeta] = _event.args;
       eventMeta.callbackOptions = options;
       const { eventOptions, eventOrigin } = eventMeta;
@@ -285,6 +286,8 @@ function addListener ({ events, lingeringEvents, eventName, subscriberId, callba
         eventOrigin,
         eventMeta
       });
+
+      if(eventOptions.lingerForOne ) lingeringEvents[eventName].splice(ei, 1);
     }
   }
 
@@ -339,7 +342,7 @@ async function runEventCallbacks ({ eventName, eventOptions, eventOrigin, events
     listenersTally
   };
 
-  if (Options.debug.all && Options.debug.emitEvent) {
+  if (Options.debug.all && Options.debug.emitEvent || eventOptions.debug) {
     console.debug(`[vue-hooked-async-events]-152: ${Options.emitEvent || '$emitEvent'} eventName: %o origin: %o \npayload: %o\neventMeta: %o`, eventName, eventOrigin && eventOrigin.$options && eventOrigin.$options.name || '???', payload, eventMeta);
   }
 
@@ -367,7 +370,7 @@ async function _runEventCallbacks ({ events, eventName, eventOptions, eventOrigi
   // console.debug(`[vue-hooked-async-events] index-66: runCallbacks() - eventName: %o, \neventOrigin: %o, \n_listeners: %o\neventMeta: %o`, eventName, eventOrigin, listeners, eventMeta);
 
   if (listenersTally) {
-    const { upListeners, closestListeners, downListeners, stop } = getBroadcastListenerLevelRange({
+    const { upListeners, closestListeners, downListeners, stop } = getBroadcastListenerRange({
       ...arguments[0],
       eventLevel: eventMeta.level
     });
@@ -388,7 +391,7 @@ async function _runEventCallbacks ({ events, eventName, eventOptions, eventOrigi
       for (let listener of upClosestDownListeners) {
         if (stop || listener.options.stopHere) stopHere = true;
 
-        if (Options.debug.all && Options.debug.invokeListener) {
+        if (Options.debug.all && Options.debug.invokeListener || eventOptions.debug) {
           console.debug(`[vue-hooked-async-events]-380: Invoke Listener - eventName: %o, origin: %o, eventOrigin: %o, \npayload: %o, \nListener: %o\neventMeta: %o\nresponse: %o, \nstoppingHere: %o`, eventName, listener.listenerOrigin && listener.listenerOrigin.$options && listener.listenerOrigin.$options.name || '???', eventOrigin && eventOrigin.$options.name || '???', payload, listener, eventMeta, res, stopHere);
         }
 
@@ -468,7 +471,7 @@ function lingerEvent ({ lingeringEvents, eventName, payload, eventOptions, event
  * @param listeners
  * @param eventLevel
  */
-function getBroadcastListenerLevelRange ({ eventName, eventOptions, eventOrigin, listeners, eventLevel }) {
+function getBroadcastListenerRange ({ eventName, eventOptions, eventOrigin, listeners, eventLevel }) {
   let
       /**
        * use listeners going up
@@ -487,7 +490,7 @@ function getBroadcastListenerLevelRange ({ eventName, eventOptions, eventOrigin,
       stop = null,
       selfOnly = false;
 
-  const lr = eventOptions.levelRange;
+  const lr = eventOptions.range;
 
   if (lr) {
     if (lr.includes('self')) {
@@ -550,7 +553,7 @@ function getBroadcastListenerLevelRange ({ eventName, eventOptions, eventOrigin,
             break;
 
           default:
-            throw new Error(`[vue-hooked-async-events] ERROR-562: unknown token: ${token} for levelRange: ${lr} for event: ${eventName}`);
+            throw new Error(`[vue-hooked-async-events] ERROR-562: unknown token: ${token} for range: ${lr} for event: ${eventName}`);
         }
       }
     }

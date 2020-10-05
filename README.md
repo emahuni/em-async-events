@@ -131,18 +131,18 @@ methods: {
     this.$emitEvent('some-event', { test: 'one' });
 
     // fire event callbacks of a specific range (default is 'first-parent')
-    this.$emitEvent('some-event2', { test: 'one' }, { levelRange: 'ancestors' });
+    this.$emitEvent('some-event2', { test: 'one' }, { range: 'ancestors' });
     // why? EG: Consider the following components hierachy all listening to the same event:
     //        grandparent=>parent=>child=>grandchild=>greatGrandchild
     // if event was fired at grandchild then all listeners from parent to grandparent'll handle event.
     // stop on the first listener callback (guaranteeing event is handled only once, by first listener)
-    this.$emitEvent('some-event2', { test: 'one' }, { levelRange: 'first-parent' });
+    this.$emitEvent('some-event2', { test: 'one' }, { range: 'first-parent' });
     // linger for 5000ms for new listeners on the event. Can't be async/expect any return values
     this.$emitEvent('some-event3', { test: 'one' }, { linger: 5000 });
     // Why? bust race conditions, use with care
     
     // get info from the last listener (this is where you MAY need to use reverse invocation order)
-    const endResult = await this.$emitEvent('some-event', { test: 'one' }, { isAsync: true, levelRange: 'first-child' });
+    const endResult = await this.$emitEvent('some-event', { test: 'one' }, { isAsync: true, range: 'first-child' });
     // isAsync option is required for events that expect a response
   }     
 }
@@ -247,10 +247,10 @@ NOTE: use this feature at your own risk as it will warn you only for Vue basic p
         fallSilent: '$noMore',
 
         // default options that you don't have to set all the time
-        // callbacksOptions default = { stopHere: false, expire: 0, once: false }
+        // callbacksOptions default = { stopHere: false, expire: 0, once: false, debug: false }
         callbacksOptions: { stopHere: true, /*...*/ },
-        // eventsOptions default = { levelRange: 'first-parent', linger: 0, isAsync: false }
-        eventsOptions: { levelRange: 'ancestors', isAsync: true, /*...*/ },
+        // eventsOptions default = { range: 'first-parent', linger: 0, lingerForOne: false, isAsync: false, debug: false }
+        eventsOptions: { range: 'ancestors', isAsync: true, /*...*/ },
 
         // debugging options, useful when you want to see what's going on. below are the defaults
         debug: {
