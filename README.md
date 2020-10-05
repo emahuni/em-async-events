@@ -247,9 +247,9 @@ NOTE: use this feature at your own risk as it will warn you only for Vue basic p
         fallSilent: '$noMore',
 
         // default options that you don't have to set all the time
-        // callbacksOptions default = { stopHere: false, expire: 0, once: false, debug: false }
+        // callbacksOptions default = { stopHere: false, expire: 0, once: false, trace: false }
         callbacksOptions: { stopHere: true, /*...*/ },
-        // eventsOptions default = { range: 'first-parent', linger: 0, lingerForOne: false, isAsync: false, debug: false }
+        // eventsOptions default = { range: 'first-parent', linger: 0, lingerForOne: false, isAsync: false, trace: false }
         eventsOptions: { range: 'ancestors', isAsync: true, /*...*/ },
 
         // debugging options, useful when you want to see what's going on. below are the defaults
