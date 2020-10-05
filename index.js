@@ -16,10 +16,11 @@ export default {
         all:                    false,
         addListener:            true,
         emitEvent:              true,
+        eraseEvent:             true,
         invokeListener:         true,
         lingerEvent:            true,
         chainListenerCallbacks: true,
-        removeListener:         true,
+        removeListener:         true
       }
     }, options);
 
@@ -288,16 +289,16 @@ function addListener ({ events, lingeringEvents, eventName, subscriberId, callba
         eventMeta
       });
 
-      if(eventOptions.lingerForOne ) lingeringEvents[eventName].splice(ei, 1);
+      if (eventOptions.lingerForOne) lingeringEvents[eventName].splice(ei, 1);
     }
   }
 
   (events[eventName] || (events[eventName] = [])).push(listener);
 
   if (options.expire) {
-    setTimeout(async (...args)=>{
+    setTimeout(async (...args) => {
       // run expiry callback if set, wait for it finish executing if it's async
-      if(!!options.expiryCallback) await options.expiryCallback(...args);
+      if (!!options.expiryCallback) await options.expiryCallback(...args);
       // noinspection JSCheckFunctionSignatures
       removeListeners(...args);
     }, options.expire, ...arguments);
@@ -678,13 +679,13 @@ function listenersInRange ({ listeners, eventLevel, up, down, selfOnly, eventOri
  * @param subscriberId
  */
 function removeListeners ({ events, event, subscriberId }) {
-  if(!events[event]) return;
+  if (!events[event]) return;
 
   for (let listenerIndex = 0; listenerIndex < events[event].length; listenerIndex++) {
     if (events[event][listenerIndex].subscriberId === subscriberId) {
       if (Options.debug.all && Options.debug.removeListener || events[event][listenerIndex].options.trace) {
         const listener = events[event][listenerIndex];
-        const {listenerOrigin} = listener;
+        const { listenerOrigin } = listener;
         console.debug(`[vue-hooked-async-events]-688: ${Options.fallSilent || '$fallSilent(removeListener)'} eventName: %o origin: %o \nListener: %o`, event, listenerOrigin && listenerOrigin.$options && listenerOrigin.$options.name || '???', listener);
       }
 
@@ -702,7 +703,7 @@ function removeListeners ({ events, event, subscriberId }) {
  * @param callback
  */
 function removeCallbacks ({ events, event, subscriberId, callback }) {
-  if(!events[event]) return;
+  if (!events[event]) return;
 
   let indexOfSubscriber = events[event].findIndex(function (el) {
     return el.subscriberId === subscriberId && el.callback === callback;
@@ -722,6 +723,9 @@ function removeCallbacks ({ events, event, subscriberId, callback }) {
 function removeGlobalEvent ({ events, eventName }) {
   for (let event in events) {
     if (event === eventName) {
+      if (Options.debug.all && Options.debug.eraseEvent) {
+        console.debug(`[vue-hooked-async-events]-321: ${Options.eraseEvent || '$eraseEvent(removeGlobalEvent)'} eventName: %o origin: %o \nListener: %o`, eventName, events[eventName]);
+      }
       delete events[eventName];
     }
   }
