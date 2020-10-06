@@ -71,15 +71,17 @@ export default {
      * @param eventName
      * @param callback
      * @param options
+     * @param subscriberId
+     * @param listenerOrigin
      */
-    Vue.prototype[onEventProp] = function (eventName, callback, options) {
+    Vue.prototype[onEventProp] = function (eventName, callback, options, subscriberId = this._uniqID, listenerOrigin = this) {
       options = Object.assign({}, defaultCallbackOptions, options);
 
       const args = {
         events,
         lingeringEvents,
-        subscriberId:   this._uniqID,
-        listenerOrigin: this,
+        subscriberId,
+        listenerOrigin,
         options
       };
 
@@ -137,7 +139,7 @@ export default {
       options = Object.assign({}, defaultCallbackOptions, options);
 
       options.once = true;
-      Vue.prototype[onEventProp](eventName, callback, options);
+      Vue.prototype[onEventProp](eventName, callback, options, this._uniqID, this);
     };
 
     /**
