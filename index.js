@@ -196,45 +196,50 @@ export default {
 
     /**
      * unsubscribe from subscriptions
-     * @param event
-     * @param callback
+     * @param eventName {string|Array<string>|undefined} - event name of events/listeners to unsubscribe
+     * @param callback {Function|Array<Function>|undefined} the callback/Array of callbacks that should be unsubscribed
      */
-    Vue.prototype[fallSilentProp] = function (event, callback) {
+    Vue.prototype[fallSilentProp] = function (eventName, callback) {
       const subscriberId = this._uniqID;
 
       if (!isEmpty(events)) {
-        if (event && event in events && typeof event === 'string' && !callback) {
-          removeListeners({ events, event, subscriberId });
+        // Unsubscribe component from specific event
+        if (!callback && typeof eventName === 'string' && eventName in events) {
+          removeListeners({ events, event: eventName, subscriberId });
 
           return;
         }
 
-        if (event && isArray(event) && !callback) {
-          for (let eventIndex = 0, len = event.length; eventIndex < len; eventIndex++) {
-            removeListeners({ events, event: event[eventIndex], subscriberId });
+        // Unsubscribe component from specific events
+        if (!callback && isArray(eventName)) {
+          for (let eventIndex = 0, len = eventName.length; eventIndex < len; eventIndex++) {
+            removeListeners({ events, event: eventName[eventIndex], subscriberId });
           }
 
           return;
         }
 
-        if (event && callback && isArray(callback) && event in events && events[event].length) {
+        // Remove array of callbacks for specific event
+        if (isArray(callback) && eventName in events && events[eventName].length) {
           for (let callbackIndex = 0, _len4 = callback.length; callbackIndex < _len4; callbackIndex++) {
-            removeCallbacks({ events, event, subscriberId, callback: callback[callbackIndex] });
+            removeCallbacks({ events, event: eventName, subscriberId, callback: callback[callbackIndex] });
           }
 
           return;
         }
 
-        if (event && callback && event in events && events[event].length) {
-          removeCallbacks({ events, event, subscriberId, callback });
+        // Remove specific callback for specific event
+        if (callback && eventName in events && events[eventName].length) {
+          removeCallbacks({ events, event: eventName, subscriberId, callback });
 
           return;
         }
 
-        if (event && callback && typeof callback !== 'function') {
+        if (eventName && typeof callback !== 'function') {
           return;
         }
 
+        // remove all events in component, since no event or callback specified; done automatically
         for (let _event in events) {
           removeListeners({ events, event: _event, subscriberId });
         }
