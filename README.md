@@ -70,8 +70,9 @@ created() {
   this.$onceEvent('some-event', this.eventCallback2);
 
   // only continue after event has been emitted (only available for onceEvent) 
-  // - callback doesn't have to be async, if so then it also awaits cb resolution
-  const result = await this.$onceEvent('some-event', this.eventCallback3, { isAsync: true });
+  // - callback doesn't have to be async or even defined, if so then it also awaits cb resolution
+  let result = await this.$onceEvent('some-event', this.eventCallback3, { isAsync: true });
+  result = await this.$onceEvent('some-event', { isAsync: true });
   // or you can proceed and use then, but this is more like the callback option
   this.$onceEvent('some-event', this.eventCallback3, { isAsync: true }).then(/*...*/);
 

@@ -153,6 +153,11 @@ export default {
      * @param listenerOptions
      */
     Vue.prototype[onceEventProp] = function (eventName, callback, listenerOptions) {
+      if (typeof callback !== 'function' && !listenerOptions) {
+        listenerOptions = callback;
+        callback = undefined;
+      }
+
       listenerOptions = Object.assign({}, defaultListenerOptions, listenerOptions);
 
       listenerOptions.once = true;
@@ -171,7 +176,7 @@ export default {
          * override the callback with one that will return to the listener origin
          * - it's async just in case the original is also async (one that returns results to event emitter)
          */
-        return new Promise(resolve => createListener(async (...args) => resolve(!!callback && await callback(...args))));
+        return new Promise(resolve => createListener(async (...args) => resolve(!!callback ? await callback(...args) : args[0])));
       } else {
         // just create a listener normally
         createListener(callback);
@@ -392,7 +397,7 @@ async function runEventCallbacks ({ eventName, eventOptions, eventOrigin, events
   let eventMeta = {
     events,
     eventName,
-    eventTimestamp: Date.now(),
+    eventTimestamp:  Date.now(),
     // make sure we don't mutate the actual eventOptions
     eventOptions:    Object.assign({}, eventOptions),
     eventOrigin,
