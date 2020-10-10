@@ -1,6 +1,6 @@
 {
   "name": "vue-hooked-async-events",
-  "version": "0.3.2",
+  "version": "0.4.0",
   "description": "Vue 2.x plugin for creating stoppable async events, with subscribers IDs for unsubscribing all listeners from all events at once.",
   "main": "index.js",
   "scripts": {
