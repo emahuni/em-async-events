@@ -98,7 +98,7 @@ methods: {
     metadata == {
       eventName: "some-event", 
       eventOptions: {/*opts passed to event*/},
-      callbackOptions: {/*opts passed to listener*/},
+      listenerOptions: {/*opts passed to listener*/},
       eventOrigin: VueComponent /*vue compo that emitted the event*/,
       listenersTally: 6 // number of listeners for this event
     };
@@ -120,9 +120,9 @@ methods: {
   },
 
   eventCallback3 (payload, metadata) {
-    // you can also change how the event will behave by modifying the callbackOptions
+    // you can also change how the event will behave by modifying the listenerOptions
     // eg: stop invoking any subsequent callbacks on the event
-    metadata.callbackOptions.stopHere = true;
+    metadata.listenerOptions.stopHere = true;
   }
 }
 ```
@@ -253,8 +253,8 @@ NOTE: use this feature at your own risk as it will warn you only for Vue basic p
         fallSilent: '$noMore',
 
         // default options that you don't have to set all the time
-        // callbacksOptions default = { stopHere: false, expire: 0, once: false, trace: false, isAsync: false }
-        callbacksOptions: { stopHere: true, /*...*/ },
+        // listenersOptions default = { stopHere: false, expire: 0, once: false, trace: false, isAsync: false }
+        listenersOptions: { stopHere: true, /*...*/ },
         // eventsOptions default = { range: 'first-parent', linger: 0, lingerForOne: false, isAsync: false, trace: false }
         eventsOptions: { range: 'ancestors', isAsync: true, /*...*/ },
 

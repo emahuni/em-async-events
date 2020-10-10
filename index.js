@@ -10,7 +10,7 @@ export default {
    */
   install: function install (Vue, options) {
     options = Object.assign({
-      callbacksOptions: { stopHere: false, expire: 0, expiryCallback: undefined, once: false, debug: false },
+      listenersOptions: { stopHere: false, expire: 0, expiryCallback: undefined, once: false, isAsync: false, debug: false },
       eventsOptions:    { linger: 0, lingerForOne: false, isAsync: false, range: 'first-parent', debug: false },
       debug:            {
         all:                    false,
@@ -36,7 +36,7 @@ export default {
     let eraseEventProp = isCorrectCustomName('eraseEvent', options) || '$eraseEvent';
     let fallSilentProp = isCorrectCustomName('fallSilent', options) || '$fallSilent';
     let chainCallbackPayloadProp = isCorrectCustomName('chainCallbackPayload', options) || '$chainCallbackPayload';
-    let defaultCallbackOptions = options.callbacksOptions;
+    let defaultListenerOptions = options.listenersOptions;
     let defaultEventOptions = options.eventsOptions;
 
 
@@ -70,19 +70,19 @@ export default {
      * add event listener
      * @param eventName
      * @param callback
-     * @param options
+     * @param listenerOptions
      * @param subscriberId
      * @param listenerOrigin
      */
-    Vue.prototype[onEventProp] = function (eventName, callback, options, subscriberId = this._uniqID, listenerOrigin = this) {
-      options = Object.assign({}, defaultCallbackOptions, options);
+    Vue.prototype[onEventProp] = function (eventName, callback, listenerOptions, subscriberId = this._uniqID, listenerOrigin = this) {
+      listenerOptions = Object.assign({}, defaultListenerOptions, listenerOptions);
 
       const args = {
         events,
         lingeringEvents,
         subscriberId,
         listenerOrigin,
-        options
+        listenerOptions
       };
 
       if (isArray(eventName) && isArray(callback)) {
@@ -133,23 +133,23 @@ export default {
      * add event listener that only listens for event once and removed once executed
      * @param eventName
      * @param callback
-     * @param options
+     * @param listenerOptions
      */
-    Vue.prototype[onceEventProp] = function (eventName, callback, options) {
-      options = Object.assign({}, defaultCallbackOptions, options);
+    Vue.prototype[onceEventProp] = function (eventName, callback, listenerOptions) {
+      listenerOptions = Object.assign({}, defaultListenerOptions, listenerOptions);
 
-      options.once = true;
+      listenerOptions.once = true;
 
       /**
        * creates a listener
        * @param cb
        */
       const createListener = (cb) => {
-        Vue.prototype[onEventProp](eventName, cb, options, this._uniqID, this);
+        Vue.prototype[onEventProp](eventName, cb, listenerOptions, this._uniqID, this);
       };
 
       // this can be used to wait for listener to trigger before proceeding with code below where listener was created
-      if (options.isAsync) {
+      if (listenerOptions.isAsync) {
         /**
          * override the callback with one that will return to the listener origin
          * - it's async just in case the original is also async (one that returns results to event emitter)
@@ -166,11 +166,11 @@ export default {
      * emit event and run callbacks subscribed to the event
      * @param eventName
      * @param payload
-     * @param options
+     * @param eventOptions
      * @return {Promise<*>}
      */
-    Vue.prototype[emitEventProp] = function (eventName, payload, options) {
-      options = Object.assign({}, defaultEventOptions, options);
+    Vue.prototype[emitEventProp] = function (eventName, payload, eventOptions) {
+      eventOptions = Object.assign({}, defaultEventOptions, eventOptions);
 
       // console.debug('[vue-hooked-async-events]-124: () - context of this: ', this);
       return runEventCallbacks({
@@ -178,8 +178,8 @@ export default {
         lingeringEvents,
         eventName,
         payload,
-        eventOrigin:  this,
-        eventOptions: options
+        eventOrigin: this,
+        eventOptions
       });
     };
 
@@ -287,21 +287,21 @@ export default {
  * @param eventName
  * @param subscriberId
  * @param callback
- * @param options
+ * @param listenerOptions
  * @param listenerOrigin
  */
-function addListener ({ events, lingeringEvents, eventName, subscriberId, callback, options, listenerOrigin }) {
+function addListener ({ events, lingeringEvents, eventName, subscriberId, callback, listenerOptions, listenerOrigin }) {
   const level = getOriginLevel(listenerOrigin);
   const listener = {
     eventName,
     subscriberId,
     listenerOrigin,
+    listenerOptions,
     callback,
-    options,
     level
   };
 
-  if (Options.debug.all && Options.debug.addListener || options.trace) {
+  if (Options.debug.all && Options.debug.addListener || listenerOptions.trace) {
     console.debug(`[vue-hooked-async-events]-321: ${Options.onEvent || '$onEvent(addListener)'} eventName: %o origin: %o \nListener: %o`, eventName, listenerOrigin && listenerOrigin.$options && listenerOrigin.$options.name || '???', listener);
   }
 
@@ -310,7 +310,7 @@ function addListener ({ events, lingeringEvents, eventName, subscriberId, callba
     for (let ei in lingeringEvents[eventName]) {
       const _event = lingeringEvents[eventName][ei];
       const [payload, eventMeta] = _event.args;
-      eventMeta.callbackOptions = options;
+      eventMeta.listenerOptions = listenerOptions;
       const { eventOptions, eventOrigin } = eventMeta;
 
       // noinspection JSIgnoredPromiseFromCall
@@ -330,13 +330,13 @@ function addListener ({ events, lingeringEvents, eventName, subscriberId, callba
 
   (events[eventName] || (events[eventName] = [])).push(listener);
 
-  if (options.expire) {
+  if (listenerOptions.expire) {
     setTimeout(async (...args) => {
       // run expiry callback if set, wait for it finish executing if it's async
-      if (!!options.expiryCallback) await options.expiryCallback(...args);
+      if (!!listenerOptions.expiryCallback) await listenerOptions.expiryCallback(...args);
       // noinspection JSCheckFunctionSignatures
       removeListeners(...args);
-    }, options.expire, ...arguments);
+    }, listenerOptions.expire, ...arguments);
   }
 }
 
@@ -371,11 +371,11 @@ async function runEventCallbacks ({ eventName, eventOptions, eventOrigin, events
 
   let eventMeta = {
     eventName,
-    // make sure we don't mutate the actual options
+    // make sure we don't mutate the actual eventOptions
     eventOptions:    Object.assign({}, eventOptions),
     eventOrigin,
     level,
-    callbackOptions: {},
+    listenerOptions: {},
     listenersTally
   };
 
@@ -426,7 +426,7 @@ async function _runEventCallbacks ({ events, eventName, eventOptions, eventOrigi
 
       // run both up and down listeners (which ever is available)
       for (let listener of upClosestDownListeners) {
-        if (stop || listener.options.stopHere) stopHere = true;
+        if (stop || listener.listenerOptions.stopHere) stopHere = true;
 
         if (Options.debug.all && Options.debug.invokeListener || eventOptions.trace) {
           console.debug(`[vue-hooked-async-events]-380: Invoke Listener - eventName: %o, origin: %o, eventOrigin: %o, \npayload: %o, \nListener: %o\neventMeta: %o\nresponse: %o, \nstoppingHere: %o`, eventName, listener.listenerOrigin && listener.listenerOrigin.$options && listener.listenerOrigin.$options.name || '???', eventOrigin && eventOrigin.$options.name || '???', payload, listener, eventMeta, res, stopHere);
@@ -457,14 +457,13 @@ async function _runEventCallbacks ({ events, eventName, eventOptions, eventOrigi
  * @param payload
  * @param eventMeta
  * @param listener
- * @param eventOptions
  * @return {Promise<*>|undefined}
  */
 function runCallback ({ payload, eventMeta, listener }) {
   // console.debug(`[vue-hooked-async-events] index-397: runCallbacks() - listener: %o`, listener.listenerOrigin._uid);
 
-  // make sure we don't mutate the actual options
-  eventMeta.callbackOptions = Object.assign({}, listener.options);
+  // make sure we don't mutate the actual listenerOptions
+  eventMeta.listenerOptions = Object.assign({}, listener.listenerOptions);
 
   return listener.callback(payload, eventMeta);
 }
@@ -718,7 +717,7 @@ function removeListeners ({ events, eventName, subscriberId }) {
 
   for (let listenerIndex = 0; listenerIndex < events[eventName].length; listenerIndex++) {
     if (events[eventName][listenerIndex].subscriberId === subscriberId) {
-      if (Options.debug.all && Options.debug.removeListener || events[eventName][listenerIndex].options.trace) {
+      if (Options.debug.all && Options.debug.removeListener || events[eventName][listenerIndex].listenerOptions.trace) {
         const listener = events[eventName][listenerIndex];
         const { listenerOrigin } = listener;
         console.debug(`[vue-hooked-async-events]-694: ${Options.fallSilent || '$fallSilent(removeListener)'} eventName: %o origin: %o \nListener: %o`, eventName, listenerOrigin && listenerOrigin.$options && listenerOrigin.$options.name || '???', listener);
@@ -745,7 +744,7 @@ function removeCallbacks ({ events, eventName, subscriberId, callback }) {
   });
 
   if (~indexOfSubscriber) {
-    if (Options.debug.all && Options.debug.removeListener || events[eventName][indexOfSubscriber].options.trace) {
+    if (Options.debug.all && Options.debug.removeListener || events[eventName][indexOfSubscriber].listenerOptions.trace) {
       const listener = events[eventName][indexOfSubscriber];
       const { listenerOrigin } = listener;
       console.debug(`[vue-hooked-async-events]-721: ${Options.fallSilent || '$fallSilent(removeCallbacks)'} eventName: %o origin: %o \nListener: %o`, eventName, listenerOrigin && listenerOrigin.$options && listenerOrigin.$options.name || '???', listener);
