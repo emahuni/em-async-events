@@ -14,12 +14,22 @@ export default {
         stopHere:       false,
         expire:         0,
         expiryCallback: undefined,
+        catchUp:        0,
         once:           false,
         isAsync:        false,
-        debug:          false
+        trace:          false
       },
-      eventsOptions:    { linger: 0, lingerForOne: false, isAsync: false, range: 'first-parent', debug: false },
-      debug:            {
+      eventsOptions:    {
+        linger:       0,
+        lingerForOne: false,
+        isAsync:      false,
+        range:        'first-parent',
+        trace:        false
+      },
+
+      globalLinger: 500,
+
+      debug: {
         all:                    false,
         addListener:            true,
         emitEvent:              true,
@@ -320,18 +330,21 @@ function addListener ({ events, lingeringEvents, eventName, subscriberId, callba
       eventMeta.listenerOptions = listenerOptions;
       const { eventOptions, eventOrigin } = eventMeta;
 
-      // noinspection JSIgnoredPromiseFromCall
-      _runEventCallbacks({
-        events:    [_event],
-        payload,
-        listeners: [listener],
-        eventName,
-        eventOptions,
-        eventOrigin,
-        eventMeta
-      });
+      // was linger ordered by the event or if listener catchUp is within range (linger was ordered by global linger)
+      if (eventMeta.linger || listenerOptions.catchUp <= (Date.now() - eventMeta.eventTimestamp)) {
+        // noinspection JSIgnoredPromiseFromCall
+        _runEventCallbacks({
+          events:    [_event],
+          payload,
+          listeners: [listener],
+          eventName,
+          eventOptions,
+          eventOrigin,
+          eventMeta
+        });
 
-      if (eventOptions.lingerForOne) lingeringEvents[eventName].splice(ei, 1);
+        if (eventOptions.lingerForOne) lingeringEvents[eventName].splice(ei, 1);
+      }
     }
   }
 
@@ -379,6 +392,7 @@ async function runEventCallbacks ({ eventName, eventOptions, eventOrigin, events
   let eventMeta = {
     events,
     eventName,
+    eventTimestamp: Date.now(),
     // make sure we don't mutate the actual eventOptions
     eventOptions:    Object.assign({}, eventOptions),
     eventOrigin,
@@ -497,7 +511,7 @@ function runCallback ({ payload, eventMeta, listener }) {
  * @param eventMeta
  */
 function lingerEvent ({ lingeringEvents, eventName, payload, eventOptions, eventMeta }) {
-  if (eventOptions.linger && lingeringEvents) {
+  if (lingeringEvents && (eventOptions.linger || Options.globalLinger)) {
     if (Options.debug.all && Options.debug.lingerEvent) {
       console.debug(`[vue-hooked-async-events]-428: lingerEvent - eventName: %o \n%o`, eventName, eventMeta);
     }
@@ -514,7 +528,7 @@ function lingerEvent ({ lingeringEvents, eventName, payload, eventOptions, event
     setTimeout(() => {
       const i = lingeringEvents[eventName].findIndex(le => le.id === id);
       lingeringEvents[eventName].splice(i, 1);
-    }, eventOptions.linger);
+    }, eventOptions.linger || Options.globalLinger);
   }
 }
 

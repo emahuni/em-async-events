@@ -82,6 +82,11 @@ created() {
     // do something that's even async it will wait for promise
   }});
 
+  // catch up to an event that happened not more than 100 milliseconds ago (bust race conditions)
+  // - (max 500 - change globalLinger option; see below)
+  // - it doesn't have to be a lingered event
+  this.$onEvent('some-event', this.eventCallback3, { catchUp: 100 });
+
   // multiple events being listened to by one callback
   this.$onEvent(['second-event', 'third-event'], this.commonCallback);
   // fire multiple callbacks (even for multiple events)
@@ -253,10 +258,18 @@ NOTE: use this feature at your own risk as it will warn you only for Vue basic p
         fallSilent: '$noMore',
 
         // default options that you don't have to set all the time
-        // listenersOptions default = { stopHere: false, expire: 0, once: false, trace: false, isAsync: false }
+        // listenersOptions default = { 
+        //  stopHere: false, expire: 0, once: false, isAsync: false, catchUp: false, trace: false
+        // }
         listenersOptions: { stopHere: true, /*...*/ },
-        // eventsOptions default = { range: 'first-parent', linger: 0, lingerForOne: false, isAsync: false, trace: false }
+        // eventsOptions default = { 
+        //   range: 'first-parent', linger: 0, lingerForOne: false, isAsync: false, trace: false 
+        // }
         eventsOptions: { range: 'ancestors', isAsync: true, /*...*/ },
+
+        // all events linger for a default of 500ms, but only trigger if a listener has catchUp option set (see above)
+        // you can change the default globalLinger here to whatever you want. take care
+        globalLinger: 3000,
 
         // debugging options, useful when you want to see what's going on. below are the defaults
         debug: {
