@@ -139,7 +139,27 @@ export default {
       options = Object.assign({}, defaultCallbackOptions, options);
 
       options.once = true;
-      Vue.prototype[onEventProp](eventName, callback, options, this._uniqID, this);
+
+      /**
+       * creates a listener
+       * @param cb
+       */
+      const createListener = (cb) => {
+        Vue.prototype[onEventProp](eventName, cb, options, this._uniqID, this);
+      };
+
+      // this can be used to wait for listener to trigger before proceeding with code below where listener was created
+      if (options.isAsync) {
+        /**
+         * override the callback with one that will return to the listener origin
+         * - it's async just in case the original is also async (one that returns results to event emitter)
+         */
+        return new Promise(resolve => createListener(async (...args) => resolve(await callback(...args))));
+      } else {
+        // just create a listener normally
+        createListener(callback);
+      }
+
     };
 
     /**
