@@ -10,7 +10,14 @@ export default {
    */
   install: function install (Vue, options) {
     options = Object.assign({
-      listenersOptions: { stopHere: false, expire: 0, expiryCallback: undefined, once: false, isAsync: false, debug: false },
+      listenersOptions: {
+        stopHere:       false,
+        expire:         0,
+        expiryCallback: undefined,
+        once:           false,
+        isAsync:        false,
+        debug:          false
+      },
       eventsOptions:    { linger: 0, lingerForOne: false, isAsync: false, range: 'first-parent', debug: false },
       debug:            {
         all:                    false,
@@ -370,6 +377,7 @@ async function runEventCallbacks ({ eventName, eventOptions, eventOrigin, events
   const level = getOriginLevel(eventOrigin);
 
   let eventMeta = {
+    events,
     eventName,
     // make sure we don't mutate the actual eventOptions
     eventOptions:    Object.assign({}, eventOptions),
@@ -433,9 +441,9 @@ async function _runEventCallbacks ({ events, eventName, eventOptions, eventOrigi
         }
 
         if (eventOptions.isAsync) {
-          res = await runCallback({ payload: res, eventMeta, listener });
+          res = await runCallback({ payload: res, eventMeta, events, listener });
         } else {
-          runCallback({ payload: res, eventMeta, listener });
+          runCallback({ payload: res, eventMeta, events, listener });
         }
 
         if (stopHere) break;
@@ -464,6 +472,17 @@ function runCallback ({ payload, eventMeta, listener }) {
 
   // make sure we don't mutate the actual listenerOptions
   eventMeta.listenerOptions = Object.assign({}, listener.listenerOptions);
+
+  const { events, eventName } = eventMeta;
+
+  if (listener.listenerOptions.once) {
+    removeCallbacks({
+      events,
+      eventName,
+      subscriberId: listener.subscriberId,
+      callback:     listener.callback
+    });
+  }
 
   return listener.callback(payload, eventMeta);
 }
