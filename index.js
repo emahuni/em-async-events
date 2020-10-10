@@ -154,7 +154,7 @@ export default {
          * override the callback with one that will return to the listener origin
          * - it's async just in case the original is also async (one that returns results to event emitter)
          */
-        return new Promise(resolve => createListener(async (...args) => resolve(await callback(...args))));
+        return new Promise(resolve => createListener(async (...args) => resolve(!!callback && await callback(...args))));
       } else {
         // just create a listener normally
         createListener(callback);

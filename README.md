@@ -57,7 +57,7 @@ So with `vue-hooked-async-events` you instead write:
 **Yes. Correct. Nothing.** Plugin will handle all of this by itself, unsubscribing current component listeners in its `beforeDestroy` hook.
  
 ## Methods
-There are several methods used to manage events.
+There are several methods used to manage events with super duper conviniencies like async events/listeners/callbacks.
 
 ### Listening to events:
 Listening to event or events:
@@ -68,6 +68,12 @@ created() {
   // listen once and remove
   this.$onEvent('some-event', this.eventCallback1, { once: true });
   this.$onceEvent('some-event', this.eventCallback2);
+
+  // only continue after event has been emitted (only available for onceEvent) 
+  // - callback doesn't have to be async, if so then it also awaits cb resolution
+  const result = await this.$onceEvent('some-event', this.eventCallback3, { isAsync: true });
+  // or you can proceed and use then, but this is more like the callback option
+  this.$onceEvent('some-event', this.eventCallback3, { isAsync: true }).then(/*...*/);
 
   // automatically stop listening after 5000 milliseconds
   this.$onEvent('some-event', this.eventCallback3, { expire: 5000 });
@@ -247,7 +253,7 @@ NOTE: use this feature at your own risk as it will warn you only for Vue basic p
         fallSilent: '$noMore',
 
         // default options that you don't have to set all the time
-        // callbacksOptions default = { stopHere: false, expire: 0, once: false, trace: false }
+        // callbacksOptions default = { stopHere: false, expire: 0, once: false, trace: false, isAsync: false }
         callbacksOptions: { stopHere: true, /*...*/ },
         // eventsOptions default = { range: 'first-parent', linger: 0, lingerForOne: false, isAsync: false, trace: false }
         eventsOptions: { range: 'ancestors', isAsync: true, /*...*/ },
