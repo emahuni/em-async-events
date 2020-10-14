@@ -1,6 +1,6 @@
 'use strict';
 
-let Options;
+let OPTIONS;
 
 export default {
   /**
@@ -44,7 +44,7 @@ export default {
     // turn off debuggin if we are not going to show devtools/in production
     if (!Vue.config.devtools) options.debug.all = false;
 
-    Options = options;
+    OPTIONS = options;
 
     let asyncEventsProp = isCorrectCustomName('asyncEvents', options) || '$asyncEvents';
     let onEventProp = isCorrectCustomName('onEvent', options) || '$onEvent';
@@ -212,7 +212,7 @@ export default {
      * @return {Promise<*>}
      */
     Vue.prototype[chainCallbackPayloadProp] = function (payload, newPayload) {
-      if (Options.debug.all && Options.debug.chainListenerCallbacks) {
+      if (OPTIONS.debug.all && OPTIONS.debug.chainListenerCallbacks) {
         console.debug(`[vue-hooked-async-events]-169: ${chainCallbackPayloadProp} payload: %o \nnewPayload: %o`, payload, newPayload);
       }
 
@@ -323,35 +323,12 @@ function addListener ({ events, lingeringEvents, eventName, subscriberId, callba
     level
   };
 
-  if (Options.debug.all && Options.debug.addListener || listenerOptions.trace) {
-    console.debug(`[vue-hooked-async-events]-321: ${Options.onEvent || '$onEvent(addListener)'} eventName: %o origin: %o \nListener: %o`, eventName, listenerOrigin && listenerOrigin.$options && listenerOrigin.$options.name || '???', listener);
+  if (OPTIONS.debug.all && OPTIONS.debug.addListener || listenerOptions.trace) {
+    console.debug(`[vue-hooked-async-events]-321: ${OPTIONS.onEvent || '$onEvent(addListener)'} eventName: %o origin: %o \nListener: %o`, eventName, listenerOrigin && listenerOrigin.$options && listenerOrigin.$options.name || '???', listener);
   }
 
-  // check if listener has an events lingering for it, if so then trigger these events on listener to handle
-  if (lingeringEvents[eventName]) {
-    for (let ei in lingeringEvents[eventName]) {
-      const _event = lingeringEvents[eventName][ei];
-      const [payload, eventMeta] = _event.args;
-      eventMeta.listenerOptions = listenerOptions;
-      const { eventOptions, eventOrigin } = eventMeta;
-
-      // was linger ordered by the event or if listener catchUp is within range (linger was ordered by global linger)
-      if (eventMeta.linger || listenerOptions.catchUp <= (Date.now() - eventMeta.eventTimestamp)) {
-        // noinspection JSIgnoredPromiseFromCall
-        _runEventCallbacks({
-          events:    [_event],
-          payload,
-          listeners: [listener],
-          eventName,
-          eventOptions,
-          eventOrigin,
-          eventMeta
-        });
-
-        if (eventOptions.lingerForOne) lingeringEvents[eventName].splice(ei, 1);
-      }
-    }
-  }
+  // noinspection JSIgnoredPromiseFromCall
+  runLingeredEvents({ ...arguments[0], listener });
 
   (events[eventName] || (events[eventName] = [])).push(listener);
 
@@ -401,18 +378,25 @@ async function runEventCallbacks ({ eventName, eventOptions, eventOrigin, events
     // make sure we don't mutate the actual eventOptions
     eventOptions:    Object.assign({}, eventOptions),
     eventOrigin,
+    stopNow:         false,
     level,
     listenerOptions: {},
     listenersTally
   };
 
-  if (Options.debug.all && Options.debug.emitEvent || eventOptions.trace) {
-    console.debug(`[vue-hooked-async-events]-152: ${Options.emitEvent || '$emitEvent'} eventName: %o origin: %o \npayload: %o\neventMeta: %o`, eventName, eventOrigin && eventOrigin.$options && eventOrigin.$options.name || '???', payload, eventMeta);
+  if (OPTIONS.debug.all && OPTIONS.debug.emitEvent || eventOptions.trace) {
+    console.debug(`[vue-hooked-async-events]-152: ${OPTIONS.emitEvent || '$emitEvent'} eventName: %o origin: %o \npayload: %o\neventMeta: %o`, eventName, eventOrigin && eventOrigin.$options && eventOrigin.$options.name || '???', payload, eventMeta);
   }
 
-  lingerEvent({ ...arguments[0], eventMeta });
+  payload = await _runEventCallbacks({ events, listeners, eventName, payload, eventOptions, eventOrigin, eventMeta });
 
-  return _runEventCallbacks({ events, listeners, eventName, payload, eventOptions, eventOrigin, eventMeta });
+  if (!eventMeta.stopNow) {
+  // if event is async then it waits for linger time to elapse before returning the result of catchUp listeners chain
+    return lingerEvent({ ...arguments[0], eventMeta, payload });
+  } else {
+    // catch up listener stopped the event before it went to other existing events.
+    return payload;
+  }
 }
 
 /**
@@ -455,7 +439,7 @@ async function _runEventCallbacks ({ events, eventName, eventOptions, eventOrigi
       for (let listener of upClosestDownListeners) {
         if (stop || listener.listenerOptions.stopHere) stopHere = true;
 
-        if (Options.debug.all && Options.debug.invokeListener || eventOptions.trace) {
+        if (OPTIONS.debug.all && OPTIONS.debug.invokeListener || eventOptions.trace) {
           console.debug(`[vue-hooked-async-events]-380: Invoke Listener - eventName: %o, origin: %o, eventOrigin: %o, \npayload: %o, \nListener: %o\neventMeta: %o\nresponse: %o, \nstoppingHere: %o`, eventName, listener.listenerOrigin && listener.listenerOrigin.$options && listener.listenerOrigin.$options.name || '???', eventOrigin && eventOrigin.$options.name || '???', payload, listener, eventMeta, res, stopHere);
         }
 
@@ -465,10 +449,16 @@ async function _runEventCallbacks ({ events, eventName, eventOptions, eventOrigi
           runCallback({ payload: res, eventMeta, events, listener });
         }
 
-        if (stopHere) break;
+        if (stopHere) {
+          eventMeta.stopNow = true;
+          break;
+        }
       }
 
-      if (stopHere) break;
+      if (stopHere) {
+        eventMeta.stopNow = true;
+        break;
+      }
 
       i++;
       // todo cater for linger and expire changes from listener
@@ -516,26 +506,99 @@ function runCallback ({ payload, eventMeta, listener }) {
  * @param eventMeta
  */
 function lingerEvent ({ lingeringEvents, eventName, payload, eventOptions, eventMeta }) {
-  if (lingeringEvents && (eventOptions.linger || Options.globalLinger)) {
-    if (Options.debug.all && Options.debug.lingerEvent) {
+  if (lingeringEvents && (eventOptions.linger || OPTIONS.globalLinger)) {
+    if (OPTIONS.debug.all && OPTIONS.debug.lingerEvent) {
       console.debug(`[vue-hooked-async-events]-428: lingerEvent - eventName: %o \n%o`, eventName, eventMeta);
     }
 
     const id = genUniqID();
 
+    let lingeringHook = undefined, lingeringPromise = undefined, lingeringResult = payload;
+    if (eventOptions.isAsync) {
+      if (eventOptions.linger >= Infinity || OPTIONS.globalLinger >= Infinity) {
+        throw new Error(`[vue-hooked-async-events]-523: You cannot async and linger an event forever!`);
+      }
+      lingeringPromise = new Promise((resolve) => lingeringHook = resolve);
+    }
+
     // stash the arguments for later use on new listeners
     (lingeringEvents[eventName] || (lingeringEvents[eventName] = [])).push({
       id,
+      lingeringResult,
+      lingeringHook, // to be resolved by run callbacks, see runLingeredEvents
       args: [payload, eventMeta]
     });
 
     // order the splice after linger ms later
     setTimeout(() => {
+      // finally resolve lingering event promise
+      if (eventOptions.isAsync) {
+        lingeringHook(lingeringResult); // finally settle lingering promise
+      }
+
       const i = lingeringEvents[eventName].findIndex(le => le.id === id);
       lingeringEvents[eventName].splice(i, 1);
-    }, eventOptions.linger || Options.globalLinger);
+    }, eventOptions.linger || OPTIONS.globalLinger);
+
+
+    if (eventOptions.isAsync) {
+      return lingeringPromise;
+    } else {
+      return payload;
+    }
   }
 }
+
+
+/**
+ * run lingered events for listener (triggered during add listener)
+ * @param events
+ * @param lingeringEvents
+ * @param eventName
+ * @param subscriberId
+ * @param callback
+ * @param listenerOptions
+ * @param listenerOrigin
+ * @param listener
+ */
+async function runLingeredEvents ({ events, lingeringEvents, eventName, subscriberId, callback, listenerOptions, listenerOrigin, listener }) {
+  // check if listener has an events lingering for it, if so then trigger these events on listener to handle
+  if (lingeringEvents[eventName]) {
+    for (let ei in lingeringEvents[eventName]) {
+      // noinspection JSUnfilteredForInLoop
+      const _event = lingeringEvents[eventName][ei];
+      const [payload, eventMeta] = _event.args;
+      eventMeta.listenerOptions = listenerOptions;
+      const { eventOptions, eventOrigin } = eventMeta;
+
+      // was linger ordered by the event or if listener catchUp is within range (linger was ordered by global linger)
+      if (eventMeta.linger || listenerOptions.catchUp <= (Date.now() - eventMeta.eventTimestamp)) {
+        // noinspection JSIgnoredPromiseFromCall
+        let result = await _runEventCallbacks({
+          events:    [_event],
+          payload,
+          listeners: [listener],
+          eventName,
+          eventOptions,
+          eventOrigin,
+          eventMeta
+        });
+
+        if (eventOptions.isAsync) {
+          // run event async resolution, see lingerEvent
+          _event.lingeringResult = result; // store as the final result to be sent to event
+          _event.args[0] = result; // update payload argument for next listener of lingering event
+        }
+
+        if (eventOptions.lingerForOne) {
+          // noinspection JSUnfilteredForInLoop
+          lingeringEvents[eventName].splice(ei, 1);
+        }
+      }
+    }
+  }
+}
+
 
 /**
  * get event broadcast components level range
@@ -755,10 +818,10 @@ function removeListeners ({ events, eventName, subscriberId }) {
 
   for (let listenerIndex = 0; listenerIndex < events[eventName].length; listenerIndex++) {
     if (events[eventName][listenerIndex].subscriberId === subscriberId) {
-      if (Options.debug.all && Options.debug.removeListener || events[eventName][listenerIndex].listenerOptions.trace) {
+      if (OPTIONS.debug.all && OPTIONS.debug.removeListener || events[eventName][listenerIndex].listenerOptions.trace) {
         const listener = events[eventName][listenerIndex];
         const { listenerOrigin } = listener;
-        console.debug(`[vue-hooked-async-events]-694: ${Options.fallSilent || '$fallSilent(removeListener)'} eventName: %o origin: %o \nListener: %o`, eventName, listenerOrigin && listenerOrigin.$options && listenerOrigin.$options.name || '???', listener);
+        console.debug(`[vue-hooked-async-events]-694: ${OPTIONS.fallSilent || '$fallSilent(removeListener)'} eventName: %o origin: %o \nListener: %o`, eventName, listenerOrigin && listenerOrigin.$options && listenerOrigin.$options.name || '???', listener);
       }
 
       events[eventName].splice(listenerIndex, 1);
@@ -782,10 +845,10 @@ function removeCallbacks ({ events, eventName, subscriberId, callback }) {
   });
 
   if (~indexOfSubscriber) {
-    if (Options.debug.all && Options.debug.removeListener || events[eventName][indexOfSubscriber].listenerOptions.trace) {
+    if (OPTIONS.debug.all && OPTIONS.debug.removeListener || events[eventName][indexOfSubscriber].listenerOptions.trace) {
       const listener = events[eventName][indexOfSubscriber];
       const { listenerOrigin } = listener;
-      console.debug(`[vue-hooked-async-events]-721: ${Options.fallSilent || '$fallSilent(removeCallbacks)'} eventName: %o origin: %o \nListener: %o`, eventName, listenerOrigin && listenerOrigin.$options && listenerOrigin.$options.name || '???', listener);
+      console.debug(`[vue-hooked-async-events]-721: ${OPTIONS.fallSilent || '$fallSilent(removeCallbacks)'} eventName: %o origin: %o \nListener: %o`, eventName, listenerOrigin && listenerOrigin.$options && listenerOrigin.$options.name || '???', listener);
     }
     events[eventName].splice(indexOfSubscriber, 1);
   }
@@ -800,8 +863,8 @@ function removeCallbacks ({ events, eventName, subscriberId, callback }) {
 function removeGlobalEvent ({ events, eventName }) {
   for (let event in events) {
     if (event === eventName) {
-      if (Options.debug.all && Options.debug.eraseEvent) {
-        console.debug(`[vue-hooked-async-events]-737: ${Options.eraseEvent || '$eraseEvent(removeGlobalEvent)'} eventName: %o origin: %o \nListener: %o`, eventName, events[eventName]);
+      if (OPTIONS.debug.all && OPTIONS.debug.eraseEvent) {
+        console.debug(`[vue-hooked-async-events]-737: ${OPTIONS.eraseEvent || '$eraseEvent(removeGlobalEvent)'} eventName: %o origin: %o \nListener: %o`, eventName, events[eventName]);
       }
       delete events[eventName];
     }
