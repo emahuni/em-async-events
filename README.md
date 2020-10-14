@@ -1,7 +1,7 @@
 # vue-hooked-async-events
 [![npm](https://img.shields.io/npm/v/vue-hooked-async-events.svg)](vue-hooked-async-events) ![npm](https://img.shields.io/npm/dt/vue-hooked-async-events.svg)
 
-Easier and more useful Vue event bus management with zero dependencies.
+Easier and more useful Vue event bus with zero dependencies. Features include expirable, lingering and catch-up async events and listeners, and a customizable atomic API.
 
 ## Features
 - **stoppable events and listeners**; stop an event from firing on other callbacks when it hits a specific callback or on the first callback
