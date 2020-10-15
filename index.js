@@ -189,19 +189,53 @@ export default {
      * @param eventName
      * @param payload
      * @param eventOptions
-     * @return {Promise<*>}
+     * @return {Promise<*>|array<Promise>}
      */
     Vue.prototype[emitEventProp] = function (eventName, payload, eventOptions) {
       eventOptions = Object.assign({}, defaultEventOptions, eventOptions);
 
-      // console.debug('[vue-hooked-async-events]-124: () - context of this: ', this);
-      return runEventCallbacks({
+      const args = {
         events,
         lingeringEvents,
         eventName,
         payload,
         eventOrigin: this,
         eventOptions
+      };
+
+      let promises = [];
+      /*
+       // this wont work if payload is actually a response in array form
+       if (isArray(eventName) && isArray(payload)) {
+       for (let eventNameIndex = 0, len = eventName.length; eventNameIndex < len; eventNameIndex++) {
+       for (let payloadIndex = 0, _len = payload.length; payloadIndex < _len; payloadIndex++) {
+       promises.push(runEventCallbacks({
+       ...args,
+       eventName: eventName[eventNameIndex],
+       payload:  payload[payloadIndex]
+       }));
+       }
+       }
+
+       return promises;
+       }
+       */
+
+      if (isArray(eventName)) {
+        for (let _eventNameIndex = 0, _len2 = eventName.length; _eventNameIndex < _len2; _eventNameIndex++) {
+          promises.push(runEventCallbacks({
+            ...args,
+            eventName: eventName[_eventNameIndex],
+            payload
+          }));
+        }
+
+        return promises;
+      }
+
+
+      return runEventCallbacks({
+        ...args
       });
     };
 
@@ -391,7 +425,7 @@ async function runEventCallbacks ({ eventName, eventOptions, eventOrigin, events
   payload = await _runEventCallbacks({ events, listeners, eventName, payload, eventOptions, eventOrigin, eventMeta });
 
   if (!eventMeta.stopNow) {
-  // if event is async then it waits for linger time to elapse before returning the result of catchUp listeners chain
+    // if event is async then it waits for linger time to elapse before returning the result of catchUp listeners chain
     return lingerEvent({ ...arguments[0], eventMeta, payload });
   } else {
     // catch up listener stopped the event before it went to other existing events.

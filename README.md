@@ -61,7 +61,7 @@ There are several methods used to manage events with super duper conviniencies l
 
 ### Listening to events:
 Listening to event or events:
-- all options can be mixed to get the desired behaviour
+- most options can be mixed to get the desired behaviour
 ```javascript
 created() {
   this.$onEvent('some-event', this.eventCallback);
@@ -69,12 +69,12 @@ created() {
   this.$onEvent('some-event', this.eventCallback1, { once: true });
   this.$onceEvent('some-event', this.eventCallback2);
 
-  // only continue after event has been emitted (only available for onceEvent) 
-  // - callback doesn't have to be async or even defined, if so then it also awaits cb resolution
+  // only continue after event has been emitted 
+  // - callback doesn't have to be async or even defined, if so then it also awaits callback resolution
   let result = await this.$onceEvent('some-event', this.eventCallback3, { isAsync: true });
   result = await this.$onceEvent('some-event', { isAsync: true });
-  // or you can proceed and use then, but this is more like the callback option
-  this.$onceEvent('some-event', this.eventCallback3, { isAsync: true }).then(/*...*/);
+  // or you can do something each time event is handled elsewhere, but this is more like the callback option
+  this.$onEvent('some-event', this.eventCallback3, { isAsync: true }).then(/*...*/);
 
   // automatically stop listening after 5000 milliseconds
   this.$onEvent('some-event', this.eventCallback3, { expire: 5000 });
@@ -88,10 +88,12 @@ created() {
   // - it doesn't have to be a lingered event
   this.$onEvent('some-event', this.eventCallback3, { catchUp: 100 });
 
+  // atomic listener API:
   // multiple events being listened to by one callback
   this.$onEvent(['second-event', 'third-event'], this.commonCallback);
   // fire multiple callbacks (even for multiple events)
   this.$onEvent('some-event', [this.eventCallback1, this.eventCallback2]);
+  // here each callback will correspond to its respective event
   this.$onEvent(['second-event', 'third-event'], [this.eventCallback1, this.eventCallback2]);
 },
 
@@ -134,8 +136,8 @@ methods: {
 ```
 
 ### Emitting events:
-Emitting events is simple, but this package takes it to another level of usability with async events.
-- all options can be mixed to get the desired behaviour
+Emitting events is simple, but this package takes it to another level of usability with async events, which are promises returned by eventEmiters for finer flow control on events as they happen and how they are listened and responded to. 
+- most options can be mixed to get the desired behaviour
 ```javascript
 methods: {
   async fireEvents() {
@@ -156,6 +158,12 @@ methods: {
     // get info from the last listener (this is where you MAY need to use reverse invocation order)
     const endResult = await this.$emitEvent('some-event', { test: 'one' }, { isAsync: true, range: 'first-child' });
     // isAsync option is required for events that expect a response
+
+    // atomic emission API: unlike listeners only single payload is allowed here
+    // emit multiple events, 
+    this.$emitEvent(['second-event', 'third-event'], {test: 'payload'});
+    // if async then the result will be array of promises respective of each event, we may use it this way eg: 
+    await new Promise.all(this.$emitEvent(['second-event', 'third-event'], {test: 'payload'}, {isAsync: true}));
   }     
 }
 ```
