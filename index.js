@@ -95,6 +95,8 @@ export default {
       listenerOptions = Object.assign({}, defaultListenerOptions, listenerOptions);
 
       const args = {
+        eventName,
+        callback,
         events,
         lingeringEvents,
         subscriberId,
@@ -120,8 +122,7 @@ export default {
         for (let _eventNameIndex = 0, _len2 = eventName.length; _eventNameIndex < _len2; _eventNameIndex++) {
           addListener({
             ...args,
-            eventName: eventName[_eventNameIndex],
-            callback
+            eventName: eventName[_eventNameIndex]
           });
         }
 
@@ -132,15 +133,12 @@ export default {
         for (let _callbackIndex = 0, _len3 = callback.length; _callbackIndex < _len3; _callbackIndex++) {
           addListener({
             ...args,
-            eventName,
             callback: callback[_callbackIndex]
           });
         }
       } else {
         addListener({
-          ...args,
-          eventName,
-          callback
+          ...args
         });
       }
     };
@@ -414,7 +412,6 @@ async function runEventCallbacks ({ eventName, eventOptions, eventOrigin, events
     eventOrigin,
     stopNow:         false,
     level,
-    listenerOptions: {},
     listenersTally
   };
 
@@ -514,7 +511,7 @@ function runCallback ({ payload, eventMeta, listener }) {
   // console.debug(`[vue-hooked-async-events] index-397: runCallbacks() - listener: %o`, listener.listenerOrigin._uid);
 
   // make sure we don't mutate the actual listenerOptions
-  eventMeta.listenerOptions = Object.assign({}, listener.listenerOptions);
+  const listenerOptions = Object.assign({}, listener.listenerOptions);
 
   const { events, eventName } = eventMeta;
 
@@ -527,7 +524,7 @@ function runCallback ({ payload, eventMeta, listener }) {
     });
   }
 
-  return listener.callback(payload, eventMeta);
+  return listener.callback(payload, { ...eventMeta, listenerOptions });
 }
 
 
@@ -586,27 +583,21 @@ function lingerEvent ({ lingeringEvents, eventName, payload, eventOptions, event
 
 /**
  * run lingered events for listener (triggered during add listener)
- * @param events
  * @param lingeringEvents
  * @param eventName
- * @param subscriberId
- * @param callback
- * @param listenerOptions
- * @param listenerOrigin
  * @param listener
  */
-async function runLingeredEvents ({ events, lingeringEvents, eventName, subscriberId, callback, listenerOptions, listenerOrigin, listener }) {
+async function runLingeredEvents ({ lingeringEvents, eventName, listener }) {
   // check if listener has an events lingering for it, if so then trigger these events on listener to handle
   if (lingeringEvents[eventName]) {
     for (let ei in lingeringEvents[eventName]) {
       // noinspection JSUnfilteredForInLoop
       const _event = lingeringEvents[eventName][ei];
       const [payload, eventMeta] = _event.args;
-      eventMeta.listenerOptions = listenerOptions;
       const { eventOptions, eventOrigin } = eventMeta;
 
       // was linger ordered by the event or if listener catchUp is within range (linger was ordered by global linger)
-      if (eventMeta.linger || listenerOptions.catchUp <= (Date.now() - eventMeta.eventTimestamp)) {
+      if (eventMeta.linger || listener.listenerOptions.catchUp <= (Date.now() - eventMeta.eventTimestamp)) {
         // noinspection JSIgnoredPromiseFromCall
         let result = await _runEventCallbacks({
           events:    [_event],
