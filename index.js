@@ -175,6 +175,10 @@ export default {
 
       // this can be used to wait for listener to trigger before proceeding with code below where listener was created
       if (listenerOptions.isAsync) {
+        if(Array.isArray(callback)) {
+          throw new Error(`[vue-hooked-async-events]-179: You cannot use isAsync listener with atomic API (multiple callbacks)`);
+        }
+
         /**
          * override the callback with one that will return to the listener origin
          * - it's async just in case the original is also async (one that returns results to event emitter)
