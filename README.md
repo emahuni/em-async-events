@@ -77,10 +77,9 @@ created() {
 
   // only continue after event has been emitted 
   // - callback doesn't have to be async or even defined, if so then it also awaits callback resolution
+  // - isAsync for listeners is only available for onceEvent, otherwise use callback for continuous event handling
   let result = await this.$onceEvent('some-event', this.eventCallback3, { isAsync: true });
   result = await this.$onceEvent('some-event', { isAsync: true });
-  // or you can do something each time event is handled elsewhere, but this is more like the callback option
-  this.$onEvent('some-event', this.eventCallback3, { isAsync: true }).then(/*...*/);
 
   // automatically stop listening after 5000 milliseconds
   this.$onEvent('some-event', this.eventCallback3, { expire: 5000 });

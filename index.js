@@ -95,6 +95,10 @@ export default {
     Vue.prototype[onEventProp] = function (eventName, callback, listenerOptions, subscriberId = this._uniqID, listenerOrigin = this) {
       listenerOptions = Object.assign({}, defaultListenerOptions, listenerOptions);
 
+      if(listenerOptions.isAsync && !listenerOptions.once) {
+        throw new Error(`[vue-hooked-async-events]-99: Cannot use isAsync with non-once event listeners. Consider using a callback that re-listens for the same same event instead.`);
+      }
+
       const args = {
         eventName,
         callback,
@@ -357,7 +361,7 @@ function addListener ({ events, lingeringEvents, eventName, subscriberId, callba
   };
 
   if (OPTIONS.debug.all && OPTIONS.debug.addListener || listenerOptions.trace) {
-    console.debug(`[vue-hooked-async-events]-321: ${OPTIONS.onEvent || '$onEvent(addListener)'} eventName: %o origin: %o \nListener: %o`, eventName, listenerOrigin && listenerOrigin.$options && listenerOrigin.$options.name || '???', listener);
+    console.debug(`[vue-hooked-async-events]-321: ${listenerOptions.once ? (OPTIONS.onceEvent || '$onceEvent(addListener)'): (OPTIONS.onEvent || '$onEvent(addListener)')} eventName: %o origin: %o \nListener: %o`, eventName, listenerOrigin && listenerOrigin.$options && listenerOrigin.$options.name || '???', listener);
   }
 
   // noinspection JSIgnoredPromiseFromCall
