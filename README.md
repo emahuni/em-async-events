@@ -62,9 +62,15 @@ There are several methods used to manage events with super duper conviniencies l
 ### Listening to events:
 Listening to event or events:
 - most options can be mixed to get the desired behaviour
+- callback arguments: `payload` and listener `options` (used to add the listener)
 ```javascript
 created() {
   this.$onEvent('some-event', this.eventCallback);
+  // send extra info to callback from where listener is invoked... 
+  // callback should extract extra info. see corresponding callback below
+  // instead of doing this.$onEvent('some-event', (pl)=>this.eventCallback(pl, {blah: 'bloh'}));
+  this.$onEvent('some-event', this.eventCallbackExtra, { extra: {blah: 'bloh'} });
+
   // listen once and remove
   this.$onEvent('some-event', this.eventCallback1, { once: true });
   this.$onceEvent('some-event', this.eventCallback2);
@@ -104,6 +110,7 @@ methods: {
 
     // metadata is information about the event and the listener itself eg:
     metadata == {
+      extra: 'extra payload (not event related) from listener adding line',
       eventName: "some-event", 
       eventOptions: {/*opts passed to event*/},
       listenerOptions: {/*opts passed to listener*/},
@@ -111,6 +118,13 @@ methods: {
       listenersTally: 6 // number of listeners for this event
     };
   },
+
+
+  async eventCallbackExtra (payload, { extra }) {
+    // extra contains extra payload from where listener was defined if specified, see above. Allows for a more cleaner API
+    // - passed to every event for the listener
+  },
+
 
   async eventCallback1 (payload, metadata) {
     // if you are going to return anything to event make sure you use 'isAsync' option and callback is async 
@@ -129,6 +143,7 @@ methods: {
 
   eventCallback3 (payload, metadata) {
     // you can also change how the event will behave by modifying the listenerOptions
+    // - not all options are modifiable
     // eg: stop invoking any subsequent callbacks on the event
     metadata.listenerOptions.stopHere = true;
   }

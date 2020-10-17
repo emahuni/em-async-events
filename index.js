@@ -11,6 +11,7 @@ export default {
   install: function install (Vue, options) {
     options = Object.assign({
       listenersOptions: {
+        extra:          undefined,
         stopHere:       false,
         expire:         0,
         expiryCallback: undefined,
@@ -406,11 +407,11 @@ async function runEventCallbacks ({ eventName, eventOptions, eventOrigin, events
   let eventMeta = {
     events,
     eventName,
-    eventTimestamp:  Date.now(),
+    eventTimestamp: Date.now(),
     // make sure we don't mutate the actual eventOptions
-    eventOptions:    Object.assign({}, eventOptions),
+    eventOptions:   Object.assign({}, eventOptions),
     eventOrigin,
-    stopNow:         false,
+    stopNow:        false,
     level,
     listenersTally
   };
@@ -524,7 +525,7 @@ function runCallback ({ payload, eventMeta, listener }) {
     });
   }
 
-  return listener.callback(payload, { ...eventMeta, listenerOptions });
+  return listener.callback(payload, { ...eventMeta, listenerOptions, extra: listenerOptions.extra });
 }
 
 
