@@ -21,11 +21,13 @@ export default {
         trace:          false
       },
       eventsOptions:    {
-        linger:       0,
-        lingerForOne: false,
-        isAsync:      false,
-        range:        'first-parent',
-        trace:        false
+        linger:        0,
+        isExclusive:   false,
+        keepExclusive: false,
+        forNextOnly:   false,
+        isAsync:       false,
+        range:         'first-parent',
+        trace:         false
       },
 
       globalLinger: 500,
@@ -200,6 +202,11 @@ export default {
      */
     Vue.prototype[emitEventProp] = function (eventName, payload, eventOptions) {
       eventOptions = Object.assign({}, defaultEventOptions, eventOptions);
+
+      if (eventOptions.forNextOnly && !eventOptions.linger) {
+        eventOptions.linger = Infinity;
+        eventOptions.isExclusive = true;
+      }
 
       const args = {
         events,
@@ -551,6 +558,18 @@ function lingerEvent ({ lingeringEvents, eventName, payload, eventOptions, event
       console.debug(`[vue-hooked-async-events]-428: lingerEvent - eventName: %o \n%o`, eventName, eventMeta);
     }
 
+    // get existing exclusive lingered event
+    const exclusiveLingeredEvent = (lingeringEvents[eventName] || []).find(e => e.args[1].eventOptions.isExclusive);
+
+    // bailout if exclusive lingered event is set to be kept (meaning don't replace with fresh event)
+    if (exclusiveLingeredEvent && exclusiveLingeredEvent.keepExclusive) {
+      if (eventOptions.isAsync) {
+        return Promise.resolve(payload);
+      } else {
+        return payload;
+      }
+    }
+
     const id = genUniqID();
 
     let lingeringHook = undefined, lingeringPromise = undefined, lingeringResult = payload;
@@ -561,13 +580,22 @@ function lingerEvent ({ lingeringEvents, eventName, payload, eventOptions, event
       lingeringPromise = new Promise((resolve) => lingeringHook = resolve);
     }
 
-    // stash the arguments for later use on new listeners
-    (lingeringEvents[eventName] || (lingeringEvents[eventName] = [])).push({
+    const event = {
       id,
       lingeringResult,
       lingeringHook, // to be resolved by run callbacks, see runLingeredEvents
       args: [payload, eventMeta]
-    });
+    };
+    // stash event for later use on new listeners of same eventName
+    if (!exclusiveLingeredEvent) {
+      (lingeringEvents[eventName] || (lingeringEvents[eventName] = [])).push(event);
+    } else {
+      const index = lingeringEvents[eventName].findIndex(e => e.id === exclusiveLingeredEvent.id);
+      lingeringEvents[eventName][index] = event;
+      // todo if used with Infinity, this creates an event based state updated by emissions and read by once listeners
+      //  (may actually create an easy API around this ;D)
+      //  you need to somehow make sure payload isn't overwritten, it should merge it. using object.assign I think
+    }
 
     // order the splice after linger ms later
     let timeout = eventOptions.linger || OPTIONS.globalLinger;
@@ -630,7 +658,7 @@ async function runLingeredEvents ({ lingeringEvents, eventName, listener }) {
           _event.args[0] = result; // update payload argument for next listener of lingering event
         }
 
-        if (eventOptions.lingerForOne) {
+        if (eventOptions.forNextOnly) {
           // noinspection JSUnfilteredForInLoop
           lingeringEvents[eventName].splice(ei, 1);
         }

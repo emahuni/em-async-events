@@ -91,6 +91,7 @@ created() {
   // catch up to an event that happened not more than 100 milliseconds ago (bust race conditions)
   // - (max 500 - change globalLinger option; see below)
   // - it doesn't have to be a lingered event
+  // - lingered events impose a catch up on all listeners added within the linger time. see below 
   this.$onEvent('some-event', this.eventCallback3, { catchUp: 100 });
 
   // atomic listener API:
@@ -165,19 +166,28 @@ methods: {
     // if event was fired at grandchild then all listeners from parent to grandparent'll handle event.
     // stop on the first listener callback (guaranteeing event is handled only once, by first listener)
     this.$emitEvent('some-event2', { test: 'one' }, { range: 'first-parent' });
+
+    // use lingered events
+    // Why use linger? bust race conditions. it doesn't matter how your order your events and listeners when using this
     // linger for 5000ms for new listeners on the event. Can't be async/expect any return values
     this.$emitEvent('some-event3', { test: 'one' }, { linger: 5000 });
-    // Why? bust race conditions, use with care
-    
+    // only linger for at most 5000ms for one more listener. If linger timeout isn't specified then Infinity and isExclusive options are imposed
+    this.$emitEvent('some-event4', { test: 'one' }, { linger: 5000, forNextOnly: true });
+    // exclusively linger this event; no other events of the same event name ('some-event5') will be lingered until after 5000ms
+    this.$emitEvent('some-event5', { test: 'one' }, { linger: 5000, isExclusive: true });
+    // newer events will replace the older one though, keeping only one fresh event unless `keepExclusive: true` option is set
+    // hint: this creates an event based state updated by emissions and read by listeners
+    //  - may actually create an easy API around this ;D
+
     // get info from the last listener (this is where you MAY need to use reverse invocation order)
     const endResult = await this.$emitEvent('some-event', { test: 'one' }, { isAsync: true, range: 'first-child' });
     // isAsync option is required for events that expect a response
 
     // atomic emission API: unlike listeners only single payload is allowed here
     // emit multiple events, 
-    this.$emitEvent(['second-event', 'third-event'], {test: 'payload'});
+    this.$emitEvent(['second-event', 'third-event'], { test: 'payload' });
     // if async then the result will be array of promises respective of each event, we may use it this way eg: 
-    await new Promise.all(this.$emitEvent(['second-event', 'third-event'], {test: 'payload'}, {isAsync: true}));
+    await new Promise.all(this.$emitEvent(['second-event', 'third-event'], { test: 'payload' }, { isAsync: true }));
   }     
 }
 ```
@@ -286,7 +296,7 @@ NOTE: use this feature at your own risk as it will warn you only for Vue basic p
         // }
         listenersOptions: { stopHere: true, /*...*/ },
         // eventsOptions default = { 
-        //   range: 'first-parent', linger: 0, lingerForOne: false, isAsync: false, trace: false 
+        //   range: 'first-parent', linger: 0, forNextOnly: false, isAsync: false, trace: false 
         // }
         eventsOptions: { range: 'ancestors', isAsync: true, /*...*/ },
 
