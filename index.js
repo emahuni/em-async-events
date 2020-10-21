@@ -95,7 +95,7 @@ export default {
     Vue.prototype[onEventProp] = function (eventName, callback, listenerOptions, subscriberId = this._uniqID, listenerOrigin = this) {
       listenerOptions = Object.assign({}, defaultListenerOptions, listenerOptions);
 
-      if(listenerOptions.isAsync && !listenerOptions.once) {
+      if (listenerOptions.isAsync && !listenerOptions.once) {
         throw new Error(`[vue-hooked-async-events]-99: Cannot use isAsync with non-once event listeners. Consider using a callback that re-listens for the same same event instead.`);
       }
 
@@ -175,7 +175,7 @@ export default {
 
       // this can be used to wait for listener to trigger before proceeding with code below where listener was created
       if (listenerOptions.isAsync) {
-        if(Array.isArray(callback)) {
+        if (Array.isArray(callback)) {
           throw new Error(`[vue-hooked-async-events]-179: You cannot use isAsync listener with atomic API (multiple callbacks)`);
         }
 
@@ -365,7 +365,7 @@ function addListener ({ events, lingeringEvents, eventName, subscriberId, callba
   };
 
   if (OPTIONS.debug.all && OPTIONS.debug.addListener || listenerOptions.trace) {
-    console.debug(`[vue-hooked-async-events]-321: ${listenerOptions.once ? (OPTIONS.onceEvent || '$onceEvent(addListener)'): (OPTIONS.onEvent || '$onEvent(addListener)')} eventName: %o origin: %o \nListener: %o`, eventName, listenerOrigin && listenerOrigin.$options && listenerOrigin.$options.name || '???', listener);
+    console.debug(`[vue-hooked-async-events]-321: ${listenerOptions.once ? (OPTIONS.onceEvent || '$onceEvent(addListener)') : (OPTIONS.onEvent || '$onEvent(addListener)')} eventName: %o origin: %o \nListener: %o`, eventName, listenerOrigin && listenerOrigin.$options && listenerOrigin.$options.name || '???', listener);
   }
 
   // noinspection JSIgnoredPromiseFromCall
@@ -547,7 +547,7 @@ function runCallback ({ payload, eventMeta, listener }) {
  */
 function lingerEvent ({ lingeringEvents, eventName, payload, eventOptions, eventMeta }) {
   if (lingeringEvents && (eventOptions.linger || OPTIONS.globalLinger)) {
-    if (OPTIONS.debug.all && OPTIONS.debug.lingerEvent) {
+    if (OPTIONS.debug.all && OPTIONS.debug.lingerEvent || eventOptions.trace) {
       console.debug(`[vue-hooked-async-events]-428: lingerEvent - eventName: %o \n%o`, eventName, eventMeta);
     }
 
@@ -570,6 +570,8 @@ function lingerEvent ({ lingeringEvents, eventName, payload, eventOptions, event
     });
 
     // order the splice after linger ms later
+    let timeout = eventOptions.linger || OPTIONS.globalLinger;
+    if (timeout >= Infinity) timeout = 2147483647; // set to maximum allowed so that we don't have an immediate bailout
     setTimeout(() => {
       // finally resolve lingering event promise
       if (eventOptions.isAsync) {
@@ -578,7 +580,11 @@ function lingerEvent ({ lingeringEvents, eventName, payload, eventOptions, event
 
       const i = lingeringEvents[eventName].findIndex(le => le.id === id);
       lingeringEvents[eventName].splice(i, 1);
-    }, eventOptions.linger || OPTIONS.globalLinger);
+
+      if (OPTIONS.debug.all && OPTIONS.debug.lingerEvent || eventOptions.trace) {
+        console.debug(`[vue-hooked-async-events]-584: remove lingerEvent - eventName: %o \n%o`, eventName, eventMeta);
+      }
+    }, timeout);
 
 
     if (eventOptions.isAsync) {
