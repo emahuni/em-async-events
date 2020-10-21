@@ -72,8 +72,13 @@ created() {
   this.$onEvent('some-event', this.eventCallbackExtra, { extra: {blah: 'bloh'} });
 
   // listen once and remove
-  this.$onEvent('some-event', this.eventCallback1, { once: true });
   this.$onceEvent('some-event', this.eventCallback2);
+  this.$onEvent('some-event', this.eventCallback1, { once: true });
+
+  // only allow this listener for this event on this component (any subsequent listeners are ignored)
+  this.$onEvent('some-event', this.eventCallback1, { isExclusive: true });
+  // or just replace any existing exclusive listener 
+  this.$onEvent('some-event', this.eventCallback1, { isExclusive: true, replaceExclusive: true });
 
   // only continue after event has been emitted 
   // - callback doesn't have to be async or even defined, if so then it also awaits callback resolution

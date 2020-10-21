@@ -11,14 +11,16 @@ export default {
   install: function install (Vue, options) {
     options = Object.assign({
       listenersOptions: {
-        extra:          undefined,
-        stopHere:       false,
-        expire:         0,
-        expiryCallback: undefined,
-        catchUp:        0,
-        once:           false,
-        isAsync:        false,
-        trace:          false
+        extra:            undefined,
+        stopHere:         false,
+        expire:           0,
+        expiryCallback:   undefined,
+        catchUp:          0,
+        once:             false,
+        isAsync:          false,
+        isExclusive:      false,
+        replaceExclusive: false,
+        trace:            false
       },
       eventsOptions:    {
         linger:        0,
@@ -361,9 +363,22 @@ export default {
  * @param listenerOrigin
  */
 function addListener ({ events, lingeringEvents, eventName, subscriberId, callback, listenerOptions, listenerOrigin }) {
+  // get existing exclusive listener
+  const exclusiveListener = (events[eventName] || []).find(l => l.listenerOptions.isExclusive && l.subscriberId === subscriberId);
+
+  // bailout if there is an exclusive listener of the same event name on the component
+  if (exclusiveListener && !exclusiveListener.replaceExclusive) {
+    if (OPTIONS.debug.all && OPTIONS.debug.addListener || listenerOptions.trace) {
+      console.debug(`[vue-hooked-async-events]-376: ABORTING (exclusive listener exists) ${listenerOptions.once ? (OPTIONS.onceEvent || '$onceEvent(addListener)') : (OPTIONS.onEvent || '$onEvent(addListener)')} eventName: %o Listener Origin: %o`, eventName, listenerOrigin && listenerOrigin.$options && listenerOrigin.$options.name || '???');
+    }
+    return;
+  }
+
   const level = getOriginLevel(listenerOrigin);
+  const id = genUniqID();
   const listener = {
     eventName,
+    id,
     subscriberId,
     listenerOrigin,
     listenerOptions,
@@ -372,21 +387,26 @@ function addListener ({ events, lingeringEvents, eventName, subscriberId, callba
   };
 
   if (OPTIONS.debug.all && OPTIONS.debug.addListener || listenerOptions.trace) {
-    console.debug(`[vue-hooked-async-events]-321: ${listenerOptions.once ? (OPTIONS.onceEvent || '$onceEvent(addListener)') : (OPTIONS.onEvent || '$onEvent(addListener)')} eventName: %o origin: %o \nListener: %o`, eventName, listenerOrigin && listenerOrigin.$options && listenerOrigin.$options.name || '???', listener);
+    console.debug(`[vue-hooked-async-events]-394: ${listenerOptions.once ? (OPTIONS.onceEvent || '$onceEvent(addListener)') : (OPTIONS.onEvent || '$onEvent(addListener)')} eventName: %o Listener Origin: %o \nListener: %o`, eventName, listenerOrigin && listenerOrigin.$options && listenerOrigin.$options.name || '???', listener);
   }
 
   // noinspection JSIgnoredPromiseFromCall
   runLingeredEvents({ ...arguments[0], listener });
 
-  (events[eventName] || (events[eventName] = [])).push(listener);
+  if (!exclusiveListener) {
+    (events[eventName] || (events[eventName] = [])).push(listener);
+  } else {
+    const index = events[eventName].findIndex(l => l.id === exclusiveListener.id);
+    events[eventName][index] = listener;
+  }
 
   if (listenerOptions.expire) {
-    setTimeout(async (...args) => {
+    setTimeout(async () => {
       // run expiry callback if set, wait for it finish executing if it's async
-      if (!!listenerOptions.expiryCallback) await listenerOptions.expiryCallback(...args);
+      if (!!listenerOptions.expiryCallback) await listenerOptions.expiryCallback(listener);
       // noinspection JSCheckFunctionSignatures
-      removeListeners(...args);
-    }, listenerOptions.expire, ...arguments);
+      removeListeners({ ...listener, events });
+    }, listenerOptions.expire);
   }
 }
 
@@ -554,15 +574,14 @@ function runCallback ({ payload, eventMeta, listener }) {
  */
 function lingerEvent ({ lingeringEvents, eventName, payload, eventOptions, eventMeta }) {
   if (lingeringEvents && (eventOptions.linger || OPTIONS.globalLinger)) {
-    if (OPTIONS.debug.all && OPTIONS.debug.lingerEvent || eventOptions.trace) {
-      console.debug(`[vue-hooked-async-events]-428: lingerEvent - eventName: %o \n%o`, eventName, eventMeta);
-    }
-
     // get existing exclusive lingered event
     const exclusiveLingeredEvent = (lingeringEvents[eventName] || []).find(e => e.args[1].eventOptions.isExclusive);
 
     // bailout if exclusive lingered event is set to be kept (meaning don't replace with fresh event)
     if (exclusiveLingeredEvent && exclusiveLingeredEvent.keepExclusive) {
+      if (OPTIONS.debug.all && OPTIONS.debug.lingerEvent || eventOptions.trace) {
+        console.debug(`[vue-hooked-async-events]-587: ABORTING lingerEvent - eventName: %o \n%o`, eventName, eventMeta);
+      }
       if (eventOptions.isAsync) {
         return Promise.resolve(payload);
       } else {
@@ -570,12 +589,16 @@ function lingerEvent ({ lingeringEvents, eventName, payload, eventOptions, event
       }
     }
 
+    if (OPTIONS.debug.all && OPTIONS.debug.lingerEvent || eventOptions.trace) {
+      console.debug(`[vue-hooked-async-events]-597: lingerEvent - eventName: %o \n%o`, eventName, eventMeta);
+    }
+
     const id = genUniqID();
 
     let lingeringHook = undefined, lingeringPromise = undefined, lingeringResult = payload;
     if (eventOptions.isAsync) {
       if (eventOptions.linger >= Infinity || OPTIONS.globalLinger >= Infinity) {
-        throw new Error(`[vue-hooked-async-events]-523: You cannot async and linger an event forever!`);
+        throw new Error(`[vue-hooked-async-events]-605: You cannot async and linger an event forever!`);
       }
       lingeringPromise = new Promise((resolve) => lingeringHook = resolve);
     }
@@ -610,7 +633,7 @@ function lingerEvent ({ lingeringEvents, eventName, payload, eventOptions, event
       lingeringEvents[eventName].splice(i, 1);
 
       if (OPTIONS.debug.all && OPTIONS.debug.lingerEvent || eventOptions.trace) {
-        console.debug(`[vue-hooked-async-events]-584: remove lingerEvent - eventName: %o \n%o`, eventName, eventMeta);
+        console.debug(`[vue-hooked-async-events]-640: remove lingerEvent - eventName: %o \n%o`, eventName, eventMeta);
       }
     }, timeout);
 
@@ -880,12 +903,13 @@ function listenersInRange ({ listeners, eventLevel, up, down, selfOnly, eventOri
  * @param events
  * @param eventName
  * @param subscriberId
+ * @param id
  */
-function removeListeners ({ events, eventName, subscriberId }) {
+function removeListeners ({ events, eventName, subscriberId, id }) {
   if (!events[eventName]) return;
 
   for (let listenerIndex = 0; listenerIndex < events[eventName].length; listenerIndex++) {
-    if (events[eventName][listenerIndex].subscriberId === subscriberId) {
+    if (events[eventName][listenerIndex].subscriberId === subscriberId && (!id || id === events[eventName][listenerIndex].id)) {
       if (OPTIONS.debug.all && OPTIONS.debug.removeListener || events[eventName][listenerIndex].listenerOptions.trace) {
         const listener = events[eventName][listenerIndex];
         const { listenerOrigin } = listener;
