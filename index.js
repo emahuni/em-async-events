@@ -31,14 +31,14 @@ export default {
       globalLinger: 500,
 
       debug: {
-        all:                    false,
-        addListener:            true,
-        emitEvent:              true,
-        eraseEvent:             true,
-        invokeListener:         true,
-        lingerEvent:            true,
-        chainListenerCallbacks: true,
-        removeListener:         true
+        all:                    true,
+        addListener:            false,
+        emitEvent:              false,
+        eraseEvent:             false,
+        invokeListener:         false,
+        lingerEvent:            false,
+        chainListenerCallbacks: false,
+        removeListener:         false
       }
     }, options);
 
