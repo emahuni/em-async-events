@@ -454,7 +454,7 @@ async function runEventCallbacks ({ eventName, eventOptions, eventOrigin, events
   };
   
   if (OPTIONS.debug.all && OPTIONS.debug.emitEvent || eventOptions.trace) {
-    console.info(`[vue-hooked-async-events]-152: ${OPTIONS.emitEvent || '$emitEvent'} eventName: %o \npayload: %o\n origin: %o eventMeta: %o`, eventName, payload, eventOrigin && eventOrigin.$options && eventOrigin.$options.name || '???', eventMeta);
+    console.info(`[vue-hooked-async-events]-152: ${OPTIONS.emitEvent || '$emitEvent'} eventName: %o payload: %o\n origin: %o eventMeta: %o`, eventName, payload, eventOrigin && eventOrigin.$options && eventOrigin.$options.name || '???', eventMeta);
   }
   
   payload = await _runEventCallbacks({ events, listeners, eventName, payload, eventOptions, eventOrigin, eventMeta });
@@ -511,7 +511,7 @@ async function _runEventCallbacks ({ events, eventName, eventOptions, eventOrigi
         if (OPTIONS.debug.all && OPTIONS.debug.invokeListener || eventOptions.trace || listener.listenerOptions.trace) {
           let trace = console.info;
           if (eventOptions.verbose || listener.listenerOptions.verbose) trace = console.trace;
-          trace(`[vue-hooked-async-events]-380: Invoke Listener - eventName: %o,\npayload: %o, \n origin: %o, eventOrigin: %o, Listener: %o\neventMeta: %o\nresponse: %o, \nstoppingHere: %o`, eventName, payload, listener.listenerOrigin && listener.listenerOrigin.$options && listener.listenerOrigin.$options.name || '???', eventOrigin && eventOrigin.$options.name || '???', listener, eventMeta, res, stopHere);
+          trace(`[vue-hooked-async-events]-380: Invoke Listener - eventName: %o, payload: %o, \n origin: %o, eventOrigin: %o, Listener: %o\neventMeta: %o\nresponse: %o, \nstoppingHere: %o`, eventName, payload, listener.listenerOrigin && listener.listenerOrigin.$options && listener.listenerOrigin.$options.name || '???', eventOrigin && eventOrigin.$options.name || '???', listener, eventMeta, res, stopHere);
         }
         
         if (eventOptions.isAsync) {
