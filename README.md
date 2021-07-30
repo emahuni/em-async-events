@@ -329,10 +329,15 @@ NOTE: use this feature at your own risk as it will warn you only for Vue basic p
 
         // you can also change options in userland
         this.$asyncEvents.options.debug.all = true; 
+        
+        // or change it per event or listener or all those debug options listed above; 
+        // use trace option and...
+        // add verbose to show actual code trace info (very useful to figure out what code is emitting event)
+        this.$hear('some-event',()=> { /*do something */ }, { trace: true, verbose: true });
     },
     methods: {
         doSmth() {
-            this.$fireEvent('some-event');
+            this.$fireEvent('some-event', 'payload', { trace: true });
         },
         unsubscribe() {
             this.$noMore('some-event');
