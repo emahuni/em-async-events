@@ -1,6 +1,6 @@
 {
   "name": "vue-hooked-async-events",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "Easier and more useful Vue2.x event bus with zero dependencies. Features include expirable, lingering and catch-up async events and listeners (auto-removed), and a customizable atomic API.",
   "main": "index.js",
   "scripts": {
