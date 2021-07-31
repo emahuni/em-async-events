@@ -1,5 +1,7 @@
 'use strict';
 
+import _ from 'lodash';
+
 let OPTIONS;
 
 export default {
@@ -9,7 +11,7 @@ export default {
    * @param options
    */
   install: function install (Vue, options) {
-    options = Object.assign({
+    options = _.defaults({
       listenersOptions: {
         extra:            undefined,
         stopHere:         false,
@@ -17,7 +19,7 @@ export default {
         expiryCallback:   undefined,
         catchUp:          0,
         once:             false,
-        isAsync:          false,
+        isAsync:          true,
         isExclusive:      false,
         replaceExclusive: false,
         trace:            false,
@@ -28,7 +30,7 @@ export default {
         isExclusive:   false,
         keepExclusive: false,
         forNextOnly:   false,
-        isAsync:       false,
+        isAsync:       true,
         range:         'first-parent',
         trace:         false,
         verbose:       false,
@@ -101,9 +103,9 @@ export default {
     Vue.prototype[onEventProp] = function (eventName, callback, listenerOptions, subscriberId = this._uniqID, listenerOrigin = this) {
       listenerOptions = Object.assign({}, defaultListenerOptions, listenerOptions);
       
-      if (listenerOptions.isAsync && !listenerOptions.once) {
+      /*if (listenerOptions.isAsync && !listenerOptions.once) {
         throw new Error(`[vue-hooked-async-events]-99: Cannot use isAsync with non-once event listeners. Consider using a callback that re-listens for the same same event instead.`);
-      }
+      }*/
       
       const args = {
         eventName,
@@ -206,6 +208,8 @@ export default {
      */
     Vue.prototype[emitEventProp] = function (eventName, payload, eventOptions) {
       eventOptions = Object.assign({}, defaultEventOptions, eventOptions);
+  
+      console.debug(`[index]-210: () - eventOptions: %o, defaultEventOptions: %o`, eventOptions, defaultEventOptions);
       
       if (eventOptions.forNextOnly && !eventOptions.linger) {
         eventOptions.linger = Infinity;
@@ -440,6 +444,8 @@ async function runEventCallbacks ({ eventName, eventOptions, eventOrigin, events
   let listeners = events && events[eventName];
   let listenersTally = listeners && listeners.length;
   const level = getOriginLevel(eventOrigin);
+  
+  console.debug(`[index]-444: runEventCallbacks() - eventOptions: %o`, eventOptions);
   
   let eventMeta = {
     events,

@@ -1,7 +1,7 @@
 # vue-hooked-async-events
 [![npm](https://img.shields.io/npm/v/vue-hooked-async-events.svg)](vue-hooked-async-events) ![npm](https://img.shields.io/npm/dt/vue-hooked-async-events.svg)
 
-Easier and more useful Vue event bus with zero dependencies. Features include expirable, lingering and catch-up async events and listeners, and a customizable atomic API.
+Easier and more useful Vue event bus with features that include expirable, lingering and catch-up async events and listeners, and a customizable atomic API.
 
 ## Features
 - **stoppable events and listeners**; stop an event from firing on other callbacks when it hits a specific callback or on the first callback
@@ -83,6 +83,7 @@ created() {
   // only continue after event has been emitted 
   // - callback doesn't have to be async or even defined, if so then it also awaits callback resolution
   // - isAsync for listeners is only available for onceEvent, otherwise use callback for continuous event handling
+  // - isAsync is true by default, pass isAsync: false to turn off async funcitonality
   let result = await this.$onceEvent('some-event', this.eventCallback3, { isAsync: true });
   result = await this.$onceEvent('some-event', { isAsync: true });
 
@@ -186,7 +187,7 @@ methods: {
 
     // get info from the last listener (this is where you MAY need to use reverse invocation order)
     const endResult = await this.$emitEvent('some-event', { test: 'one' }, { isAsync: true, range: 'first-child' });
-    // isAsync option is required for events that expect a response
+    // isAsync option is required for events that expect a response, it's true by default
 
     // atomic emission API: unlike listeners only single payload is allowed here
     // emit multiple events, 

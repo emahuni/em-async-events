@@ -25,5 +25,8 @@
   "bugs": {
     "url": "https://github.com/emahuni/vue-hooked-async-events/issues"
   },
-  "homepage": "https://github.com/emahuni/vue-hooked-async-events#readme"
+  "homepage": "https://github.com/emahuni/vue-hooked-async-events#readme",
+  "dependencies": {
+    "lodash": "^4.17.21"
+  }
 }
