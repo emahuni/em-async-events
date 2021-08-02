@@ -570,7 +570,7 @@ class AsyncEvents {
      * @return {boolean}
      */
     Vue.prototype[hasLingeringEventProp] = function (eventID) {
-      return checkComponentEvents(eventID, AE_this.lingeringEvents, 'eventMeta.eventOrigin', this);
+      return checkComponentEvents(eventID, AE_this.lingeringEvents, 'args[1].eventOrigin', this);
     };
     /**
      * check to see if we have any lingering event for any of the given eventID(s)
@@ -578,7 +578,7 @@ class AsyncEvents {
      * @return {boolean}
      */
     Vue.prototype[hasLingeringEventsProp] = function (eventIDs) {
-      return checkComponentEvents(eventIDs, AE_this.lingeringEvents, 'eventMeta.eventOrigin', this);
+      return checkComponentEvents(eventIDs, AE_this.lingeringEvents, 'args[1].eventOrigin', this);
     };
   }
   
