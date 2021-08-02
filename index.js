@@ -88,7 +88,7 @@ class AsyncEvents {
    * @param listenerOrigin
    */
   onEvent (eventName, callback, listenerOptions, subscriberId = _.uniqueId(), listenerOrigin) {
-    listenerOptions = _.defaultsDeep(listenerOptions, this.options.listenerOptions);
+    listenerOptions = _.merge({}, this.options.listenersOptions, listenerOptions);
     
     /*if (listenerOptions.isAsync && !listenerOptions.once) {
       throw new Error(`[vue-hooked-async-events]-99: Cannot use isAsync with non-once event listeners. Consider using a callback that re-listens for the same same event instead.`);
@@ -135,9 +135,7 @@ class AsyncEvents {
         });
       }
     } else {
-      this.__addListener({
-        ...args,
-      });
+      this.__addListener(args);
     }
   }
   
@@ -155,7 +153,7 @@ class AsyncEvents {
       callback = undefined;
     }
     
-    listenerOptions = _.defaultsDeep(listenerOptions, this.options.listenerOptions);
+    listenerOptions = _.merge({}, this.options.listenersOptions, listenerOptions);
     listenerOptions.once = true;
     
     /**
@@ -195,7 +193,10 @@ class AsyncEvents {
    * @return {Promise<*>|array<Promise>}
    */
   emitEvent (eventName, payload, eventOptions, eventOrigin) {
-    eventOptions = _.defaultsDeep(eventOptions, this.options.eventOptions);
+    console.debug(`[index]-198: emitEvent() - _.cloneDeep(eventOptions): %o`, _.cloneDeep(eventOptions));
+    console.debug(`[index]-199: emitEvent() - _.cloneDeep(this.options.eventsOptions): %o`, _.cloneDeep(this.options.eventsOptions));
+    eventOptions = _.merge({}, this.options.eventsOptions, eventOptions);
+    console.debug(`[index]-198: emitEvent() - _.cloneDeep(eventOptions): %o`, _.cloneDeep(eventOptions));
     
     if (eventOptions.forNextOnly && !eventOptions.linger) {
       eventOptions.linger = Infinity;
@@ -239,9 +240,7 @@ class AsyncEvents {
       return promises;
     }
     
-    return this.__runEventCallbacks({
-      ...args,
-    });
+    return this.__runEventCallbacks(args);
   }
   
   
@@ -662,10 +661,9 @@ class AsyncEvents {
       events:         this.events,
       eventName,
       eventTimestamp: Date.now(),
-      // make sure we don't mutate the actual eventOptions
-      eventOptions: Object.assign({}, eventOptions),
+      eventOptions:   _.cloneDeep(eventOptions),
       eventOrigin,
-      stopNow:      false,
+      stopNow:        false,
       level,
       listenersTally,
     };
@@ -784,8 +782,7 @@ class AsyncEvents {
   __runCallback ({ events = this.events, payload, eventMeta, listener }) {
     // console.debug(`[vue-hooked-async-events] index-397: this.__runCallbacks() - listener: %o`, listener.listenerOrigin._uid);
     
-    // make sure we don't mutate the actual listenerOptions
-    const listenerOptions = Object.assign({}, listener.listenerOptions);
+    listener.listenerOptions = _.merge({}, this.options.listenersOptions, listener.listenerOptions);
     
     const { eventName } = eventMeta;
     
@@ -798,7 +795,13 @@ class AsyncEvents {
       });
     }
     
-    return listener.callback(payload, { ...eventMeta, listenerOptions, extra: listenerOptions.extra });
+    if (_.isFunction(listener.callback)) {
+      return listener.callback(payload, {
+        ...eventMeta,
+        listenerOptions: listener.listenerOptions,
+        extra:           listener.listenerOptions.extra,
+      });
+    }
   }
   
   
@@ -856,7 +859,7 @@ class AsyncEvents {
         this.lingeringEvents[eventName][index] = event;
         // todo if used with Infinity, this creates an event based state updated by emissions and read by once listeners
         //  (may actually create an easy API around this ;D)
-        //  you need to somehow make sure payload isn't overwritten, it should merge it. using object.assign I think
+        //  you need to somehow make sure payload isn't overwritten, it should merge it.
       }
       
       // order the splice after linger ms later
