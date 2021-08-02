@@ -193,10 +193,7 @@ class AsyncEvents {
    * @return {Promise<*>|array<Promise>}
    */
   emitEvent (eventName, payload, eventOptions, eventOrigin) {
-    console.debug(`[index]-198: emitEvent() - _.cloneDeep(eventOptions): %o`, _.cloneDeep(eventOptions));
-    console.debug(`[index]-199: emitEvent() - _.cloneDeep(this.options.eventsOptions): %o`, _.cloneDeep(this.options.eventsOptions));
     eventOptions = _.merge({}, this.options.eventsOptions, eventOptions);
-    console.debug(`[index]-198: emitEvent() - _.cloneDeep(eventOptions): %o`, _.cloneDeep(eventOptions));
     
     if (eventOptions.forNextOnly && !eventOptions.linger) {
       eventOptions.linger = Infinity;
@@ -542,7 +539,6 @@ class AsyncEvents {
       if (!_.isArray(eventIDs)) eventIDs = [eventIDs];
       let listeners = _.flatten(_.filter(events, (v, k) => eventIDs.includes(k)));
       listeners = _.filter(listeners, (listener) => _.get(listener, `${origin}._uid`) === vm._uid);
-      debugger;
       return !!listeners.length;
     }
     
