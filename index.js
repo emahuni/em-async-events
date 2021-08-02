@@ -471,13 +471,17 @@ class AsyncEvents {
      * @param {string} eventID - event id to check
      * @return {boolean}
      */
-    Vue.prototype[hasEventProp] = AE_this.hasEvent;
+    Vue.prototype[hasEventProp] = function (eventID) {
+      return AE_this.hasEvent(eventID);
+    };
     /**
      * check to see if we have any listener for any of the given eventID(s)
      * @param {Array<string>|string} eventIDs - event ids or just a single event id to check
      * @return {boolean}
      */
-    Vue.prototype[hasEventsProp] = AE_this.hasEvents;
+    Vue.prototype[hasEventsProp] = function (eventIDs) {
+      return AE_this.hasEvents(eventIDs);
+    };
   }
   
   
