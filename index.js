@@ -376,9 +376,9 @@ class AsyncEvents {
      * plugin local state
      */
     Vue.prototype[asyncEventsProp] = {
-      _events:          this.events,
-      _lingeringEvents: this.lingeringEvents,
-      options:          this.options,
+      events:          this.events,
+      lingeringEvents: this.lingeringEvents,
+      options:         this.options,
     };
     
     /**
@@ -750,7 +750,7 @@ class AsyncEvents {
    * @param eventName
    * @param listener
    */
-  async __runLingeredEvents ({  eventName, listener }) {
+  async __runLingeredEvents ({ eventName, listener }) {
     // check if listener has an events lingering for it, if so then trigger these events on listener to handle
     if (this.lingeringEvents[eventName]) {
       for (let ei in this.lingeringEvents[eventName]) {
