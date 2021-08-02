@@ -280,9 +280,9 @@ Removing event from events object for all listeners (example):
 There are several methods for doing other things. 
 ```javascript
 // will return true if there is any listener with either ids: "event-id-1" or "event-id-2"
-this.$hasEvents (['event-id-1', 'event-id-2']); 
+this.$hasListeners (['event-id-1', 'event-id-2']); 
 // will return true if there is a listener with event id: "event-id-1"
-this.$hasEvent ('event-id-1'); 
+this.$hasListener ('event-id-1'); 
 // will return true if there is any lingering events with either ids: "event-id-1" or "event-id-2"
 this.$hasLingeringEvents (['event-id-1', 'event-id-2']); 
 // will return true if there is any lingering events with event id: "event-id-1"

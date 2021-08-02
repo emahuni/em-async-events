@@ -10,8 +10,8 @@ const names = {
   eraseEvent:           '$eraseEvent',
   fallSilent:           '$fallSilent',
   chainCallbackPayload: '$chainCallbackPayload',
-  hasEvent:             '$hasEvent',
-  hasEvents:            '$hasEvents',
+  hasListener:          '$hasListener',
+  hasListeners:         '$hasListeners',
   hasLingeringEvent:    '$hasLingeringEvent',
   hasLingeringEvents:   '$hasLingeringEvents',
 };
@@ -73,8 +73,8 @@ class AsyncEvents {
     this.options.eraseEvent = this.__isCorrectCustomName('eraseEvent', options) || names.eraseEvent;
     this.options.fallSilent = this.__isCorrectCustomName('fallSilent', options) || names.fallSilent;
     this.options.chainCallbackPayload = this.__isCorrectCustomName('chainCallbackPayload', options) || names.chainCallbackPayload;
-    this.options.hasEvent = this.__isCorrectCustomName('hasEvent', options) || names.hasEvent;
-    this.options.hasEvents = this.__isCorrectCustomName('hasEvents', options) || names.hasEvents;
+    this.options.hasListener = this.__isCorrectCustomName('hasListener', options) || names.hasListener;
+    this.options.hasListeners = this.__isCorrectCustomName('hasListeners', options) || names.hasListeners;
     this.options.hasLingeringEvent = this.__isCorrectCustomName('hasLingeringEvent', options) || names.hasLingeringEvent;
     this.options.hasLingeringEvents = this.__isCorrectCustomName('hasLingeringEvents', options) || names.hasLingeringEvents;
   }
@@ -344,8 +344,8 @@ class AsyncEvents {
    * @param {string} eventID - event id to check
    * @return {boolean}
    */
-  hasEvent (eventID) {
-    return this.hasEvents(eventID);
+  hasListener (eventID) {
+    return this.hasListeners(eventID);
   }
   
   /**
@@ -353,7 +353,7 @@ class AsyncEvents {
    * @param {Array<string>|string} eventIDs - event ids or just a single event id to check
    * @return {boolean}
    */
-  hasEvents (eventIDs) {
+  hasListeners (eventIDs) {
     if (!_.isArray(eventIDs)) eventIDs = [eventIDs];
     return eventIDs.some(eid => !_.isEmpty(_.get(this.events, eid)));
   }
@@ -397,8 +397,8 @@ class AsyncEvents {
     let eraseEventProp = this.options.eraseEvent;
     let fallSilentProp = this.options.fallSilent;
     let chainCallbackPayloadProp = this.options.chainCallbackPayload;
-    let hasEventProp = this.options.hasEvent;
-    let hasEventsProp = this.options.hasEvents;
+    let hasListenerProp = this.options.hasListener;
+    let hasListenersProp = this.options.hasListeners;
     let hasLingeringEventProp = this.options.hasLingeringEvent;
     let hasLingeringEventsProp = this.options.hasLingeringEvents;
     
@@ -498,16 +498,16 @@ class AsyncEvents {
      * @param {string} eventID - event id to check
      * @return {boolean}
      */
-    Vue.prototype[hasEventProp] = function (eventID) {
-      return AE_this.hasEvent(eventID);
+    Vue.prototype[hasListenerProp] = function (eventID) {
+      return AE_this.hasListener(eventID);
     };
     /**
      * check to see if we have any listener for any of the given eventID(s)
      * @param {Array<string>|string} eventIDs - event ids or just a single event id to check
      * @return {boolean}
      */
-    Vue.prototype[hasEventsProp] = function (eventIDs) {
-      return AE_this.hasEvents(eventIDs);
+    Vue.prototype[hasListenersProp] = function (eventIDs) {
+      return AE_this.hasListeners(eventIDs);
     };
     
     
