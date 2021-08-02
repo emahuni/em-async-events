@@ -1128,6 +1128,8 @@ class AsyncEvents {
       }
       events[eventName].splice(indexOfSubscriber, 1);
     }
+    
+    if(_.isEmpty(events[eventName])) delete events[eventName];
   }
   
   
