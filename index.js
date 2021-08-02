@@ -12,6 +12,8 @@ const names = {
   chainCallbackPayload: '$chainCallbackPayload',
   hasEvent:             '$hasEvent',
   hasEvents:            '$hasEvents',
+  hasLingeringEvent:    '$hasLingeringEvent',
+  hasLingeringEvents:   '$hasLingeringEvents',
 };
 
 class AsyncEvents {
@@ -71,6 +73,10 @@ class AsyncEvents {
     this.options.eraseEvent = this.__isCorrectCustomName('eraseEvent', options) || names.eraseEvent;
     this.options.fallSilent = this.__isCorrectCustomName('fallSilent', options) || names.fallSilent;
     this.options.chainCallbackPayload = this.__isCorrectCustomName('chainCallbackPayload', options) || names.chainCallbackPayload;
+    this.options.hasEvent = this.__isCorrectCustomName('hasEvent', options) || names.hasEvent;
+    this.options.hasEvents = this.__isCorrectCustomName('hasEvents', options) || names.hasEvents;
+    this.options.hasLingeringEvent = this.__isCorrectCustomName('hasLingeringEvent', options) || names.hasLingeringEvent;
+    this.options.hasLingeringEvents = this.__isCorrectCustomName('hasLingeringEvents', options) || names.hasLingeringEvents;
   }
   
   /**
@@ -352,6 +358,25 @@ class AsyncEvents {
     return eventIDs.some(eid => _.has(this.events, eid));
   }
   
+  /**
+   * check to see if we have any lingeringEvent for the given eventID
+   * @param {string} eventID - event id to check
+   * @return {boolean}
+   */
+  hasLingeringEvent (eventID) {
+    return this.hasLingeringEvents(eventID);
+  }
+  
+  /**
+   * check to see if we have any lingering events for any of the given eventID(s)
+   * @param {Array<string>|string} eventIDs - event ids or just a single event id to check
+   * @return {boolean}
+   */
+  hasLingeringEvents (eventIDs) {
+    if (!_.isArray(eventIDs)) eventIDs = [eventIDs];
+    return eventIDs.some(eid => _.has(this.lingeringEvents, eid));
+  }
+  
   
   
   /**
@@ -374,6 +399,8 @@ class AsyncEvents {
     let chainCallbackPayloadProp = this.options.chainCallbackPayload;
     let hasEventProp = this.options.hasEvent;
     let hasEventsProp = this.options.hasEvents;
+    let hasLingeringEventProp = this.options.hasLingeringEvent;
+    let hasLingeringEventsProp = this.options.hasLingeringEvents;
     
     const AE_this = this;
     
@@ -481,6 +508,24 @@ class AsyncEvents {
      */
     Vue.prototype[hasEventsProp] = function (eventIDs) {
       return AE_this.hasEvents(eventIDs);
+    };
+    
+    
+    /**
+     * check to see if we have any lingeringEvent for the given eventID
+     * @param {string} eventID - event id to check
+     * @return {boolean}
+     */
+    Vue.prototype[hasLingeringEventProp] = function (eventID) {
+      return AE_this.hasLingeringEvent(eventID);
+    };
+    /**
+     * check to see if we have any lingering event for any of the given eventID(s)
+     * @param {Array<string>|string} eventIDs - event ids or just a single event id to check
+     * @return {boolean}
+     */
+    Vue.prototype[hasLingeringEventsProp] = function (eventIDs) {
+      return AE_this.hasLingeringEvents(eventIDs);
     };
   }
   

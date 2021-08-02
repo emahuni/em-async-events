@@ -283,6 +283,10 @@ There are several methods for doing other things.
 this.$hasEvents (['event-id-1', 'event-id-2']); 
 // will return true if there is a listener with event id: "event-id-1"
 this.$hasEvent ('event-id-1'); 
+// will return true if there is any lingering events with either ids: "event-id-1" or "event-id-2"
+this.$hasLingeringEvents (['event-id-1', 'event-id-2']); 
+// will return true if there is any lingering events with event id: "event-id-1"
+this.$hasLingeringEvent ('event-id-1'); 
 ```
 
 
