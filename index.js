@@ -435,7 +435,7 @@ class AsyncEvents {
       events:          this.events,
       lingeringEvents: this.lingeringEvents,
       options:         this.options,
-  
+      
       /**
        * check if Async Events has any listeners for the given eventID
        * @param {string} eventID - the listener eventID to check.
@@ -535,14 +535,15 @@ class AsyncEvents {
      * @param {Array<string>|string} eventIDs - event ids or just a single event id to check
      * @param {object} events - async events or lingering events to check for existence from.
      * @param {string} origin - the origin to use (eventOrigin for lingeringEvents and listenerOrigin for events)
+     * @param {object} vm - the Vue component to check on
      * @return {boolean}
      */
-    function checkComponentEvents (eventIDs, events, origin) {
+    function checkComponentEvents (eventIDs, events, origin, vm) {
       if (!eventIDs) return false;
       if (!_.isArray(eventIDs)) eventIDs = [eventIDs];
-      
-      let listeners = _.filter(events, (v, k) => eventIDs.includes(k));
-      listeners = _.filter(listeners, { [origin]: { _uid: this._uid } });
+      let listeners = _.flatten(_.filter(events, (v, k) => eventIDs.includes(k)));
+      listeners = _.filter(listeners, (listener) => _.get(listener, `${origin}._uid`) === vm._uid);
+      debugger;
       return !!listeners.length;
     }
     
@@ -552,7 +553,7 @@ class AsyncEvents {
      * @return {boolean}
      */
     Vue.prototype[hasListenerProp] = function (eventID) {
-      return checkComponentEvents(eventID, AE_this.events, 'listenerOrigin');
+      return checkComponentEvents(eventID, AE_this.events, 'listenerOrigin', this);
     };
     /**
      * check to see if the component has any listeners for any of the given eventID(s)
@@ -560,7 +561,7 @@ class AsyncEvents {
      * @return {boolean}
      */
     Vue.prototype[hasListenersProp] = function (eventIDs) {
-      return checkComponentEvents(eventIDs, AE_this.events, 'listenerOrigin');
+      return checkComponentEvents(eventIDs, AE_this.events, 'listenerOrigin', this);
     };
     
     
@@ -570,7 +571,7 @@ class AsyncEvents {
      * @return {boolean}
      */
     Vue.prototype[hasLingeringEventProp] = function (eventID) {
-      return checkComponentEvents(eventID, AE_this.lingeringEvents, 'eventOrigin');
+      return checkComponentEvents(eventID, AE_this.lingeringEvents, 'eventMeta.eventOrigin', this);
     };
     /**
      * check to see if we have any lingering event for any of the given eventID(s)
@@ -578,7 +579,7 @@ class AsyncEvents {
      * @return {boolean}
      */
     Vue.prototype[hasLingeringEventsProp] = function (eventIDs) {
-      return checkComponentEvents(eventIDs, AE_this.lingeringEvents, 'eventOrigin');
+      return checkComponentEvents(eventIDs, AE_this.lingeringEvents, 'eventMeta.eventOrigin', this);
     };
   }
   
