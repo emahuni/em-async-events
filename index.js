@@ -342,39 +342,45 @@ class AsyncEvents {
   /**
    * check to see if we have any listener for the given eventID
    * @param {string} eventID - event id to check
+   * @param {object} events - events that we should check from
    * @return {boolean}
    */
-  hasListener (eventID) {
-    return this.hasListeners(eventID);
+  hasListener (eventID, events = this.events) {
+    return this.hasListeners(eventID, events);
   }
   
   /**
    * check to see if we have any listener for any of the given eventID(s)
    * @param {Array<string>|string} eventIDs - event ids or just a single event id to check
+   * @param {object} events - events that we should check from
    * @return {boolean}
    */
-  hasListeners (eventIDs) {
+  hasListeners (eventIDs, events = this.events) {
+    if (!eventIDs) return false;
     if (!_.isArray(eventIDs)) eventIDs = [eventIDs];
-    return eventIDs.some(eid => !_.isEmpty(_.get(this.events, eid)));
+    return eventIDs.some(eid => !_.isEmpty(_.get(events, eid)));
   }
   
   /**
    * check to see if we have any lingeringEvent for the given eventID
    * @param {string} eventID - event id to check
+   * @param {object} levents - lingering events that we should check from
    * @return {boolean}
    */
-  hasLingeringEvent (eventID) {
-    return this.hasLingeringEvents(eventID);
+  hasLingeringEvent (eventID, levents = this.lingeringEvents) {
+    return this.hasLingeringEvents(eventID, levents);
   }
   
   /**
    * check to see if we have any lingering events for any of the given eventID(s)
    * @param {Array<string>|string} eventIDs - event ids or just a single event id to check
+   * @param {object} levents - lingering events that we should check from
    * @return {boolean}
    */
-  hasLingeringEvents (eventIDs) {
+  hasLingeringEvents (eventIDs, levents = this.lingeringEvents) {
+    if (!eventIDs) return false;
     if (!_.isArray(eventIDs)) eventIDs = [eventIDs];
-    return eventIDs.some(eid => !_.isEmpty(_.get(this.lingeringEvents, eid)));
+    return eventIDs.some(eid => !_.isEmpty(_.get(levents, eid)));
   }
   
   
@@ -387,7 +393,7 @@ class AsyncEvents {
   install (Vue, options) {
     this.options = _.defaultsDeep(options, this.options);
     
-    // turn off debuggin if we are not going to show devtools/in production
+    // turn off debugging if we are not going to show devtools/in production
     if (!Vue.config.devtools) this.options.debug.all = false;
     
     let asyncEventsProp = this.options.asyncEvents;
@@ -429,6 +435,39 @@ class AsyncEvents {
       events:          this.events,
       lingeringEvents: this.lingeringEvents,
       options:         this.options,
+  
+      /**
+       * check if Async Events has any listeners for the given eventID
+       * @param {string} eventID - the listener eventID to check.
+       * @return {boolean}
+       */
+      hasListener (eventID) {
+        return AE_this.hasListener(eventID);
+      },
+      /**
+       * check if Async Events has any listeners for the given eventIDs
+       * @param {array<string>|string} eventIDs - the listener eventIDs to check.
+       * @return {boolean}
+       */
+      hasListeners (eventIDs) {
+        return AE_this.hasListeners(eventIDs);
+      },
+      /**
+       * check if Async Events has any lingering events for the given eventID
+       * @param {string} eventID - the eventID to check.
+       * @return {boolean}
+       */
+      hasLingeringEvent (eventID) {
+        return AE_this.hasLingeringEvent(eventID);
+      },
+      /**
+       * check if Async Events has any lingering events for the given eventIDs
+       * @param {array<string>|string} eventIDs - the eventIDs to check.
+       * @return {boolean}
+       */
+      hasLingeringEvents (eventIDs) {
+        return AE_this.hasLingeringEvents(eventIDs);
+      },
     };
     
     /**
@@ -491,23 +530,37 @@ class AsyncEvents {
       return AE_this.fallSilent(eventName, callback, this._uniqID);
     };
     
-    
+    /**
+     * check to see if the component has any listeners for any of the given eventID(s)
+     * @param {Array<string>|string} eventIDs - event ids or just a single event id to check
+     * @param {object} events - async events or lingering events to check for existence from.
+     * @param {string} origin - the origin to use (eventOrigin for lingeringEvents and listenerOrigin for events)
+     * @return {boolean}
+     */
+    function checkComponentEvents (eventIDs, events, origin) {
+      if (!eventIDs) return false;
+      if (!_.isArray(eventIDs)) eventIDs = [eventIDs];
+      
+      let listeners = _.filter(events, (v, k) => eventIDs.includes(k));
+      listeners = _.filter(listeners, { [origin]: { _uid: this._uid } });
+      return !!listeners.length;
+    }
     
     /**
-     * check to see if we have any listener for the given eventID
+     * check to see if component has any listener for the given eventID
      * @param {string} eventID - event id to check
      * @return {boolean}
      */
     Vue.prototype[hasListenerProp] = function (eventID) {
-      return AE_this.hasListener(eventID);
+      return checkComponentEvents(eventID, AE_this.events, 'listenerOrigin');
     };
     /**
-     * check to see if we have any listener for any of the given eventID(s)
+     * check to see if the component has any listeners for any of the given eventID(s)
      * @param {Array<string>|string} eventIDs - event ids or just a single event id to check
      * @return {boolean}
      */
     Vue.prototype[hasListenersProp] = function (eventIDs) {
-      return AE_this.hasListeners(eventIDs);
+      return checkComponentEvents(eventIDs, AE_this.events, 'listenerOrigin');
     };
     
     
@@ -517,7 +570,7 @@ class AsyncEvents {
      * @return {boolean}
      */
     Vue.prototype[hasLingeringEventProp] = function (eventID) {
-      return AE_this.hasLingeringEvent(eventID);
+      return checkComponentEvents(eventID, AE_this.lingeringEvents, 'eventOrigin');
     };
     /**
      * check to see if we have any lingering event for any of the given eventID(s)
@@ -525,7 +578,7 @@ class AsyncEvents {
      * @return {boolean}
      */
     Vue.prototype[hasLingeringEventsProp] = function (eventIDs) {
-      return AE_this.hasLingeringEvents(eventIDs);
+      return checkComponentEvents(eventIDs, AE_this.lingeringEvents, 'eventOrigin');
     };
   }
   
