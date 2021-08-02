@@ -747,16 +747,15 @@ class AsyncEvents {
   
   /**
    * run lingered events for listener (triggered during add listener)
-   * @param lingeringEvents
    * @param eventName
    * @param listener
    */
-  async __runLingeredEvents ({ lingeringEvents, eventName, listener }) {
+  async __runLingeredEvents ({  eventName, listener }) {
     // check if listener has an events lingering for it, if so then trigger these events on listener to handle
-    if (lingeringEvents[eventName]) {
-      for (let ei in lingeringEvents[eventName]) {
+    if (this.lingeringEvents[eventName]) {
+      for (let ei in this.lingeringEvents[eventName]) {
         // noinspection JSUnfilteredForInLoop
-        const _event = lingeringEvents[eventName][ei];
+        const _event = this.lingeringEvents[eventName][ei];
         const [payload, eventMeta] = _event.args;
         const { eventOptions, eventOrigin } = eventMeta;
         
@@ -781,7 +780,7 @@ class AsyncEvents {
           
           if (eventOptions.forNextOnly) {
             // noinspection JSUnfilteredForInLoop
-            lingeringEvents[eventName].splice(ei, 1);
+            this.lingeringEvents[eventName].splice(ei, 1);
           }
         }
       }
