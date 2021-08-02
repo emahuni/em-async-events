@@ -26,7 +26,7 @@ class AsyncEvents {
     
     this.__vueReservedProps = ['$options', '$parent', '$root', '$children', '$refs', '$vnode', '$slots', '$scopedSlots', '$createElement', '$attrs', '$listeners', '$el'];
     
-    this.options = _.defaults(options, {
+    this.options = _.defaultsDeep(options, {
       ...names,
       listenersOptions: {
         extra:            undefined,
@@ -82,7 +82,7 @@ class AsyncEvents {
    * @param listenerOrigin
    */
   onEvent (eventName, callback, listenerOptions, subscriberId = _.uniqueId(), listenerOrigin) {
-    listenerOptions = _.defaults(listenerOptions, this.options.listenerOptions);
+    listenerOptions = _.defaultsDeep(listenerOptions, this.options.listenerOptions);
     
     /*if (listenerOptions.isAsync && !listenerOptions.once) {
       throw new Error(`[vue-hooked-async-events]-99: Cannot use isAsync with non-once event listeners. Consider using a callback that re-listens for the same same event instead.`);
@@ -149,7 +149,7 @@ class AsyncEvents {
       callback = undefined;
     }
     
-    listenerOptions = _.defaults(listenerOptions, this.options.listenerOptions);
+    listenerOptions = _.defaultsDeep(listenerOptions, this.options.listenerOptions);
     listenerOptions.once = true;
     
     /**
@@ -189,7 +189,7 @@ class AsyncEvents {
    * @return {Promise<*>|array<Promise>}
    */
   emitEvent (eventName, payload, eventOptions, eventOrigin) {
-    eventOptions = _.defaults(eventOptions, this.options.eventOptions);
+    eventOptions = _.defaultsDeep(eventOptions, this.options.eventOptions);
     
     if (eventOptions.forNextOnly && !eventOptions.linger) {
       eventOptions.linger = Infinity;
@@ -360,7 +360,7 @@ class AsyncEvents {
    * @param options
    */
   install (Vue, options) {
-    this.options = _.defaults(options, this.options);
+    this.options = _.defaultsDeep(options, this.options);
     
     // turn off debuggin if we are not going to show devtools/in production
     if (!Vue.config.devtools) this.options.debug.all = false;
