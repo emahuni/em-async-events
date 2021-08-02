@@ -355,7 +355,7 @@ class AsyncEvents {
    */
   hasEvents (eventIDs) {
     if (!_.isArray(eventIDs)) eventIDs = [eventIDs];
-    return eventIDs.some(eid => _.has(this.events, eid));
+    return eventIDs.some(eid => !_.isEmpty(_.get(this.events, eid)));
   }
   
   /**
@@ -374,7 +374,7 @@ class AsyncEvents {
    */
   hasLingeringEvents (eventIDs) {
     if (!_.isArray(eventIDs)) eventIDs = [eventIDs];
-    return eventIDs.some(eid => _.has(this.lingeringEvents, eid));
+    return eventIDs.some(eid => !_.isEmpty(_.get(this.lingeringEvents, eid)));
   }
   
   
@@ -1129,7 +1129,7 @@ class AsyncEvents {
       events[eventName].splice(indexOfSubscriber, 1);
     }
     
-    if(_.isEmpty(events[eventName])) delete events[eventName];
+    if (_.isEmpty(events[eventName])) delete events[eventName];
   }
   
   
