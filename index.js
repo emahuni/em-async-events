@@ -10,6 +10,8 @@ const names = {
   eraseEvent:           '$eraseEvent',
   fallSilent:           '$fallSilent',
   chainCallbackPayload: '$chainCallbackPayload',
+  hasEvent:             '$hasEvent',
+  hasEvents:            '$hasEvents',
 };
 
 class AsyncEvents {
@@ -331,6 +333,25 @@ class AsyncEvents {
     }
   }
   
+  /**
+   * check to see if we have any listener for the given eventID
+   * @param {string} eventID - event id to check
+   * @return {boolean}
+   */
+  hasEvent (eventID) {
+    return this.hasEvents(eventID);
+  }
+  
+  /**
+   * check to see if we have any listener for any of the given eventID(s)
+   * @param {Array<string>|string} eventIDs - event ids or just a single event id to check
+   * @return {boolean}
+   */
+  hasEvents (eventIDs) {
+    if (!_.isArray(eventIDs)) eventIDs = [eventIDs];
+    return eventIDs.some(eid => _.has(this.events, eid));
+  }
+  
   
   
   /**
@@ -351,6 +372,8 @@ class AsyncEvents {
     let eraseEventProp = this.options.eraseEvent;
     let fallSilentProp = this.options.fallSilent;
     let chainCallbackPayloadProp = this.options.chainCallbackPayload;
+    let hasEventProp = this.options.hasEvent;
+    let hasEventsProp = this.options.hasEvents;
     
     const AE_this = this;
     
@@ -440,6 +463,21 @@ class AsyncEvents {
     Vue.prototype[fallSilentProp] = function (eventName, callback) {
       return AE_this.fallSilent(eventName, callback, this._uniqID);
     };
+    
+    
+    
+    /**
+     * check to see if we have any listener for the given eventID
+     * @param {string} eventID - event id to check
+     * @return {boolean}
+     */
+    Vue.prototype[hasEventProp] = AE_this.hasEvent;
+    /**
+     * check to see if we have any listener for any of the given eventID(s)
+     * @param {Array<string>|string} eventIDs - event ids or just a single event id to check
+     * @return {boolean}
+     */
+    Vue.prototype[hasEventsProp] = AE_this.hasEvents;
   }
   
   
