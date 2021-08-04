@@ -35,7 +35,7 @@ class AsyncEvents {
         stopHere:         false,
         expire:           0,
         expiryCallback:   undefined,
-        catchUp:          0,
+        catchUp:          100,
         once:             false,
         isExclusive:      false,
         replaceExclusive: false,
