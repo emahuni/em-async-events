@@ -635,6 +635,7 @@ class AsyncEvents {
     let eventMeta = {
       events:         this.events,
       eventName,
+      payloads:       [payload],
       eventTimestamp: Date.now(),
       eventOptions:   _.cloneDeep(eventOptions),
       eventOrigin,
@@ -727,6 +728,7 @@ class AsyncEvents {
             if (listener.listenerPromise.settlement === 0) {
               // only capture the first outcome becoz that's what promises do, once resolved or rejected it's settled.
               listener.listenerPromise.outcome = finalOutcome;
+              eventMeta.payloads.push(finalOutcome);
               listener.listenerPromise.settlement = 1; // resolved
               listener.listenerPromise.resolve(finalOutcome);
             }
