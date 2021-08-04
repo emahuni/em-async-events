@@ -44,6 +44,7 @@ class AsyncEvents {
       },
       eventsOptions:    {
         linger:        0,
+        bait:          false,
         isExclusive:   false,
         keepExclusive: false,
         forNextOnly:   false,
@@ -802,7 +803,9 @@ class AsyncEvents {
    * @param eventMeta
    */
   __lingerEvent ({ eventName, payload, eventOptions, eventMeta }) {
-    if (this.lingeringEvents && (eventOptions.linger || this.options.globalLinger)) {
+    if (this.lingeringEvents && (eventOptions.bait || eventOptions.linger || this.options.globalLinger)) {
+      if (eventOptions.bait /*&& !eventOptions.linger*/) eventOptions.linger = Infinity;
+      
       // get existing exclusive lingered event
       const exclusiveLingeredEvent = (this.lingeringEvents[eventName] || []).find(e => e.args[1].eventOptions.isExclusive);
       
@@ -821,9 +824,9 @@ class AsyncEvents {
         console.info(`[async-events]-597: lingerEvent - eventName: %o \n%o`, eventName, eventMeta);
       }
       
-      if (eventOptions.linger >= Infinity || this.options.globalLinger >= Infinity) {
-        throw new Error(`[async-events]-605: You cannot async and linger an event forever!`);
-      }
+      /* if (eventOptions.linger >= Infinity || this.options.globalLinger >= Infinity) {
+         throw new Error(`[async-events]-605: You cannot async and linger an event forever!`);
+       }*/
       
       const id = this.__genUniqID();
       
