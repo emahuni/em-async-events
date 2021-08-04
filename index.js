@@ -1,6 +1,6 @@
 'use strict';
 
-import _ from 'lodash';
+const _ = require('lodash');
 
 const names = {
   asyncEvents:          '$asyncEvents',
@@ -1245,7 +1245,7 @@ class AsyncEvents {
 
 
 
-export default AsyncEvents;
+module.exports = AsyncEvents;
 
 
 
