@@ -649,16 +649,13 @@ class AsyncEvents {
       console.info(`[async-events]-152: ${this.options.emitEvent} eventName: %o payload: %o\n origin: %o eventMeta: %o`, eventName, payload, _.get(eventOrigin, '$options.name', '???'), eventMeta);
     }
     
-    payload = await this.__runListenersCallbacks({
+    payload = this.__runListenersCallbacks({
       listeners, eventName, payload, eventOptions, eventOrigin, eventMeta,
     });
     
-    // todo what tha?
     if (!eventMeta.stopNow) {
-      // waits for linger time to elapse before returning the result of catchUp listeners chain
       return this.__lingerEvent({ ...arguments[0], payload, eventMeta });
     } else {
-      // catch up listener stopped the event before it went to other existing events.
       return payload;
     }
   }
