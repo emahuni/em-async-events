@@ -598,9 +598,8 @@ class AsyncEvents {
     }
     
     if (listenerOptions.expire) {
-      setTimeout(async () => {
-        // run expiry callback if set, wait for it finish executing if it's async
-        if (!!listenerOptions.expiryCallback) await listenerOptions.expiryCallback(listener);
+      setTimeout(() => {
+        if (!!listenerOptions.expiryCallback) listenerOptions.expiryCallback(listener);
         // noinspection JSCheckFunctionSignatures
         this.__removeListeners({ ...listener });
       }, listenerOptions.expire);
@@ -627,7 +626,7 @@ class AsyncEvents {
    * @param eventOrigin
    * @return {Promise<*>}
    */
-  async __runEventCallbacks_linger ({ eventName, payload, eventOptions, eventOrigin }) {
+  __runEventCallbacks_linger ({ eventName, payload, eventOptions, eventOrigin }) {
     let listeners = this.events[eventName];
     let listenersTally = listeners && listeners.length;
     const level = this.__getOriginLevel(eventOrigin);
@@ -672,15 +671,15 @@ class AsyncEvents {
    * @return {Promise<*>}
    * @private
    */
-  async __runListenersCallbacks ({
-                                   events = this.events,
-                                   listeners,
-                                   eventName,
-                                   payload,
-                                   eventOptions,
-                                   eventOrigin,
-                                   eventMeta,
-                                 }) {
+  __runListenersCallbacks ({
+                             events = this.events,
+                             listeners,
+                             eventName,
+                             payload,
+                             eventOptions,
+                             eventOrigin,
+                             eventMeta,
+                           }) {
     let finalOutcome = payload;
     let listenersTally = listeners && listeners.length;
     
@@ -806,7 +805,7 @@ class AsyncEvents {
       const exclusiveLingeredEvent = (this.lingeringEvents[eventName] || []).find(e => e.args[1].eventOptions.isExclusive);
       
       // bailout if exclusive lingered event is set to be kept (meaning don't replace with fresh event)
-      if (exclusiveLingeredEvent && exclusiveLingeredEvent.keepExclusive ) {
+      if (exclusiveLingeredEvent && exclusiveLingeredEvent.keepExclusive) {
         if (this.options.debug.all && this.options.debug.lingerEvent || eventOptions.trace) {
           let trace = console.info;
           if (eventOptions.verbose) trace = console.trace;
