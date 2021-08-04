@@ -1,20 +1,21 @@
 {
-  "name": "vue-hooked-async-events",
-  "version": "0.6.1",
-  "description": "Easier and more useful Vue2.x event bus with zero dependencies. Features include expirable, lingering and catch-up async events and listeners (auto-removed), and a customizable atomic API.",
+  "name": "async-events",
+  "version": "1.0.0",
+  "description": "Easier and more useful events system that has a Vue2.x plugin. Features include async events and listeners, expirable, lingering and catch-up async events and listeners (auto-removed), and a customizable atomic API.",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/emahuni/vue-hooked-async-events.git"
+    "url": "git+https://github.com/emahuni/async-events.git"
   },
   "keywords": [
     "vue",
     "events",
     "global events",
     "event bus",
+    "events system",
     "async",
     "hook",
     "broadcast"
@@ -23,9 +24,9 @@
   "attribution": "Artur Pipchenko <art.pipchenko@gmail.com>",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/emahuni/vue-hooked-async-events/issues"
+    "url": "https://github.com/emahuni/async-events/issues"
   },
-  "homepage": "https://github.com/emahuni/vue-hooked-async-events#readme",
+  "homepage": "https://github.com/emahuni/async-events#readme",
   "dependencies": {
     "lodash": "^4.17.21"
   }

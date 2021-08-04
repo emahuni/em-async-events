@@ -145,7 +145,7 @@ class AsyncEvents {
     
     // this can be used to wait for listener to trigger before proceeding with code below where listener was created
     if (_.isArray(callback)) {
-      throw new Error(`[vue-hooked-async-events]-179: You cannot use isAsync listener with atomic API (multiple callbacks)`);
+      throw new Error(`[async-events]-179: You cannot use isAsync listener with atomic API (multiple callbacks)`);
     }
     
     if (!_.isFunction(callback)) callback = (...args) => args[0];
@@ -205,7 +205,7 @@ class AsyncEvents {
    */
   chainCallbackPayload (payload, newPayload) {
     if (this.options.debug.all && this.options.debug.chainListenerCallbacks) {
-      console.info(`[vue-hooked-async-events]-169: ${this.options.chainCallbackPayload} payload: %o \nnewPayload: %o`, payload, newPayload);
+      console.info(`[async-events]-169: ${this.options.chainCallbackPayload} payload: %o \nnewPayload: %o`, payload, newPayload);
     }
     
     // see if there is any callback that already prepared the results chain if not create it
@@ -239,12 +239,12 @@ class AsyncEvents {
    * @param subscriberId
    */
   fallSilent (eventName, callback, subscriberId) {
-    // console.debug(`[vue-hooked-async-events]-205: fallSilentProp () compo: %o, eventName: %o, callback: %o`, this, eventName, callback);
+    // console.debug(`[async-events]-205: fallSilentProp () compo: %o, eventName: %o, callback: %o`, this, eventName, callback);
     
     if (!_.isEmpty(this.events)) {
       // Unsubscribe component from specific event
       if (!callback && typeof eventName === 'string' && eventName in this.events) {
-        // console.debug(`[vue-hooked-async-events]-210: fallSilentProp() - Unsubscribe component from specific event: %o`, this);
+        // console.debug(`[async-events]-210: fallSilentProp() - Unsubscribe component from specific event: %o`, this);
         this.__removeListeners({ eventName, subscriberId });
         
         return;
@@ -252,7 +252,7 @@ class AsyncEvents {
       
       // Unsubscribe component from specific events
       if (!callback && _.isArray(eventName)) {
-        // console.debug(`[vue-hooked-async-events]-218: fallSilentProp() - Unsubscribe component from specific events: %o`, this);
+        // console.debug(`[async-events]-218: fallSilentProp() - Unsubscribe component from specific events: %o`, this);
         
         for (let eventIndex = 0, len = eventName.length; eventIndex < len; eventIndex++) {
           this.__removeListeners({ eventName: eventName[eventIndex], subscriberId });
@@ -263,7 +263,7 @@ class AsyncEvents {
       
       // Remove array of callbacks for specific event
       if (_.isArray(callback) && this.hasListener(eventName)) {
-        // console.debug(`[vue-hooked-async-events]-229: fallSilentProp() - Remove array of callbacks for specific event: %o`, this);
+        // console.debug(`[async-events]-229: fallSilentProp() - Remove array of callbacks for specific event: %o`, this);
         
         for (let callbackIndex = 0, _len4 = callback.length; callbackIndex < _len4; callbackIndex++) {
           this.__removeCallbacks({ eventName, subscriberId, callback: callback[callbackIndex] });
@@ -274,7 +274,7 @@ class AsyncEvents {
       
       // Remove specific callback for specific event
       if (callback && this.hasListener(eventName)) {
-        // console.debug(`[vue-hooked-async-events]-240: fallSilentProp() - Remove specific callback for specific event: %o`, this);
+        // console.debug(`[async-events]-240: fallSilentProp() - Remove specific callback for specific event: %o`, this);
         
         this.__removeCallbacks({ eventName, subscriberId, callback });
         
@@ -283,7 +283,7 @@ class AsyncEvents {
       
       // remove all events in component, since no eventName or callback specified; done automatically
       if (!eventName && !callback) {
-        // console.debug(`[vue-hooked-async-events]-249: fallSilentProp() - remove all events in component, since no eventName or callback specified; done automatically: %o`, this);
+        // console.debug(`[async-events]-249: fallSilentProp() - remove all events in component, since no eventName or callback specified; done automatically: %o`, this);
         for (let eventName in this.events) {
           this.__removeListeners({ eventName, subscriberId });
         }
@@ -553,7 +553,7 @@ class AsyncEvents {
     // bailout if there is an exclusive listener of the same event name on the component
     if (exclusiveListener && !exclusiveListener.replaceExclusive) {
       if (this.options.debug.all && this.options.debug.addListener || listenerOptions.trace) {
-        console.info(`[vue-hooked-async-events]-376: ABORTING (exclusive listener exists) ${listenerOptions.once ? this.options.onceEvent : this.options.onEvent}(addListener) eventName: %o Listener Origin: %o`, eventName, _.get(listenerOrigin, '$options.name', '???'));
+        console.info(`[async-events]-376: ABORTING (exclusive listener exists) ${listenerOptions.once ? this.options.onceEvent : this.options.onEvent}(addListener) eventName: %o Listener Origin: %o`, eventName, _.get(listenerOrigin, '$options.name', '???'));
       }
       // todo we should throw here
       return;
@@ -586,7 +586,7 @@ class AsyncEvents {
     };
     
     if (this.options.debug.all && this.options.debug.addListener || listenerOptions.trace) {
-      console.info(`[vue-hooked-async-events]-394: ${listenerOptions.once ? this.options.onceEvent : this.options.onEvent}(addListener) eventName: %o Listener Origin: %o \nListener: %o`, eventName, _.get(listenerOrigin, '$options.name', '???'), listener);
+      console.info(`[async-events]-394: ${listenerOptions.once ? this.options.onceEvent : this.options.onEvent}(addListener) eventName: %o Listener Origin: %o \nListener: %o`, eventName, _.get(listenerOrigin, '$options.name', '???'), listener);
     }
     
     if (!exclusiveListener) {
@@ -644,7 +644,7 @@ class AsyncEvents {
     };
     
     if (this.options.debug.all && this.options.debug.emitEvent || eventOptions.trace) {
-      console.info(`[vue-hooked-async-events]-152: ${this.options.emitEvent} eventName: %o payload: %o\n origin: %o eventMeta: %o`, eventName, payload, _.get(eventOrigin, '$options.name', '???'), eventMeta);
+      console.info(`[async-events]-152: ${this.options.emitEvent} eventName: %o payload: %o\n origin: %o eventMeta: %o`, eventName, payload, _.get(eventOrigin, '$options.name', '???'), eventMeta);
     }
     
     payload = await this.__runListenersCallbacks({
@@ -685,7 +685,7 @@ class AsyncEvents {
     let finalOutcome = payload;
     let listenersTally = listeners && listeners.length;
     
-    // console.debug(`[vue-hooked-async-events] index-564: - eventName: %o, \neventOrigin: %o, \n_listeners: %o\neventMeta: %o`, eventName, eventOrigin, listeners, eventMeta);
+    // console.debug(`[async-events] index-564: - eventName: %o, \neventOrigin: %o, \n_listeners: %o\neventMeta: %o`, eventName, eventOrigin, listeners, eventMeta);
     
     if (listenersTally) {
       let upListeners, closestListeners, downListeners, stop;
@@ -706,10 +706,10 @@ class AsyncEvents {
         closestListener = closestListeners && closestListeners[i];
         downListener = downListeners && downListeners[i];
         
-        // console.debug(`[vue-hooked-async-events]-423: this.__runListenersCallbacks() - upListener: %o, downListener: %o`, upListener, downListener);
+        // console.debug(`[async-events]-423: this.__runListenersCallbacks() - upListener: %o, downListener: %o`, upListener, downListener);
         
         const upClosestDownListeners = [closestListener, upListener, downListener].filter(l => !_.isNil(l));
-        // console.debug(`[vue-hooked-async-events]-426: this.__runListenersCallbacks() - upClosestDownListeners: %o`, upClosestDownListeners);
+        // console.debug(`[async-events]-426: this.__runListenersCallbacks() - upClosestDownListeners: %o`, upClosestDownListeners);
         
         // run both up and down listeners (which ever is available)
         for (let listener of upClosestDownListeners) {
@@ -718,7 +718,7 @@ class AsyncEvents {
           if (this.options.debug.all && this.options.debug.invokeListener || eventOptions.trace || listener.listenerOptions.trace) {
             let trace = console.info;
             if (eventOptions.verbose || listener.listenerOptions.verbose) trace = console.trace;
-            trace(`[vue-hooked-async-events]-380: Invoke Listener - eventName: %o, payload: %o, \n origin: %o, eventOrigin: %o, Listener: %o\neventMeta: %o\nresponse: %o, \nstoppingHere: %o`, eventName, payload, _.get(listener.listenerOrigin, '$options.name', '???'), _.get(eventOrigin, '$options.name', '???'), listener, eventMeta, finalOutcome, stopHere);
+            trace(`[async-events]-380: Invoke Listener - eventName: %o, payload: %o, \n origin: %o, eventOrigin: %o, Listener: %o\neventMeta: %o\nresponse: %o, \nstoppingHere: %o`, eventName, payload, _.get(listener.listenerOrigin, '$options.name', '???'), _.get(eventOrigin, '$options.name', '???'), listener, eventMeta, finalOutcome, stopHere);
           }
           
           // todo check if this is ok, as in catching errors
@@ -767,7 +767,7 @@ class AsyncEvents {
    * @return {Promise<*>|undefined}
    */
   __runCallback ({ events = this.events, payload, eventMeta, listener }) {
-    // console.debug(`[vue-hooked-async-events] index-397: this.__runCallbacks() - listener: %o`, listener.listenerOrigin._uid);
+    // console.debug(`[async-events] index-397: this.__runCallbacks() - listener: %o`, listener.listenerOrigin._uid);
     
     listener.listenerOptions = _.merge({}, this.options.listenersOptions, listener.listenerOptions);
     
@@ -809,18 +809,18 @@ class AsyncEvents {
         if (this.options.debug.all && this.options.debug.lingerEvent || eventOptions.trace) {
           let trace = console.info;
           if (eventOptions.verbose) trace = console.trace;
-          trace(`[vue-hooked-async-events]-587: ABORTING lingerEvent - for exclusive lingered eventName: %o \n%o`, eventName, eventMeta);
+          trace(`[async-events]-587: ABORTING lingerEvent - for exclusive lingered eventName: %o \n%o`, eventName, eventMeta);
         }
         
         return Promise.resolve(payload);
       }
       
       if (this.options.debug.all && this.options.debug.lingerEvent || eventOptions.trace) {
-        console.info(`[vue-hooked-async-events]-597: lingerEvent - eventName: %o \n%o`, eventName, eventMeta);
+        console.info(`[async-events]-597: lingerEvent - eventName: %o \n%o`, eventName, eventMeta);
       }
       
       if (eventOptions.linger >= Infinity || this.options.globalLinger >= Infinity) {
-        throw new Error(`[vue-hooked-async-events]-605: You cannot async and linger an event forever!`);
+        throw new Error(`[async-events]-605: You cannot async and linger an event forever!`);
       }
       
       const id = this.__genUniqID();
@@ -904,7 +904,7 @@ class AsyncEvents {
   
   __removeLingeringEventAtIndex (eventName, index, eventOptions) {
     if (this.options.debug.all && this.options.debug.lingerEvent || eventOptions.trace) {
-      console.info(`[vue-hooked-async-events]-911: remove lingerEvent - eventName: %o on index: %o`, eventName, index);
+      console.info(`[async-events]-911: remove lingerEvent - eventName: %o on index: %o`, eventName, index);
     }
     
     this.lingeringEvents[eventName].splice(index, 1);
@@ -1002,7 +1002,7 @@ class AsyncEvents {
               break;
             
             default:
-              throw new Error(`[vue-hooked-async-events] ERROR-562: unknown token: ${token} for range: ${lr} for event: ${eventName}`);
+              throw new Error(`[async-events] ERROR-562: unknown token: ${token} for range: ${lr} for event: ${eventName}`);
           }
         }
       }
@@ -1035,7 +1035,7 @@ class AsyncEvents {
    * @return {*}
    */
   __listenersInRange ({ listeners, eventLevel, up, down, selfOnly, eventOrigin }) {
-    // console.debug(`[vue-hooked-async-events]-603: this.__listenersInRange() - arguments: %o`, arguments[0]);
+    // console.debug(`[async-events]-603: this.__listenersInRange() - arguments: %o`, arguments[0]);
     
     let closest, upListeners = [], closestListeners = [], downListeners = [];
     
@@ -1134,7 +1134,7 @@ class AsyncEvents {
         if (this.options.debug.all && this.options.debug.removeListener || events[eventName][li].listenerOptions.trace) {
           const listener = events[eventName][li];
           const { listenerOrigin } = listener;
-          console.info(`[vue-hooked-async-events]-694: ${this.options.fallSilent || '$fallSilent(removeListener)'} eventName: %o origin: %o \nListener: %o`, eventName, _.get(listenerOrigin, '$options.name', '???'), listener);
+          console.info(`[async-events]-694: ${this.options.fallSilent || '$fallSilent(removeListener)'} eventName: %o origin: %o \nListener: %o`, eventName, _.get(listenerOrigin, '$options.name', '???'), listener);
         }
         
         events[eventName].splice(li, 1);
@@ -1161,7 +1161,7 @@ class AsyncEvents {
       if (this.options.debug.all && this.options.debug.removeListener || events[eventName][indexOfSubscriber].listenerOptions.trace) {
         const listener = events[eventName][indexOfSubscriber];
         const { listenerOrigin } = listener;
-        console.info(`[vue-hooked-async-events]-721: ${this.options.fallSilent || '$fallSilent(this.__removeCallbacks)'} eventName: %o origin: %o \nListener: %o`, eventName, _.get(listenerOrigin, '$options.name', '???'), listener);
+        console.info(`[async-events]-721: ${this.options.fallSilent || '$fallSilent(this.__removeCallbacks)'} eventName: %o origin: %o \nListener: %o`, eventName, _.get(listenerOrigin, '$options.name', '???'), listener);
       }
       events[eventName].splice(indexOfSubscriber, 1);
     }
@@ -1178,7 +1178,7 @@ class AsyncEvents {
     for (let event in this.events) {
       if (event === eventName) {
         if (this.options.debug.all && this.options.debug.eraseEvent) {
-          console.info(`[vue-hooked-async-events]-737: ${this.options.eraseEvent} eventName: %o \nListener: %o`, eventName, this.events[eventName]);
+          console.info(`[async-events]-737: ${this.options.eraseEvent} eventName: %o \nListener: %o`, eventName, this.events[eventName]);
         }
         delete this.events[eventName];
       }
@@ -1193,7 +1193,7 @@ class AsyncEvents {
    */
   __isCorrectCustomName (prop, options) {
     if (this.__vueReservedProps.includes(options[prop])) {
-      console.warn('[vue-hooked-async-events]: ' + options[prop] + ' is used by Vue. Use another name');
+      console.warn('[async-events]: ' + options[prop] + ' is used by Vue. Use another name');
       return false;
     }
     

@@ -1,33 +1,59 @@
-# vue-hooked-async-events
-[![npm](https://img.shields.io/npm/v/vue-hooked-async-events.svg)](vue-hooked-async-events) ![npm](https://img.shields.io/npm/dt/vue-hooked-async-events.svg)
+# async-events
+[![npm](https://img.shields.io/npm/v/async-events.svg)](async-events) ![npm](https://img.shields.io/npm/dt/async-events.svg)
 
-Easier and more useful Vue event bus with features that include expirable, lingering and catch-up async events and listeners, and a customizable atomic API.
+Easier and more useful event bus with features that include expirable, lingering and catch-up async events and listeners, and a customizable atomic API. Has a Vue plugin.
 
 ## Features
 - **stoppable events and listeners**; stop an event from firing on other callbacks when it hits a specific callback or on the first callback
 - **automated event management:**
   - auto-removal of listeners on destruction.
   - expirable listeners that listen for a specified time before they are removed.
-- **async/hookable events** that get responses from listeners.
-- **lingering events;** these are events that are fired and used by current listeners, but wait for newer listeners until a specified time before being discarded.
+- **async events** that get responses from listeners.
+- **async listeners** that can wait for callback(s) to fire the first time before proceeding.
+- **lingering events;** these are events that are fired and used by current listeners, but wait for newer listeners until a specified time before being discarded or wait until its listener is added (bait mode).
 - **multiple callbacks and events registrations:** 
     - handle multiple events with one callback.
     - invoke/fire multiple callbacks from multiple events.
     - register these using atomic statements.
-- doesn't pollute your Vue prototype
+- **you can use it *without* of Vue!**
 
 ## Installation
-```javascript
-import Vue from 'vue';
-import HookedAsyncEvents from 'vue-hooked-async-events';
-
-Vue.use(HookedAsyncEvents);
+Installation is simple:
+```bash
+yarn add async-events
+# or using npm
+npm install async-events
 ```
 
+## Basic Usage
+Straight usage without Vue:
+```javascript
+import AsyncEvents from 'async-events';
+
+const eventsBus = new AsyncEvents();
+// you then use it as 
+eventsBus.onEvent('foo', (payload)=> {/* do something */});
+// ... later on
+eventsBus.emitEvent('foo', { bar: 'zoo' });
+```
+As a Vue plugin:
+```javascript
+import Vue from 'vue';
+import AsyncEvents from 'async-events';
+
+Vue.use(new AsyncEvents());
+// you then use in components as 
+this.$onEvent('foo', (payload)=> {/* do something */});
+// ... later on
+this.$emitEvent('foo', { bar: 'zoo' });
+```
+As you can see, everything works the same way whether with or without Vue except for a few differences where components are at play, read on.
+
 ## Events management
-This package aims to address the above features and avoid some thorny issues that other event buses have:
+This package aims to address the above features and avoid some thorny issues that other event buses have. It was once called `vue-hooked-async-events` because it mainly focused on **Vue**, but it was so good at solving many common event problems that the author decided to make it work without Vue and created `async-events`.
+
 ### Standard event bus approach & its issues
-To create a global event system the standard is to create an event bus:
+With Vue, to create a global event system, the standard is to create an event bus:
 ```javascript
     Vue.prototype.$eventBus = new Vue();
     // or
@@ -35,131 +61,170 @@ To create a global event system the standard is to create an event bus:
 ```
 
 #### Issues
-- Major issue with using standard event bus is that it creates a new `Vue` instance with lots of unused methods and properties. 
+- Major issue with using standard vue event bus is that it creates a new `Vue` instance with lots of unused methods and properties. 
 - It is managed by Vue since it'll be a complete Vue component, thereby creating a lot of overhead.
-`vue-hooked-async-events` on the other hand creates a simple object containing awesome events-related functionalities that doesn't add any overhead or watchers/observers of any kind. 
+`async-events` on the other hand creates a simple object containing awesome events-related functionalities that doesn't add any overhead or watchers/observers of any kind. 
 
 - You can't quickly remove events by just writing `this.$eventBus.off()` to unsubscribe only `this` component's events. Even if it is typed it will remove all events it was subscribed to that have a common event type amongst components eg: `this.$eventBus.off('some-event')`.
 - You have to make sure you manually remove events in the component you listen from eg:
 ```javascript
-    beforeDestroy() {
-        this.$eventBus.off('event-one', this.methodOne);
-        this.$eventBus.off('event-two', this.methodTwo);
-        this.$eventBus.off('event-three', this.methodThree);
-        this.$eventBus.off('event-four', this.methodFour);
-        // ... and so on
-    }
+export default {
+  beforeDestroy()
+  {
+    this.$eventBus.off('event-one', this.methodOne);
+    this.$eventBus.off('event-two', this.methodTwo);
+    this.$eventBus.off('event-three', this.methodThree);
+    this.$eventBus.off('event-four', this.methodFour);
+    // ... and so on
+  }
+}
 ```
 
-So with `vue-hooked-async-events` you instead write:
+### Async Events Approach
+So with `async-events` you instead write:
 ```javascript
 ```
 **Yes. Correct. Nothing.** Plugin will handle all of this by itself, unsubscribing current component listeners in its `beforeDestroy` hook.
  
 ## Methods
-There are several methods used to manage events with super duper conviniencies like async events/listeners/callbacks.
+There are several methods used to manage events with super duper conveniences like async events/listeners/callbacks. Examples are going to be given in Vue syntax, but you can adopt to any object you attach this to, such as `events` object in the initialization example above. Just replace the `this.$` like so: `this.$onEvent` to `events.onEvent`.
 
 ### Listening to events:
 Listening to event or events:
 - most options can be mixed to get the desired behaviour
 - callback arguments: `payload` and listener `options` (used to add the listener)
-```javascript
-created() {
-  this.$onEvent('some-event', this.eventCallback);
-  // send extra info to callback from where listener is invoked... 
-  // callback should extract extra info. see corresponding callback below
-  // instead of doing this.$onEvent('some-event', (pl)=>this.eventCallback(pl, {blah: 'bloh'}));
-  this.$onEvent('some-event', this.eventCallbackExtra, { extra: {blah: 'bloh'} });
 
-  // listen once and remove
-  this.$onceEvent('some-event', this.eventCallback2);
-  this.$onEvent('some-event', this.eventCallback1, { once: true });
+#### onEvent() and onceEvent()
+run callback on event emission.
+```js
+  this.$onEvent('some-event', eventCallback);
 
-  // only allow this listener for this event on this component (any subsequent listeners are ignored)
-  this.$onEvent('some-event', this.eventCallback1, { isExclusive: true });
-  // or just replace any existing exclusive listener 
-  this.$onEvent('some-event', this.eventCallback1, { isExclusive: true, replaceExclusive: true });
-
-  // only continue after event has been emitted 
-  // - callback doesn't have to be async or even defined, if so then it also awaits callback resolution
-  // isAsync option was deprecated and no longer required as all events and listeners are now async by default
-  let result = await this.$onceEvent('some-event', this.eventCallback3);
-  result = await this.$onceEvent('some-event');
-
-  // automatically stop listening after 5000 milliseconds
-  this.$onEvent('some-event', this.eventCallback3, { expire: 5000 });
-  // automatically run expiry callback function before unlistening after 10000 milliseconds 
-  this.$onEvent('some-event', this.eventCallback3, { expire: 10000, expiryCallback: async ()=>{
-    // do something that's even async it will wait for promise
-  }});
-
-  // catch up to an event that happened not more than 100 milliseconds ago (bust race conditions)
-  // - (max 500 - change globalLinger option; see below)
-  // - it doesn't have to be a lingered event
-  // - lingered events impose a catch up on all listeners added within the linger time. see below 
-  this.$onEvent('some-event', this.eventCallback3, { catchUp: 100 });
-
-  // atomic listener API:
-  // multiple events being listened to by one callback
-  this.$onEvent(['second-event', 'third-event'], this.commonCallback);
-  // fire multiple callbacks (even for multiple events)
-  this.$onEvent('some-event', [this.eventCallback1, this.eventCallback2]);
-  // here each callback will correspond to its respective event
-  this.$onEvent(['second-event', 'third-event'], [this.eventCallback1, this.eventCallback2]);
-},
-
-methods: {
-  eventCallback (payload, metadata) {
-    // payload is the data being passed by the event or from previous callback listener in the chain of callbacks
-    // for the event. EG: if this callback returns then the response is the next callback's payload.
-
-    // metadata is information about the event and the listener itself eg:
+  function eventCallback1 (payload, metadata) {
+    return /* whatever response you want to return to the event; see below */
+  }
+```
+`metadata` is information about the event and the listener itself passed to the callback function as the second argument, eg: 
+```js
     metadata == {
-      extra: 'extra payload (not event related) from listener adding line',
+      extra: 'extra payload (not event related) from listener adding line. see below',
+      payloads: [/* array of all chained callbacks' outcomes, see below */],
       eventName: "some-event", 
       eventOptions: {/*opts passed to event*/},
       listenerOptions: {/*opts passed to listener*/},
-      eventOrigin: VueComponent /*vue compo that emitted the event*/,
+      eventOrigin: VueComponent /*vue compo that emitted the event when applicable */,
       listenersTally: 6 // number of listeners for this event
     };
-  },
+```
 
+Send extra info to a callback in addition to the payload given by emit. 
+- callback should extract extra info.
+```js
+  this.$onEvent('some-event', eventCallbackExtra, { extra: { blah: 'bloh' } });
 
-  async eventCallbackExtra (payload, { extra }) {
-    // extra contains extra payload from where listener was defined if specified, see above. Allows for a more cleaner API
-    // - passed to every event for the listener
-  },
+  async function eventCallbackExtra (payload, { extra }) {
+    // metadata can contain extra payload that comes from where listener was defined if specified, see above. Allows for a more cleaner and interesting API
+    // - passed to every event callback of that listener
+  }
+```
 
-
-  async eventCallback1 (payload, metadata) {
+Listen once and remove
+```js
+  this.$onceEvent('some-event', eventCallback2);
+  this.$onEvent('some-event', eventCallback1, { once: true });
+  
+  async function eventCallback1 (payload) {
+    // you can ignore metadata
     return /* whatever response you want to return to the event; see below */
-  },
+  }
 
-  async eventCallback2 (payload, metadata) {
-    // you can get reponses from all callback this way in each callback
-    // ... do whatever this callback does
-    let newPayload = { blah: 'any new payload of any type for this callback to pass back'};
-    return this.$chainCallbackPayload(payload, newPayload, metadata);
-    // passed to the next callback as payload, and finally to the emitted event,
-    // which can find all results in payload.$results$[]
-    // do the above in every callback that will be part of this chain
-  },
+  async function eventCallback2 (payload, metadata) {
+    return { blah: 'any new payload of any type for this callback to pass back'};
+    // you can get reponses from all callbacks in metadata.payloads[]
+  }
 
-  eventCallback3 (payload, metadata) {
+```
+
+Only allow this listener for this event on this component (any subsequent listeners are ignored)
+```js
+  this.$onEvent('some-event', eventCallback1, { isExclusive: true });
+  // or just replace any existing exclusive listener 
+  this.$onEvent('some-event', eventCallback1, { isExclusive: true, replaceExclusive: true });
+```
+
+Only continue after event has been used by callback. 
+  - This is particularly useful for putting up code that doesn't execute as long as a certain event has not yet happened, as well as use the usual callbacks approach. Any further events will be handled by callback(s).
+  - `isAsync` option was deprecated and no longer required as all events and listeners are now async by default
+```js
+  let result = await this.$onceEvent('some-event', (payload, metadata)=> {
+    return 'whatever else as the final payload';
+  });
+
+  // the above statement will wait for and give out result from callbacks
+
+  result = await this.$onceEvent('some-event');
+  // will wait again for the event to happen without any callbacks associated with it
+```
+
+Expiring events
+```js
+  // automatically stop listening after 5000 milliseconds
+  this.$onEvent('some-event', eventCallback3, { expire: 5000 });
+  // automatically run expiry callback function before unlistening after 10000 milliseconds 
+  this.$onEvent('some-event', eventCallback3, { expire: 10000, expiryCallback: async ()=>{
+    // do something when event listener expires
+  }});
+  
+  
+  function eventCallback3 (payload, metadata) {
     // you can also change how the event will behave by modifying the listenerOptions
     // - not all options are modifiable
     // eg: stop invoking any subsequent callbacks on the event
     metadata.listenerOptions.stopHere = true;
   }
-}
+  ```
+
+Catch up to an event that happened not more than 100 milliseconds ago (bust race conditions)
+   - (max 500 - change globalLinger option; see below)
+  - it doesn't have to be a lingered event
+   - lingered events impose a catch up on all listeners added within the linger time. see below 
+```js
+  this.$onEvent('some-event', (payload)=>{/*...*/}, { catchUp: 100 });
+ ```
+
+Atomic listener API:
+- multiple events being listened to and handled by one callback
+- multiple events being listened to and handled by multiple callbacks
+```js 
+ this.$onEvent(['second-event', 'third-event'], (payload)=>{/*...*/});
+  // fire multiple callbacks 
+  this.$onEvent('some-other-event', [eventCallback, eventCallback2, (payload)=>{/*...*/}]);
+  // (even for multiple events)
+  this.$onEvent(['second-event', 'third-event', 'fourth-event'], [eventCallback1, eventCallback2]);
+
+  function eventCallback (payload) {
+    // payload is the data being passed by the event or from previous callback listener in the chain of callbacks
+    // for the event. EG: if this callback returns then the response is the next callback's payload.
+  }
+
+
+  async function eventCallback1 (payload, metadata) {
+    return /* whatever response you want to return to the event; see below */
+  }
+
+  const eventCallback2 = eventCallback1;
+
+  function eventCallback3 (payload, metadata) {
+    // you can also change how the event will behave by modifying the listenerOptions
+    // - not all options are modifiable
+    // eg: stop invoking any subsequent callbacks on the event
+    metadata.listenerOptions.stopHere = true;
+  }
 ```
 
 ### Emitting events:
 Emitting events is simple, but this package takes it to another level of usability with async events, which are promises returned by eventEmiters for finer flow control on events as they happen and how they are listened and responded to. 
 - most options can be mixed to get the desired behaviour
-```javascript
-methods: {
-  async fireEvents() {
+```js
     // send payload/data to listeners of 'some-event'
     this.$emitEvent('some-event', { test: 'one' });
 
@@ -191,10 +256,9 @@ methods: {
     this.$emitEvent(['second-event', 'third-event'], { test: 'payload' });
     // if async then the result will be array of promises respective of each event, we may use it this way eg: 
     await new Promise.all(this.$emitEvent(['second-event', 'third-event'], { test: 'payload' }));
-  }     
-}
 ```
 
+#### Event Range (Vue specific)
 Event range options offer precise control over which listeners are invoked. You target them using tokens based on the hierarchic position/level of component that emits the event (event origin) (see above example).
 
  
@@ -297,7 +361,7 @@ NOTE: use this feature at your own risk as it will warn you only for Vue basic p
 ```
 ```javascript
     import Vue from 'vue';
-    import HookedAsyncEvents from 'vue-hooked-async-events';
+    import HookedAsyncEvents from 'async-events';
 
     Vue.use(HookedAsyncEvents, {
         onEvent: '$hear',
@@ -364,8 +428,4 @@ NOTE: use this feature at your own risk as it will warn you only for Vue basic p
 ```
 
 ## Author
-Emmanuel Mahuni, changed a lot of things in the package to make it even more awesome.
-
-#### Attribution
-This package was adopted from https://github.com/p1pchenk0/vue-handy-subscriptions 's idea, just had to make it another package as it departs a lot from the original.
-
+Emmanuel Mahuni
