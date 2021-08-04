@@ -47,7 +47,6 @@ class AsyncEvents {
         bait:          false,
         isExclusive:   false,
         keepExclusive: false,
-        forNextOnly:   false,
         range:         'first-parent',
         trace:         false,
         verbose:       false,
@@ -168,9 +167,9 @@ class AsyncEvents {
     
     if (eventOptions.isAsync) this.__showDeprecationWarning('isAsync', 'All events and listeners are now async.');
     
-    if (eventOptions.forNextOnly && !eventOptions.linger) {
+    if (eventOptions.bait /*&& !eventOptions.linger*/) {
       eventOptions.linger = Infinity;
-      eventOptions.isExclusive = true;
+      // eventOptions.isExclusive = true;
     }
     
     const args = {
@@ -641,6 +640,7 @@ class AsyncEvents {
       eventOptions:   _.cloneDeep(eventOptions),
       eventOrigin,
       stopNow:        false,
+      consumed:       false,
       level,
       listenersTally,
     };
@@ -732,6 +732,7 @@ class AsyncEvents {
               eventMeta.payloads.push(finalOutcome);
               listener.listenerPromise.settlement = 1; // resolved
               listener.listenerPromise.resolve(finalOutcome);
+              eventMeta.consumed = true;
             }
           } catch (e) {
             // rejects with previous finalOutcome.
@@ -803,18 +804,27 @@ class AsyncEvents {
    * @param eventMeta
    */
   __lingerEvent ({ eventName, payload, eventOptions, eventMeta }) {
-    if (this.lingeringEvents && (eventOptions.bait || eventOptions.linger || this.options.globalLinger)) {
-      if (eventOptions.bait /*&& !eventOptions.linger*/) eventOptions.linger = Infinity;
-      
+    if (this.lingeringEvents && (eventOptions.linger || this.options.globalLinger)) {
       // get existing exclusive lingered event
       const exclusiveLingeredEvent = (this.lingeringEvents[eventName] || []).find(e => e.args[1].eventOptions.isExclusive);
       
       // bailout if exclusive lingered event is set to be kept (meaning don't replace with fresh event)
-      if (exclusiveLingeredEvent && exclusiveLingeredEvent.keepExclusive) {
+      if (exclusiveLingeredEvent && exclusiveLingeredEvent.keepExclusive ) {
         if (this.options.debug.all && this.options.debug.lingerEvent || eventOptions.trace) {
           let trace = console.info;
           if (eventOptions.verbose) trace = console.trace;
           trace(`[async-events]-587: ABORTING lingerEvent - for exclusive lingered eventName: %o \n%o`, eventName, eventMeta);
+        }
+        
+        return Promise.resolve(payload);
+      }
+      
+      // bailout if baited but consumed event
+      if (eventMeta.consumed && eventOptions.bait) {
+        if (this.options.debug.all && this.options.debug.lingerEvent || eventOptions.trace) {
+          let trace = console.info;
+          if (eventOptions.verbose) trace = console.trace;
+          trace(`[async-events]-827: ABORTING lingerEvent - baited but consumed eventName: %o \n%o`, eventName, eventMeta);
         }
         
         return Promise.resolve(payload);
@@ -898,7 +908,7 @@ class AsyncEvents {
             eventMeta,
           });
           
-          if (eventOptions.forNextOnly) {
+          if (eventOptions.bait && eventMeta.consumed) {
             // noinspection JSUnfilteredForInLoop
             this.__removeLingeringEventAtIndex(eventName, ei, eventOptions);
           }

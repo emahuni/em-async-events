@@ -227,41 +227,39 @@ Emitting events is simple, but this package takes it to another level of usabili
 ```js
     // send payload/data to listeners of 'some-event'
     this.$emitEvent('some-event', { test: 'one' });
+```
 
-    // fire event callbacks of a specific range (default is 'first-parent')
-    this.$emitEvent('some-event2', { test: 'one' }, { range: 'ancestors' });
-    // why? EG: Consider the following components hierachy all listening to the same event:
-    //        grandparent=>parent=>child=>grandchild=>greatGrandchild
-    // if event was fired at grandchild then all listeners from parent to grandparent'll handle event.
-    // stop on the first listener callback (guaranteeing event is handled only once, by first listener)
-    this.$emitEvent('some-event2', { test: 'one' }, { range: 'first-parent' });
+#### Use lingered events
+Why use linger? bust race conditions. it doesn't matter how your order your events and listeners when using this it will make sure that events can fire and wait for listeners to pop in withing a certain timespan.
+Each event is actually lingered by default. See `globalLinger` in options below. If linger timeout isn't specified then `globalLinger` is imposed.
 
-    // use lingered events
-    // Why use linger? bust race conditions. it doesn't matter how your order your events and listeners when using this
-    // linger for 5000ms for new listeners on the event. Can't be async/expect any return values
+eg: Linger for 5000ms for new listeners of the event.
+```js
     this.$emitEvent('some-event3', { test: 'one' }, { linger: 5000 });
-    // only linger for at most 5000ms for one more listener. If linger timeout isn't specified then Infinity and isExclusive options are imposed
-    this.$emitEvent('some-event4', { test: 'one' }, { linger: 5000, forNextOnly: true });
-    // exclusively linger this event; no other events of the same event name ('some-event5') will be lingered until after 5000ms
+```
+ 
+When an event is lingered and `isExclusive: true`, newer events will replace the older one, keeping only one fresh event unless `keepExclusive: true` option is set, it will ignore lingering other events until the lingered expires. eg: exclusively linger this event; no other events of the same event name ('some-event5') will be lingered until after 5000ms
+```js
     this.$emitEvent('some-event5', { test: 'one' }, { linger: 5000, isExclusive: true });
-    // newer events will replace the older one though, keeping only one fresh event unless `keepExclusive: true` option is set
+   
     // hint: this creates an event based state updated by emissions and read by listeners
     //  - may actually create an easy API around this ;D
+```
 
-    // get info from the last listener (this is where you MAY need to use reverse invocation order)
-    const endResult = await this.$emitEvent('some-event', { test: 'one' }, { range: 'first-child' });
-
-    // atomic emission API: unlike listeners only single payload is allowed here
-    // emit multiple events, 
-    this.$emitEvent(['second-event', 'third-event'], { test: 'payload' });
-    // if async then the result will be array of promises respective of each event, we may use it this way eg: 
-    await new Promise.all(this.$emitEvent(['second-event', 'third-event'], { test: 'payload' }));
+Setting the `bait: true` option will cause the event to linger forever until consumed by a listener. 
+- A baited listener will not linger at all if consumed. Meaning, if there were listeners of that event when you try to bait, it will just invoke associated callbacks and expire immediately.
+```js
+// If no listeners were listening when this was requested then it lingers waiting for one to listen and expires as soon as it is listened to.
+    this.$emitEvent('some-event', { test: 'one' }, { bait: true });
 ```
 
 #### Event Range (Vue specific)
-Event range options offer precise control over which listeners are invoked. You target them using tokens based on the hierarchic position/level of component that emits the event (event origin) (see above example).
+Event range options offer precise control over which listeners are invoked. You target them using tokens based on the hierarchic position/level of component that emits the event (event origin).
 
- 
+ why? EG: Consider the following components hierachy all listening to the same event:
+`grandparent=>parent=>child=>grandchild=>greatGrandchild`
+if event was fired at grandchild then all listeners from parent to grandparent will handle event.
+
 Options are separated by a hyphen and constructed from the following tokens (eg: `parent-descendents` will invoke the parent and any descendents): 
 - `self`: will only invoke listeners in event origin (component that fired the event). Every other token will begin from origin as well.
 - `child` or `children`: will invoke listeners that are below event, whether they are direct descendents of event origin or not. Note, this won't go all the way down, just the next level only.
@@ -270,8 +268,6 @@ Options are separated by a hyphen and constructed from the following tokens (eg:
 - `descendent` or `descendents`: will invoke listeners that are below origin, whether they are direct descendents of event origin or not. Note, this will invoke up to the last-most-bottom listener. 
 - same goes for `ancestors` or `parent`... but in the opposite direction.
 - `broadcast` - invokes every listener listening for event regardless of location.
-
-
 
 By level we mean the following. Consider there is a listener where there is an 👂🏽:
 
@@ -286,7 +282,17 @@ Relative to origin, where event is emitted:
 - compo1 is level -2 and is `ancestor` (for the first one only)  or `ancestors` (see above explanation), but including all the way up to any listeners before it eg: compo0.
  - compo7 is level 1 and is `child` (for the first one only) or `children` (for all components on the same level but in other hierarchies.
  - compo8 is level 2 and is `descendent` (for the first one only)  or `descendents` (see children explanation), but including all the way down to any listeners after it eg: compo10.
-                              
+     
+##### Range Examples:
+Fire event callbacks of a specific range (default is `first-parent`)
+```js
+    this.$emitEvent('some-event2', { test: 'one' }, { range: 'ancestors' });
+```
+Stop on the first listener callback (guaranteeing event is handled only once, by the immediate parent listener)
+```js
+    this.$emitEvent('some-event2', { test: 'one' }, { range: 'first-parent' });
+```
+Use the other above-listed tokens to achieve required results.                   
 
 ### Remove Event Listeners
 Removing event from events object for all listeners (example):
