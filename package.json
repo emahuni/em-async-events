@@ -1,5 +1,5 @@
 {
-  "name": "async-events",
+  "name": "em-async-events",
   "version": "1.0.0",
   "description": "Easier and more useful events system that has a Vue2.x plugin. Features include async events and listeners, expirable, lingering and catch-up async events and listeners (auto-removed), and a customizable atomic API.",
   "main": "index.js",
@@ -8,7 +8,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/emahuni/async-events.git"
+    "url": "git+https://github.com/emahuni/em-async-events.git"
   },
   "keywords": [
     "vue",
@@ -24,9 +24,9 @@
   "attribution": "Artur Pipchenko <art.pipchenko@gmail.com>",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/emahuni/async-events/issues"
+    "url": "https://github.com/emahuni/em-async-events/issues"
   },
-  "homepage": "https://github.com/emahuni/async-events#readme",
+  "homepage": "https://github.com/emahuni/em-async-events#readme",
   "dependencies": {
     "lodash": "^4.17.21"
   }

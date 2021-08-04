@@ -1,6 +1,6 @@
-# async-events
+# em-async-events
 
-[![npm](https://img.shields.io/npm/v/async-events.svg)](async-events) ![npm](https://img.shields.io/npm/dt/async-events.svg)
+[![npm](https://img.shields.io/npm/v/em-async-events.svg)](em-async-events) ![npm](https://img.shields.io/npm/dt/em-async-events.svg)
 
 Easier and more useful event bus with features that include expirable, lingering and catch-up async events and
 listeners, and a customizable atomic API. Has a Vue plugin.
@@ -27,9 +27,9 @@ listeners, and a customizable atomic API. Has a Vue plugin.
 Installation is simple:
 
 ```bash
-yarn add async-events
+yarn add em-async-events
 # or using npm
-npm install async-events
+npm install em-async-events
 ```
 
 ## Basic Usage
@@ -37,7 +37,7 @@ npm install async-events
 Straight usage without Vue:
 
 ```javascript
-import AsyncEvents from 'async-events';
+import AsyncEvents from 'em-async-events';
 
 const eventsBus = new AsyncEvents();
 // you then use it as 
@@ -50,7 +50,7 @@ As a Vue plugin:
 
 ```javascript
 import Vue from 'vue';
-import AsyncEvents from 'async-events';
+import AsyncEvents from 'em-async-events';
 
 Vue.use(new AsyncEvents());
 // you then use in components as 
@@ -65,8 +65,8 @@ are at play, read on.
 ## Events management
 
 This package aims to address the above features and avoid some thorny issues that other event buses have. It was once
-called `vue-hooked-async-events` because it mainly focused on **Vue**, but it was so good at solving many common event
-problems that the author decided to make it work without Vue and created `async-events`.
+called `vue-hooked-em-async-events` because it mainly focused on **Vue**, but it was so good at solving many common event
+problems that the author decided to make it work without Vue and created `em-async-events`.
 
 ### Standard event bus approach & its issues
 
@@ -83,7 +83,7 @@ export const EventBus = new Vue();
 - Major issue with using standard vue event bus is that it creates a new `Vue` instance with lots of unused methods and
   properties.
 - It is managed by Vue since it'll be a complete Vue component, thereby creating a lot of overhead.
-  `async-events` on the other hand creates a simple object containing awesome events-related functionalities that
+  `em-async-events` on the other hand creates a simple object containing awesome events-related functionalities that
   doesn't add any overhead or watchers/observers of any kind.
 
 - You can't quickly remove events by just writing `this.$eventBus.off()` to unsubscribe only `this` component's events.
@@ -105,7 +105,7 @@ export default {
 
 ### Async Events Approach
 
-So with `async-events` you instead write:
+So with `em-async-events` you instead write:
 
 ```javascript
 ```
@@ -492,7 +492,7 @@ this.$hasLingeringEvent('event-id-1');
 
 ```javascript
     import Vue from 'vue';
-import AsyncEvents from 'async-events';
+import AsyncEvents from 'em-async-events';
 
 Vue.use(new AsyncEvents({
   onEvent:    '$hear',
