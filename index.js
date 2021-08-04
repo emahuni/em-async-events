@@ -37,7 +37,6 @@ class AsyncEvents {
         expiryCallback:   undefined,
         catchUp:          0,
         once:             false,
-        isAsync:          true,
         isExclusive:      false,
         replaceExclusive: false,
         trace:            false,
@@ -48,7 +47,6 @@ class AsyncEvents {
         isExclusive:   false,
         keepExclusive: false,
         forNextOnly:   false,
-        isAsync:       true,
         range:         'first-parent',
         trace:         false,
         verbose:       false,
@@ -90,9 +88,13 @@ class AsyncEvents {
   onEvent (eventName, callback, listenerOptions, subscriberId = _.uniqueId(), listenerOrigin) {
     listenerOptions = _.merge({}, this.options.listenersOptions, listenerOptions);
     
-    /*if (listenerOptions.isAsync && !listenerOptions.once) {
-      throw new Error(`[vue-hooked-async-events]-99: Cannot use isAsync with non-once event listeners. Consider using a callback that re-listens for the same same event instead.`);
-    }*/
+    if (listenerOptions.isAsync) {
+      this.__showDeprecationWarning('isAsync', 'All events and listeners are now async.');
+      /*
+      // todo make this possible and remove this warning
+      if (!listenerOptions.once) {
+      throw new Error(`[vue-hooked-async-events]-99: Cannot use isAsync with non-once event listeners. Consider using a callback that re-listens for the same same event instead.`);*/
+    }
     
     const args = {
       eventName,
@@ -156,6 +158,9 @@ class AsyncEvents {
     listenerOptions = _.merge({}, this.options.listenersOptions, listenerOptions);
     listenerOptions.once = true;
     
+    
+    if (listenerOptions.isAsync) this.__showDeprecationWarning('isAsync', 'All events and listeners are now async.');
+    
     /**
      * creates a listener
      * @param cb
@@ -165,22 +170,17 @@ class AsyncEvents {
     };
     
     // this can be used to wait for listener to trigger before proceeding with code below where listener was created
-    if (listenerOptions.isAsync) {
-      if (_.isArray(callback)) {
-        throw new Error(`[vue-hooked-async-events]-179: You cannot use isAsync listener with atomic API (multiple callbacks)`);
-      }
-      
-      /**
-       * override the callback with one that will return to the listener origin
-       * - it's async just in case the original is also async (one that returns results to event emitter)
-       */
-      return new Promise(resolve => createListener(async (...args) => {
-        return resolve(!!callback ? await callback(...args) : args[0]);
-      }));
-    } else {
-      // just create a listener normally
-      createListener(callback);
+    if (_.isArray(callback)) {
+      throw new Error(`[vue-hooked-async-events]-179: You cannot use isAsync listener with atomic API (multiple callbacks)`);
     }
+    
+    /**
+     * override the callback with one that will return to the listener origin
+     * - it's async just in case the original is also async (one that returns results to event emitter)
+     */
+    return new Promise(resolve => createListener(async (...args) => {
+      return resolve(!!callback ? await callback(...args) : args[0]);
+    }));
   }
   
   
@@ -194,6 +194,8 @@ class AsyncEvents {
    */
   emitEvent (eventName, payload, eventOptions, eventOrigin) {
     eventOptions = _.merge({}, this.options.eventsOptions, eventOptions);
+    
+    if (eventOptions.isAsync) this.__showDeprecationWarning('isAsync', 'All events and listeners are now async.');
     
     if (eventOptions.forNextOnly && !eventOptions.linger) {
       eventOptions.linger = Infinity;
@@ -741,11 +743,7 @@ class AsyncEvents {
             trace(`[vue-hooked-async-events]-380: Invoke Listener - eventName: %o, payload: %o, \n origin: %o, eventOrigin: %o, Listener: %o\neventMeta: %o\nresponse: %o, \nstoppingHere: %o`, eventName, payload, _.get(listener.listenerOrigin, '$options.name', '???'), _.get(eventOrigin, '$options.name', '???'), listener, eventMeta, res, stopHere);
           }
           
-          if (eventOptions.isAsync) {
-            res = await this.__runCallback({ events, payload: res, eventMeta, listener });
-          } else {
-            this.__runCallback({ events, payload: res, eventMeta, listener });
-          }
+          res = await this.__runCallback({ events, payload: res, eventMeta, listener });
           
           if (stopHere) {
             eventMeta.stopNow = true;
@@ -820,11 +818,8 @@ class AsyncEvents {
           if (eventOptions.verbose) trace = console.trace;
           trace(`[vue-hooked-async-events]-587: ABORTING lingerEvent - for exclusive lingered eventName: %o \n%o`, eventName, eventMeta);
         }
-        if (eventOptions.isAsync) {
-          return Promise.resolve(payload);
-        } else {
-          return payload;
-        }
+        
+        return Promise.resolve(payload);
       }
       
       if (this.options.debug.all && this.options.debug.lingerEvent || eventOptions.trace) {
@@ -834,12 +829,11 @@ class AsyncEvents {
       const id = this.__genUniqID();
       
       let lingeringHook = undefined, lingeringPromise = undefined, lingeringResult = payload;
-      if (eventOptions.isAsync) {
-        if (eventOptions.linger >= Infinity || this.options.globalLinger >= Infinity) {
-          throw new Error(`[vue-hooked-async-events]-605: You cannot async and linger an event forever!`);
-        }
-        lingeringPromise = new Promise((resolve) => lingeringHook = resolve);
+      
+      if (eventOptions.linger >= Infinity || this.options.globalLinger >= Infinity) {
+        throw new Error(`[vue-hooked-async-events]-605: You cannot async and linger an event forever!`);
       }
+      lingeringPromise = new Promise((resolve) => lingeringHook = resolve);
       
       const event = {
         id,
@@ -863,9 +857,7 @@ class AsyncEvents {
       if (timeout >= Infinity) timeout = 2147483647; // set to maximum allowed so that we don't have an immediate bailout
       setTimeout(() => {
         // finally resolve lingering event promise
-        if (eventOptions.isAsync) {
-          lingeringHook(lingeringResult); // finally settle lingering promise
-        }
+        lingeringHook(lingeringResult); // finally settle lingering promise
         
         const i = this.lingeringEvents[eventName].findIndex(le => le.id === id);
         this.lingeringEvents[eventName].splice(i, 1);
@@ -876,11 +868,7 @@ class AsyncEvents {
       }, timeout);
       
       
-      if (eventOptions.isAsync) {
-        return lingeringPromise;
-      } else {
-        return payload;
-      }
+      return lingeringPromise;
     }
   }
   
@@ -912,11 +900,9 @@ class AsyncEvents {
             eventMeta,
           });
           
-          if (eventOptions.isAsync) {
-            // run event async resolution, see this.__lingerEvent
-            _event.lingeringResult = result; // store as the final result to be sent to event
-            _event.args[0] = result; // update payload argument for next listener of lingering event
-          }
+          // run event async resolution, see this.__lingerEvent
+          _event.lingeringResult = result; // store as the final result to be sent to event
+          _event.args[0] = result; // update payload argument for next listener of lingering event
           
           if (eventOptions.forNextOnly) {
             // noinspection JSUnfilteredForInLoop
@@ -1238,6 +1224,10 @@ class AsyncEvents {
    */
   __genUniqID () {
     return Math.random().toString(36).substr(2, 9);
+  }
+  
+  __showDeprecationWarning (dep, extra) {
+    console.warn(`${dep} was deprecated and no longer supported. ${extra || ''}`);
   }
 }
 

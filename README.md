@@ -82,10 +82,9 @@ created() {
 
   // only continue after event has been emitted 
   // - callback doesn't have to be async or even defined, if so then it also awaits callback resolution
-  // - isAsync for listeners is only available for onceEvent, otherwise use callback for continuous event handling
-  // - isAsync is true by default, pass isAsync: false to turn off async funcitonality
-  let result = await this.$onceEvent('some-event', this.eventCallback3, { isAsync: true });
-  result = await this.$onceEvent('some-event', { isAsync: true });
+  // isAsync option was deprecated and no longer required as all events and listeners are now async by default
+  let result = await this.$onceEvent('some-event', this.eventCallback3);
+  result = await this.$onceEvent('some-event');
 
   // automatically stop listening after 5000 milliseconds
   this.$onEvent('some-event', this.eventCallback3, { expire: 5000 });
@@ -133,8 +132,7 @@ methods: {
 
 
   async eventCallback1 (payload, metadata) {
-    // if you are going to return anything to event make sure you use 'isAsync' option and callback is async 
-    return /*whatever response you want to return to the event only if it's async; see below*/
+    return /* whatever response you want to return to the event; see below */
   },
 
   async eventCallback2 (payload, metadata) {
@@ -186,14 +184,13 @@ methods: {
     //  - may actually create an easy API around this ;D
 
     // get info from the last listener (this is where you MAY need to use reverse invocation order)
-    const endResult = await this.$emitEvent('some-event', { test: 'one' }, { isAsync: true, range: 'first-child' });
-    // isAsync option is required for events that expect a response, it's true by default
+    const endResult = await this.$emitEvent('some-event', { test: 'one' }, { range: 'first-child' });
 
     // atomic emission API: unlike listeners only single payload is allowed here
     // emit multiple events, 
     this.$emitEvent(['second-event', 'third-event'], { test: 'payload' });
     // if async then the result will be array of promises respective of each event, we may use it this way eg: 
-    await new Promise.all(this.$emitEvent(['second-event', 'third-event'], { test: 'payload' }, { isAsync: true }));
+    await new Promise.all(this.$emitEvent(['second-event', 'third-event'], { test: 'payload' }));
   }     
 }
 ```
@@ -311,13 +308,20 @@ NOTE: use this feature at your own risk as it will warn you only for Vue basic p
 
         // default options that you don't have to set all the time
         // listenersOptions default = { 
-        //  stopHere: false, expire: 0, once: false, isAsync: false, catchUp: false, trace: false
+        //  stopHere: false, 
+        //  expire: 0, 
+        //  once: false, 
+        //  catchUp: false, 
+        //  trace: false
         // }
         listenersOptions: { stopHere: true, /*...*/ },
         // eventsOptions default = { 
-        //   range: 'first-parent', linger: 0, forNextOnly: false, isAsync: false, trace: false 
+        //   range: 'first-parent', 
+        //   linger: 0, 
+        //   forNextOnly: false, 
+        //   trace: false 
         // }
-        eventsOptions: { range: 'ancestors', isAsync: true, /*...*/ },
+        eventsOptions: { range: 'ancestors', /*...*/ },
 
         // all events linger for a default of 500ms, but only trigger if a listener has catchUp option set (see above)
         // you can change the default globalLinger here to whatever you want. take care
