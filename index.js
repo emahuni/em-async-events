@@ -84,16 +84,13 @@ class AsyncEvents {
    * @param listenerOptions
    * @param subscriberId
    * @param listenerOrigin
+   * @return {Promise<*>|array<Promise<*>>} - allows waiting for invocation of event with a promise only once (use if you want to continue execution where you adding the listener only when promise is fulfilled)
    */
   onEvent (eventName, callback, listenerOptions, subscriberId = _.uniqueId(), listenerOrigin) {
     listenerOptions = _.merge({}, this.options.listenersOptions, listenerOptions);
     
     if (listenerOptions.isAsync) {
       this.__showDeprecationWarning('isAsync', 'All events and listeners are now async.');
-      /*
-      // todo make this possible and remove this warning
-      if (!listenerOptions.once) {
-      throw new Error(`[vue-hooked-async-events]-99: Cannot use isAsync with non-once event listeners. Consider using a callback that re-listens for the same same event instead.`);*/
     }
     
     const args = {
@@ -104,40 +101,25 @@ class AsyncEvents {
       listenerOrigin,
     };
     
-    if (_.isArray(eventName) && _.isArray(callback)) {
+    
+    if (_.isArray(eventName) || _.isArray(callback)) {
+      if (!_.isArray(eventName)) eventName = [eventName];
+      if (!_.isArray(callback)) callback = [callback];
+      
+      const promises = [];
       for (let eventNameIndex = 0, len = eventName.length; eventNameIndex < len; eventNameIndex++) {
         for (let callbackIndex = 0, _len = callback.length; callbackIndex < _len; callbackIndex++) {
-          this.__addListener({
+          promises.push(this.__addListener({
             ...args,
             eventName: eventName[eventNameIndex],
             callback:  callback[callbackIndex],
-          });
+          }));
         }
       }
       
-      return;
-    }
-    
-    if (_.isArray(eventName)) {
-      for (let _eventNameIndex = 0, _len2 = eventName.length; _eventNameIndex < _len2; _eventNameIndex++) {
-        this.__addListener({
-          ...args,
-          eventName: eventName[_eventNameIndex],
-        });
-      }
-      
-      return;
-    }
-    
-    if (_.isArray(callback)) {
-      for (let _callbackIndex = 0, _len3 = callback.length; _callbackIndex < _len3; _callbackIndex++) {
-        this.__addListener({
-          ...args,
-          callback: callback[_callbackIndex],
-        });
-      }
+      return promises;
     } else {
-      this.__addListener(args);
+      return this.__addListener(args);
     }
   }
   
@@ -148,7 +130,8 @@ class AsyncEvents {
    * @param listenerOptions
    * @param subscriberId
    * @param listenerOrigin
-   */
+   * @return {Promise<*>|array<Promise<*>>} - allows waiting for invocation of event with a promise only once (use if you want to continue execution where you adding the listener only when promise is fulfilled)
+   * */
   onceEvent (eventName, callback, listenerOptions, subscriberId = _.uniqueId(), listenerOrigin) {
     if (typeof callback !== 'function' && !listenerOptions) {
       listenerOptions = callback;
@@ -158,29 +141,16 @@ class AsyncEvents {
     listenerOptions = _.merge({}, this.options.listenersOptions, listenerOptions);
     listenerOptions.once = true;
     
-    
     if (listenerOptions.isAsync) this.__showDeprecationWarning('isAsync', 'All events and listeners are now async.');
-    
-    /**
-     * creates a listener
-     * @param cb
-     */
-    const createListener = (cb) => {
-      this.onEvent(eventName, cb, listenerOptions, subscriberId, listenerOrigin);
-    };
     
     // this can be used to wait for listener to trigger before proceeding with code below where listener was created
     if (_.isArray(callback)) {
       throw new Error(`[vue-hooked-async-events]-179: You cannot use isAsync listener with atomic API (multiple callbacks)`);
     }
     
-    /**
-     * override the callback with one that will return to the listener origin
-     * - it's async just in case the original is also async (one that returns results to event emitter)
-     */
-    return new Promise(resolve => createListener(async (...args) => {
-      return resolve(!!callback ? await callback(...args) : args[0]);
-    }));
+    if (!_.isFunction(callback)) callback = (...args) => args[0];
+    
+    return this.onEvent(eventName, callback, listenerOptions, subscriberId, listenerOrigin);
   }
   
   
@@ -210,28 +180,12 @@ class AsyncEvents {
     };
     
     let promises = [];
-    /*
-     // this wont work if payload is actually a response in array form
-     if (isArray(eventName) && isArray(payload)) {
-     for (let eventNameIndex = 0, len = eventName.length; eventNameIndex < len; eventNameIndex++) {
-     for (let payloadIndex = 0, _len = payload.length; payloadIndex < _len; payloadIndex++) {
-     promises.push(this.__runEventCallbacks({
-     ...args,
-     eventName: eventName[eventNameIndex],
-     payload:  payload[payloadIndex]
-     }));
-     }
-     }
-
-     return promises;
-     }
-     */
     
     if (_.isArray(eventName)) {
-      for (let _eventNameIndex = 0, _len2 = eventName.length; _eventNameIndex < _len2; _eventNameIndex++) {
-        promises.push(this.__runEventCallbacks({
+      for (let ei = 0, _len2 = eventName.length; ei < _len2; ei++) {
+        promises.push(this.__runEventCallbacks_linger({
           ...args,
-          eventName: eventName[_eventNameIndex],
+          eventName: eventName[ei],
           payload,
         }));
       }
@@ -239,7 +193,7 @@ class AsyncEvents {
       return promises;
     }
     
-    return this.__runEventCallbacks(args);
+    return this.__runEventCallbacks_linger(args);
   }
   
   
@@ -308,7 +262,7 @@ class AsyncEvents {
       }
       
       // Remove array of callbacks for specific event
-      if (_.isArray(callback) && eventName in this.events && this.events[eventName].length) {
+      if (_.isArray(callback) && this.hasListener(eventName)) {
         // console.debug(`[vue-hooked-async-events]-229: fallSilentProp() - Remove array of callbacks for specific event: %o`, this);
         
         for (let callbackIndex = 0, _len4 = callback.length; callbackIndex < _len4; callbackIndex++) {
@@ -319,7 +273,7 @@ class AsyncEvents {
       }
       
       // Remove specific callback for specific event
-      if (callback && eventName in this.events && this.events[eventName].length) {
+      if (callback && this.hasListener(eventName)) {
         // console.debug(`[vue-hooked-async-events]-240: fallSilentProp() - Remove specific callback for specific event: %o`, this);
         
         this.__removeCallbacks({ eventName, subscriberId, callback });
@@ -608,12 +562,25 @@ class AsyncEvents {
     // todo we can add level to add listener options for non-vue usage
     const level = listenerOrigin ? this.__getOriginLevel(listenerOrigin) : 0;
     const id = this.__genUniqID();
+    // create a promise that can be waited for by listener
+    let lResolve, lReject;
+    // create listener object
     const listener = {
       eventName,
       callback,
       listenerOptions,
       subscriberId,
       listenerOrigin,
+      listenerPromise: {
+        promise:    new Promise((resolve, reject) => {
+          lResolve = resolve;
+          lReject = reject;
+        }),
+        resolve:    lResolve,
+        reject:     lReject,
+        settlement: 0, // 0: it's pending, 1: it's resolved, and -1: it's rejected
+        outcome:    undefined,
+      },
       id,
       level,
     };
@@ -622,13 +589,11 @@ class AsyncEvents {
       console.info(`[vue-hooked-async-events]-394: ${listenerOptions.once ? this.options.onceEvent : this.options.onEvent}(addListener) eventName: %o Listener Origin: %o \nListener: %o`, eventName, _.get(listenerOrigin, '$options.name', '???'), listener);
     }
     
-    // noinspection JSIgnoredPromiseFromCall
-    this.__runLingeredEvents({ ...arguments[0], listener });
-    
     if (!exclusiveListener) {
       (this.events[eventName] || (this.events[eventName] = [])).push(listener);
     } else {
       const index = this.events[eventName].findIndex(l => l.id === exclusiveListener.id);
+      // replace the exclusive listener
       this.events[eventName][index] = listener;
     }
     
@@ -640,6 +605,18 @@ class AsyncEvents {
         this.__removeListeners({ ...listener });
       }, listenerOptions.expire);
     }
+    
+    // results that happen here will be sent thru the listener promise chain.
+    this.__runLingeredEventsAtAddListener({ ...arguments[0], listener });
+    
+    switch (listener.listenerPromise.settlement) {
+      case 1:
+        return Promise.resolve(listener.listenerPromise.outcome);
+      case -1:
+        return Promise.reject(listener.listenerPromise.outcome);
+      default:
+        return listener.listenerPromise.promise;
+    }
   }
   
   /**
@@ -650,7 +627,7 @@ class AsyncEvents {
    * @param eventOrigin
    * @return {Promise<*>}
    */
-  async __runEventCallbacks ({ eventName, payload, eventOptions, eventOrigin }) {
+  async __runEventCallbacks_linger ({ eventName, payload, eventOptions, eventOrigin }) {
     let listeners = this.events[eventName];
     let listenersTally = listeners && listeners.length;
     const level = this.__getOriginLevel(eventOrigin);
@@ -670,12 +647,13 @@ class AsyncEvents {
       console.info(`[vue-hooked-async-events]-152: ${this.options.emitEvent} eventName: %o payload: %o\n origin: %o eventMeta: %o`, eventName, payload, _.get(eventOrigin, '$options.name', '???'), eventMeta);
     }
     
-    payload = await this.___runEventCallbacks({
+    payload = await this.__runListenersCallbacks({
       listeners, eventName, payload, eventOptions, eventOrigin, eventMeta,
     });
     
+    // todo what tha?
     if (!eventMeta.stopNow) {
-      // if event is async then it waits for linger time to elapse before returning the result of catchUp listeners chain
+      // waits for linger time to elapse before returning the result of catchUp listeners chain
       return this.__lingerEvent({ ...arguments[0], payload, eventMeta });
     } else {
       // catch up listener stopped the event before it went to other existing events.
@@ -695,16 +673,16 @@ class AsyncEvents {
    * @return {Promise<*>}
    * @private
    */
-  async ___runEventCallbacks ({
-                                events = this.events,
-                                listeners,
-                                eventName,
-                                payload,
-                                eventOptions,
-                                eventOrigin,
-                                eventMeta,
-                              }) {
-    let res = payload;
+  async __runListenersCallbacks ({
+                                   events = this.events,
+                                   listeners,
+                                   eventName,
+                                   payload,
+                                   eventOptions,
+                                   eventOrigin,
+                                   eventMeta,
+                                 }) {
+    let finalOutcome = payload;
     let listenersTally = listeners && listeners.length;
     
     // console.debug(`[vue-hooked-async-events] index-564: - eventName: %o, \neventOrigin: %o, \n_listeners: %o\neventMeta: %o`, eventName, eventOrigin, listeners, eventMeta);
@@ -728,10 +706,10 @@ class AsyncEvents {
         closestListener = closestListeners && closestListeners[i];
         downListener = downListeners && downListeners[i];
         
-        // console.debug(`[vue-hooked-async-events]-423: this.___runEventCallbacks() - upListener: %o, downListener: %o`, upListener, downListener);
+        // console.debug(`[vue-hooked-async-events]-423: this.__runListenersCallbacks() - upListener: %o, downListener: %o`, upListener, downListener);
         
         const upClosestDownListeners = [closestListener, upListener, downListener].filter(l => !_.isNil(l));
-        // console.debug(`[vue-hooked-async-events]-426: this.___runEventCallbacks() - upClosestDownListeners: %o`, upClosestDownListeners);
+        // console.debug(`[vue-hooked-async-events]-426: this.__runListenersCallbacks() - upClosestDownListeners: %o`, upClosestDownListeners);
         
         // run both up and down listeners (which ever is available)
         for (let listener of upClosestDownListeners) {
@@ -740,10 +718,25 @@ class AsyncEvents {
           if (this.options.debug.all && this.options.debug.invokeListener || eventOptions.trace || listener.listenerOptions.trace) {
             let trace = console.info;
             if (eventOptions.verbose || listener.listenerOptions.verbose) trace = console.trace;
-            trace(`[vue-hooked-async-events]-380: Invoke Listener - eventName: %o, payload: %o, \n origin: %o, eventOrigin: %o, Listener: %o\neventMeta: %o\nresponse: %o, \nstoppingHere: %o`, eventName, payload, _.get(listener.listenerOrigin, '$options.name', '???'), _.get(eventOrigin, '$options.name', '???'), listener, eventMeta, res, stopHere);
+            trace(`[vue-hooked-async-events]-380: Invoke Listener - eventName: %o, payload: %o, \n origin: %o, eventOrigin: %o, Listener: %o\neventMeta: %o\nresponse: %o, \nstoppingHere: %o`, eventName, payload, _.get(listener.listenerOrigin, '$options.name', '???'), _.get(eventOrigin, '$options.name', '???'), listener, eventMeta, finalOutcome, stopHere);
           }
           
-          res = await this.__runCallback({ events, payload: res, eventMeta, listener });
+          // todo check if this is ok, as in catching errors
+          try {
+            finalOutcome = this.__runCallback({ events, payload: finalOutcome, eventMeta, listener });
+            if (listener.listenerPromise.settlement === 0) {
+              // only capture the first outcome becoz that's what promises do, once resolved or rejected it's settled.
+              listener.listenerPromise.outcome = finalOutcome;
+              listener.listenerPromise.settlement = 1; // resolved
+              listener.listenerPromise.resolve(finalOutcome);
+            }
+          } catch (e) {
+            // rejects with previous finalOutcome.
+            if (listener.listenerPromise.settlement === 0) {
+              listener.listenerPromise.settlement = -1; // rejected
+              listener.listenerPromise.reject(finalOutcome);
+            }
+          }
           
           if (stopHere) {
             eventMeta.stopNow = true;
@@ -761,7 +754,7 @@ class AsyncEvents {
       } while (upListener || downListener || closestListener);
     }
     
-    return res;
+    return finalOutcome;
   }
   
   
@@ -826,21 +819,24 @@ class AsyncEvents {
         console.info(`[vue-hooked-async-events]-597: lingerEvent - eventName: %o \n%o`, eventName, eventMeta);
       }
       
-      const id = this.__genUniqID();
-      
-      let lingeringHook = undefined, lingeringPromise = undefined, lingeringResult = payload;
-      
       if (eventOptions.linger >= Infinity || this.options.globalLinger >= Infinity) {
         throw new Error(`[vue-hooked-async-events]-605: You cannot async and linger an event forever!`);
       }
-      lingeringPromise = new Promise((resolve) => lingeringHook = resolve);
+      
+      const id = this.__genUniqID();
+      
+      let lResolve, lReject;
+      const lingeringEventPromise = new Promise((resolve, reject) => {
+        lResolve = resolve;
+        lReject = reject;
+      });
       
       const event = {
         id,
-        lingeringResult,
-        lingeringHook, // to be resolved by run callbacks, see this.__runLingeredEvents
-        args: [payload, eventMeta],
+        lingeringEventPromise: { promise: lingeringEventPromise, settled: false, resolve: lResolve, reject: lReject }, // to be resolved by run callbacks, see this.__runLingeredEventsAtAddListener
+        args:                  [payload, eventMeta],
       };
+      
       // stash event for later use on new listeners of same eventName
       if (!exclusiveLingeredEvent) {
         (this.lingeringEvents[eventName] || (this.lingeringEvents[eventName] = [])).push(event);
@@ -857,14 +853,14 @@ class AsyncEvents {
       if (timeout >= Infinity) timeout = 2147483647; // set to maximum allowed so that we don't have an immediate bailout
       setTimeout(() => {
         // finally resolve lingering event promise
-        lingeringHook(lingeringResult); // finally settle lingering promise
+        event.lingeringEventPromise.resolve(event.args[0]); // finally settle lingering promise
         
         const i = this.lingeringEvents[eventName].findIndex(le => le.id === id);
         this.__removeLingeringEventAtIndex(eventName, i, eventOptions);
       }, timeout);
       
       
-      return lingeringPromise;
+      return lingeringEventPromise;
     }
   }
   
@@ -874,9 +870,9 @@ class AsyncEvents {
    * @param eventName
    * @param listener
    */
-  async __runLingeredEvents ({ eventName, listener }) {
+  __runLingeredEventsAtAddListener ({ eventName, listener }) {
     // check if listener has an events lingering for it, if so then trigger these events on listener to handle
-    if (this.lingeringEvents[eventName]) {
+    if (this.hasLingeringEvents(eventName)) {
       for (let ei in this.lingeringEvents[eventName]) {
         // noinspection JSUnfilteredForInLoop
         const _event = this.lingeringEvents[eventName][ei];
@@ -886,7 +882,8 @@ class AsyncEvents {
         // was linger ordered by the event or if listener catchUp is within range (linger was ordered by global linger)
         if (eventMeta.linger || listener.listenerOptions.catchUp <= (Date.now() - eventMeta.eventTimestamp)) {
           // noinspection JSIgnoredPromiseFromCall
-          let result = await this.___runEventCallbacks({
+          // run event async resolution, see this.__lingerEvent and update payload argument for next listener of lingering event
+          _event.args[0] = this.__runListenersCallbacks({
             events:    [_event],
             payload,
             listeners: [listener],
@@ -895,10 +892,6 @@ class AsyncEvents {
             eventOrigin,
             eventMeta,
           });
-          
-          // run event async resolution, see this.__lingerEvent
-          _event.lingeringResult = result; // store as the final result to be sent to event
-          _event.args[0] = result; // update payload argument for next listener of lingering event
           
           if (eventOptions.forNextOnly) {
             // noinspection JSUnfilteredForInLoop
