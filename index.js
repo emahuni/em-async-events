@@ -860,11 +860,7 @@ class AsyncEvents {
         lingeringHook(lingeringResult); // finally settle lingering promise
         
         const i = this.lingeringEvents[eventName].findIndex(le => le.id === id);
-        this.lingeringEvents[eventName].splice(i, 1);
-        
-        if (this.options.debug.all && this.options.debug.lingerEvent || eventOptions.trace) {
-          console.info(`[vue-hooked-async-events]-640: remove lingerEvent - eventName: %o \n%o`, eventName, eventMeta);
-        }
+        this.__removeLingeringEventAtIndex(eventName, i, eventOptions);
       }, timeout);
       
       
@@ -906,11 +902,20 @@ class AsyncEvents {
           
           if (eventOptions.forNextOnly) {
             // noinspection JSUnfilteredForInLoop
-            this.lingeringEvents[eventName].splice(ei, 1);
+            this.__removeLingeringEventAtIndex(eventName, ei, eventOptions);
           }
         }
       }
     }
+  }
+  
+  __removeLingeringEventAtIndex (eventName, index, eventOptions) {
+    if (this.options.debug.all && this.options.debug.lingerEvent || eventOptions.trace) {
+      console.info(`[vue-hooked-async-events]-911: remove lingerEvent - eventName: %o on index: %o`, eventName, index);
+    }
+    
+    this.lingeringEvents[eventName].splice(index, 1);
+    if (_.isEmpty(this.lingeringEvents[eventName])) delete this.lingeringEvents[eventName];
   }
   
   
