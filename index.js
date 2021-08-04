@@ -837,14 +837,17 @@ class AsyncEvents {
       const id = this.__genUniqID();
       
       let lResolve, lReject;
-      const lingeringEventPromise = new Promise((resolve, reject) => {
-        lResolve = resolve;
-        lReject = reject;
-      });
-      
       const event = {
         id,
-        lingeringEventPromise: { promise: lingeringEventPromise, settled: false, resolve: lResolve, reject: lReject }, // to be resolved by run callbacks, see this.__runLingeredEventsAtAddListener
+        lingeringEventPromise: {
+          promise: new Promise((resolve, reject) => {
+            lResolve = resolve;
+            lReject = reject;
+          }),
+          settled: false,
+          resolve: lResolve,
+          reject:  lReject,
+        }, // to be resolved by run callbacks, see this.__runLingeredEventsAtAddListener
         args:                  [payload, eventMeta],
       };
       
@@ -871,7 +874,7 @@ class AsyncEvents {
       }, timeout);
       
       
-      return lingeringEventPromise;
+      return event.lingeringEventPromise.promise;
     }
   }
   
