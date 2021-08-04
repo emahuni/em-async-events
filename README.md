@@ -107,7 +107,7 @@ run callback on event emission.
 ```js
     metadata == {
       extra: 'extra payload (not event related) from listener adding line. see below',
-      payloads: [/* array of all chained callbacks' outcomes, see below */],
+      payloads: [/* array of all previous event callbacks' outcomes (if there multiple listeners or multiple cbs for the event), see below */],
       eventName: "some-event", 
       eventOptions: {/*opts passed to event*/},
       listenerOptions: {/*opts passed to listener*/},
