@@ -90,9 +90,10 @@ class AsyncEvents {
   onEvent (eventName, callback, listenerOptions, subscriberId = _.uniqueId(), listenerOrigin) {
     listenerOptions = _.merge({}, this.options.listenersOptions, listenerOptions);
     
-    if (listenerOptions.isAsync) {
-      this.__showDeprecationWarning('isAsync', 'All events and listeners are now async.');
-    }
+    if (listenerOptions.isAsync) this.__showDeprecationWarning('isAsync', 'All events and listeners are now async.');
+    
+    // if this event doesn't have  a callback, then just create one that returns the given payload
+    if (!_.isFunction(callback)) callback = (payload) => payload;
     
     const args = {
       eventName,
@@ -142,15 +143,6 @@ class AsyncEvents {
     listenerOptions = _.merge({}, this.options.listenersOptions, listenerOptions);
     listenerOptions.once = true;
     
-    if (listenerOptions.isAsync) this.__showDeprecationWarning('isAsync', 'All events and listeners are now async.');
-    
-    // this can be used to wait for listener to trigger before proceeding with code below where listener was created
-    if (_.isArray(callback)) {
-      throw new Error(`[em-async-events]-179: You cannot use isAsync listener with atomic API (multiple callbacks)`);
-    }
-    
-    if (!_.isFunction(callback)) callback = (...args) => args[0];
-    
     return this.onEvent(eventName, callback, listenerOptions, subscriberId, listenerOrigin);
   }
   
@@ -184,7 +176,7 @@ class AsyncEvents {
     
     if (_.isArray(eventName)) {
       for (let ei = 0, _len2 = eventName.length; ei < _len2; ei++) {
-        promises.push(this.__runEventCallbacks_linger({
+        promises.push(this.__runEvent_linger({
           ...args,
           eventName: eventName[ei],
           payload,
@@ -194,7 +186,7 @@ class AsyncEvents {
       return promises;
     }
     
-    return this.__runEventCallbacks_linger(args);
+    return this.__runEvent_linger(args);
   }
   
   
@@ -523,7 +515,7 @@ class AsyncEvents {
      * @return {boolean}
      */
     Vue.prototype[hasLingeringEventProp] = function (eventID) {
-      return checkComponentEvents(eventID, AE_this.lingeringEvents, 'args[1].eventOrigin', this);
+      return checkComponentEvents(eventID, AE_this.lingeringEvents, 'eventMeta.eventOrigin', this);
     };
     /**
      * check to see if we have any lingering event for any of the given eventID(s)
@@ -531,7 +523,7 @@ class AsyncEvents {
      * @return {boolean}
      */
     Vue.prototype[hasLingeringEventsProp] = function (eventIDs) {
-      return checkComponentEvents(eventIDs, AE_this.lingeringEvents, 'args[1].eventOrigin', this);
+      return checkComponentEvents(eventIDs, AE_this.lingeringEvents, 'eventMeta.eventOrigin', this);
     };
   }
   
@@ -627,7 +619,7 @@ class AsyncEvents {
    * @param eventOrigin
    * @return {Promise<*>}
    */
-  __runEventCallbacks_linger ({ eventName, payload, eventOptions, eventOrigin }) {
+  __runEvent_linger ({ eventName, payload, eventOptions, eventOrigin }) {
     let listeners = this.events[eventName];
     let listenersTally = listeners && listeners.length;
     const level = this.__getOriginLevel(eventOrigin);
@@ -654,8 +646,9 @@ class AsyncEvents {
     });
     
     if (!eventMeta.stopNow) {
-      return this.__lingerEvent({ ...arguments[0], payload, eventMeta });
+      return this.__lingerEvent({ eventName, payload, eventOptions, eventMeta });
     } else {
+      console.debug(`[index]-659: __runEvent_linger() - eventMeta: %o`, eventMeta);
       if (!eventMeta.consumed) {
         if (this.options.debug.all) {
           console.warn(`[em-async-events]-660: - eventName: %o wasn't consumed! Check the event name correctness, or adjust its "linger" time or the listeners' "catchUp" time to bust event race conditions.`, eventName);
@@ -732,18 +725,18 @@ class AsyncEvents {
           // todo check if this is ok, as in catching errors
           try {
             finalOutcome = this.__runCallback({ events, payload: finalOutcome, eventMeta, listener });
+            // only capture the first outcome becoz that's what promises do, once resolved or rejected it's settled.
             if (listener.listenerPromise.settlement === 0) {
-              // only capture the first outcome becoz that's what promises do, once resolved or rejected it's settled.
               listener.listenerPromise.outcome = finalOutcome;
-              eventMeta.payloads.push(finalOutcome);
               listener.listenerPromise.settlement = 1; // resolved
               listener.listenerPromise.resolve(finalOutcome);
+              eventMeta.payloads.push(finalOutcome);
               eventMeta.consumed = true;
             }
           } catch (e) {
-            // rejects with previous finalOutcome.
             if (listener.listenerPromise.settlement === 0) {
               listener.listenerPromise.settlement = -1; // rejected
+              // rejects with previous finalOutcome.
               listener.listenerPromise.reject(finalOutcome);
             }
           }
@@ -812,7 +805,7 @@ class AsyncEvents {
   __lingerEvent ({ eventName, payload, eventOptions, eventMeta }) {
     if (this.lingeringEvents && (eventOptions.linger || this.options.eventsOptions.linger)) {
       // get existing exclusive lingered event
-      const exclusiveLingeredEvent = (this.lingeringEvents[eventName] || []).find(e => e.args[1].eventOptions.isExclusive);
+      const exclusiveLingeredEvent = (this.lingeringEvents[eventName] || []).find(e => e.eventMeta.eventOptions.isExclusive);
       
       // bailout if exclusive lingered event is set to be kept (meaning don't replace with fresh event)
       if (exclusiveLingeredEvent && exclusiveLingeredEvent.keepExclusive) {
@@ -830,14 +823,14 @@ class AsyncEvents {
         if (this.options.debug.all && this.options.debug.lingerEvent || eventOptions.trace) {
           let trace = console.info;
           if (eventOptions.verbose) trace = console.trace;
-          trace(`[em-async-events]-827: ABORTING lingerEvent - baited but consumed eventName: %o \n%o`, eventName, eventMeta);
+          trace(`[em-async-events]-827: ABORTING lingerEvent - baited but consumed eventName: %o eventMeta: %o`, eventName, eventMeta);
         }
         
         return Promise.resolve(payload);
       }
       
       if (this.options.debug.all && this.options.debug.lingerEvent || eventOptions.trace) {
-        console.info(`[em-async-events]-597: lingerEvent - eventName: %o \n%o`, eventName, eventMeta);
+        console.info(`[em-async-events]-597: lingerEvent - eventName: %o eventMeta: %o`, eventName, eventMeta);
       }
       
       const id = this.__genUniqID();
@@ -845,6 +838,7 @@ class AsyncEvents {
       let lResolve, lReject;
       const event = {
         id,
+        // to be resolved by run callbacks, see this.__runLingeredEventsAtAddListener
         lingeringEventPromise: {
           promise: new Promise((resolve, reject) => {
             lResolve = resolve;
@@ -853,8 +847,9 @@ class AsyncEvents {
           settled: false,
           resolve: lResolve,
           reject:  lReject,
-        }, // to be resolved by run callbacks, see this.__runLingeredEventsAtAddListener
-        args:                  [payload, eventMeta],
+        },
+        payload,
+        eventMeta,
       };
       
       // stash event for later use on new listeners of same eventName
@@ -873,15 +868,15 @@ class AsyncEvents {
       if (timeout >= Infinity) timeout = 2147483647; // set to maximum allowed so that we don't have an immediate bailout
       setTimeout(() => {
         // finally resolve/reject lingering event promise
-        if (eventMeta.consumed) {
-          event.lingeringEventPromise.resolve(event.args[0]);
+        if (event.eventMeta.consumed) {
+          event.lingeringEventPromise.resolve(event.payload);
         } else {
           if (eventOptions.rejectUnconsumed) event.lingeringEventPromise.reject(`Lingered Event "${eventName}" NOT consumed!`);
           else event.lingeringEventPromise.resolve();
         }
-        
+        console.debug(`[index]-882: () - eventMeta: %o`, event.eventMeta);
         const i = this.lingeringEvents[eventName].findIndex(le => le.id === id);
-        this.__removeLingeringEventAtIndex(eventName, i, eventOptions, eventMeta);
+        this.__removeLingeringEventAtIndex(eventName, i, eventOptions, event.eventMeta);
       }, timeout);
       
       
@@ -900,16 +895,16 @@ class AsyncEvents {
     if (!!listener.listenerOptions.catchUp && this.hasLingeringEvents(eventName)) {
       for (let ei in this.lingeringEvents[eventName]) {
         // noinspection JSUnfilteredForInLoop
-        const _event = this.lingeringEvents[eventName][ei];
-        const [payload, eventMeta] = _event.args;
+        const event = this.lingeringEvents[eventName][ei];
+        const { payload, eventMeta } = event;
         const { eventOptions, eventOrigin } = eventMeta;
         
         // was linger ordered by the event or if listener catchUp is within range (linger time was taken from defaults events linger)
         if (eventMeta.linger || Math.abs(listener.listenerOptions.catchUp) <= (Date.now() - eventMeta.eventTimestamp)) {
           // noinspection JSIgnoredPromiseFromCall
           // run event async resolution, see this.__lingerEvent and update payload argument for next listener of lingering event
-          _event.args[0] = this.__runListenersCallbacks({
-            events:    [_event],
+          event.payload = this.__runListenersCallbacks({
+            events:    [event],
             payload,
             listeners: [listener],
             eventName,
