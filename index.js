@@ -88,12 +88,18 @@ class AsyncEvents {
    * @return {Promise<*>|array<Promise<*>>} - allows waiting for invocation of event with a promise only once (use if you want to continue execution where you adding the listener only when promise is fulfilled)
    */
   onEvent (eventName, callback, listenerOptions, subscriberId = _.uniqueId(), listenerOrigin) {
-    listenerOptions = _.merge({}, this.options.listenersOptions, listenerOptions);
+    if (!_.isString(eventName) && !_.isArray(eventName)) throw new Error(`[index]-91: onEvent() - eventName should be specified as an string or array of strings representing event name(s)!`);
     
+    if (!_.isFunction(callback) && !_.isArray(callback) && _.isNil(listenerOptions)) {
+      listenerOptions = callback;
+      callback = undefined;
+    }
+    
+    listenerOptions = _.merge({}, this.options.listenersOptions, listenerOptions);
     if (listenerOptions.isAsync) this.__showDeprecationWarning('isAsync', 'All events and listeners are now async.');
     
     // if this event doesn't have  a callback, then just create one that returns the given payload
-    if (!_.isFunction(callback)) callback = (payload) => payload;
+    if (!_.isFunction(callback) && !_.isArray(callback)) callback = (payload) => payload;
     
     const args = {
       eventName,
@@ -135,11 +141,6 @@ class AsyncEvents {
    * @return {Promise<*>|array<Promise<*>>} - allows waiting for invocation of event with a promise only once (use if you want to continue execution where you adding the listener only when promise is fulfilled)
    * */
   onceEvent (eventName, callback, listenerOptions, subscriberId = _.uniqueId(), listenerOrigin) {
-    if (typeof callback !== 'function' && !listenerOptions) {
-      listenerOptions = callback;
-      callback = undefined;
-    }
-    
     listenerOptions = _.merge({}, this.options.listenersOptions, listenerOptions);
     listenerOptions.once = true;
     
@@ -156,6 +157,8 @@ class AsyncEvents {
    * @return {Promise<*>|array<Promise>}
    */
   emitEvent (eventName, payload, eventOptions, eventOrigin) {
+    if (!_.isString(eventName) && !_.isArray(eventName)) throw new Error(`[index]-160: emitEvent() - eventName should be specified as an string or array of strings representing event name(s)!`);
+    
     eventOptions = _.merge({}, this.options.eventsOptions, eventOptions);
     
     if (eventOptions.isAsync) this.__showDeprecationWarning('isAsync', 'All events and listeners are now async.');
@@ -787,7 +790,7 @@ class AsyncEvents {
     
     if (_.isFunction(listener.callback)) {
       return listener.callback(payload, {
-        ...eventMeta,
+        eventMeta,
         listenerOptions: listener.listenerOptions,
         extra:           listener.listenerOptions.extra,
       });
