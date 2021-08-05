@@ -282,8 +282,8 @@ Why use linger? bust race conditions. it doesn't matter how your order your even
 make sure that events can fire and wait for listeners to pop in within a certain timespan.
 
 - Each event is actually lingered `500`ms by default. See `eventsOptions.linger` in options below.
-- If `linger` timeout isn't specified on an event, then `eventsOptions.linger` is imposed as a default, but you can
-  regulate it using `catchUp` time on listeners' options.
+- To Disable lingering on a specific event, set `linger: false` on event options when emitting. Figures < 0 or falsy will cause the default options `eventsOptions.linger` time to be applied. And if falsy also, it will disable lingering altogether.
+- You can regulate each listener's linger catching up using `catchUp` time on listeners' options.
 - `globalLinger` - was deprecated in favour of using the default options' `eventsOptions.linger` option.
 
 eg: Linger for 5000ms for new listeners of the event.

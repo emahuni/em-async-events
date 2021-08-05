@@ -803,7 +803,11 @@ class AsyncEvents {
    * @param eventMeta
    */
   __lingerEvent ({ eventName, payload, eventOptions, eventMeta }) {
-    if (this.lingeringEvents && (eventOptions.linger || this.options.eventsOptions.linger)) {
+    if (eventOptions.linger <= 0 && eventOptions.linger !== false && this.options.eventsOptions.linger > 0) {
+      eventOptions.linger = this.options.eventsOptions.linger;
+    }
+    
+    if (this.lingeringEvents && eventOptions.linger > 0) {
       // get existing exclusive lingered event
       const exclusiveLingeredEvent = (this.lingeringEvents[eventName] || []).find(e => e.eventMeta.eventOptions.isExclusive);
       
