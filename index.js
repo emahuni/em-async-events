@@ -30,7 +30,7 @@ class AsyncEvents {
     
     this.options = _.defaultsDeep(options, {
       ...names,
-      listenersOptions: {
+      listenersOptions:        {
         extra:            undefined,
         stopHere:         false,
         expire:           0,
@@ -51,8 +51,8 @@ class AsyncEvents {
         trace:         false,
         verbose:       false,
       },
-      globalLinger:     500,
-      debug:            {
+      throwOnUnconsumedEvents: false,
+      debug:                   {
         all:                    true,
         addListener:            false,
         emitEvent:              false,
@@ -656,11 +656,12 @@ class AsyncEvents {
       return this.__lingerEvent({ ...arguments[0], payload, eventMeta });
     } else {
       if (!eventMeta.consumed) {
-        if(this.options.debug.all) {
+        if (this.options.debug.all) {
           console.warn(`[em-async-events]-660: - eventName: %o wasn't consumed! Check the event name correctness, or adjust its "linger" time or the listeners' "catchUp" time to bust event race conditions.`, eventName);
         }
         
-        return Promise.reject(`Event "${eventName}" NOT consumed!`)
+        if(this.options.throwOnUnconsumedEvents) return Promise.reject(`Event "${eventName}" NOT consumed!`);
+        else return Promise.resolve();
       } else {
         return Promise.resolve(payload);
       }
@@ -838,10 +839,6 @@ class AsyncEvents {
         console.info(`[em-async-events]-597: lingerEvent - eventName: %o \n%o`, eventName, eventMeta);
       }
       
-      /* if (eventOptions.linger >= Infinity || this.options.globalLinger >= Infinity) {
-         throw new Error(`[em-async-events]-605: You cannot async and linger an event forever!`);
-       }*/
-      
       const id = this.__genUniqID();
       
       let lResolve, lReject;
@@ -878,7 +875,8 @@ class AsyncEvents {
         if (eventMeta.consumed) {
           event.lingeringEventPromise.resolve(event.args[0]);
         } else {
-          event.lingeringEventPromise.reject(`Lingered Event "${eventName}" NOT consumed!`);
+          if(this.options.throwOnUnconsumedEvents) event.lingeringEventPromise.reject(`Lingered Event "${eventName}" NOT consumed!`);
+          else event.lingeringEventPromise.resolve();
         }
         
         const i = this.lingeringEvents[eventName].findIndex(le => le.id === id);
