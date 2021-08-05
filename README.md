@@ -21,7 +21,8 @@ listeners, and a customizable atomic API. Has a Vue plugin.
     - invoke/fire multiple callbacks from multiple events.
     - register these using atomic statements.
 - **you can use it *without* of Vue!**
-- **excellent debugging and logging support**: trace and debug everything to quickly see what's going on. Tip: it's so useful to turn on `debug.all` option during development.
+- **excellent debugging and logging support**: trace and debug everything to quickly see what's going on. Tip: it's so
+  useful to turn on `debug.all` option during development.
 
 ## Installation
 
@@ -66,8 +67,8 @@ are at play, read on.
 ## Events management
 
 This package aims to address the above features and avoid some thorny issues that other event buses have. It was once
-called `vue-hooked-em-async-events` because it mainly focused on **Vue**, but it was so good at solving many common event
-problems that the author decided to make it work without Vue and created `em-async-events`.
+called `vue-hooked-em-async-events` because it mainly focused on **Vue**, but it was so good at solving many common
+event problems that the author decided to make it work without Vue and created `em-async-events`.
 
 ### Standard event bus approach & its issues
 
@@ -277,10 +278,10 @@ this.$emitEvent('some-event', { test: 'one' });
 
 #### Use lingered events
 
-Why use linger? bust race conditions. it doesn't matter how your order your events and listeners when using this it will
-make sure that events can fire and wait for listeners to pop in withing a certain timespan. Each event is actually
-lingered by default. See `globalLinger` in options below. If linger timeout isn't specified on an event,
-then `globalLinger` is imposed but is regulated by `catchUp` time on listeners.
+Why use linger? bust race conditions. it doesn't matter how your order your events and listeners when using this it will make sure that events can fire and wait for listeners to pop in within a certain timespan. 
+- Each event is actually lingered `500`ms by default. See `eventsOptions.linger` in options below.
+- If `linger` timeout isn't specified on an event, then `eventsOptions.linger` is imposed as a default, but you can regulate it using `catchUp` time on listeners' options.
+- `globalLinger` - was deprecated in favour of using the default options' `eventsOptions.linger` option.
 
 eg: Linger for 5000ms for new listeners of the event.
 
@@ -290,14 +291,12 @@ eg: Linger for 5000ms for new listeners of the event.
 
 ##### CatchUp
 
-To avoid unexpected triggering of new event listeners for events that require real time tracking use `catchUp`.
+To adjust how long a listener can catch up to an event use `catchUp` time defined in listener options.
+- the max value is the value of default options `eventsOptions.linger`. Change the default option if needed; see below
+- the event doesn't have to be a lingered event coz every event is lingered by default.
+- if `catchUp` is falsy, then the listener won't catch up to any lingering event at all.
 
-- max is the value of `globalLinger`, 500 is the default value of globalLinger - change globalLinger option; see below
-- the event doesn't have to be a lingered coz of the `globalLinger` setting, every event is lingered by default.
-- lingered events implicitly impose a catch up on all listeners added within the linger time. see below
-
-For example to catch up an event that happened not more than 100 milliseconds ago (without using `linger` option on the
-emitted event):
+For example to catch up an event that happened not more than 100 milliseconds ago (without using `linger` option when emitting the event):
 
 ```js
   this.$onEvent('some-event', (payload) => {/*...*/}, { catchUp: 100 });
@@ -505,10 +504,6 @@ Vue.use(new AsyncEvents({
   listenersOptions: { stopHere: true, /*...*/ },
   eventsOptions:    { range: 'ancestors', /*...*/ },
   
-  // all events linger for a default of 500ms, but only trigger if a listener has catchUp option set (see above)
-  // you can change the default globalLinger here to whatever you want. take care
-  globalLinger: 3000,
-  
   // debugging options, useful when you want to see what's going on. below are the defaults
   debug: {
     all:                    false, // toggles all debugging, but Vue.config.devtools option, which is usually true at development, turns it to false if it is false.
@@ -549,11 +544,11 @@ export default {
 
 ### Default options
 
-default options that you don't have to set all the time
+Default options that you don't have to set all the time or that control certain things.
 
 ```js
 defaultOptions === {
-  listenersOptions: {
+  listenersOptions:        {
     extra:            undefined,
     stopHere:         false,
     expire:           0,
@@ -565,8 +560,8 @@ defaultOptions === {
     trace:            false,
     verbose:          false,
   },
-  eventsOptions:    {
-    linger:        0,
+  eventsOptions:           {
+    linger:        500,
     bait:          false,
     isExclusive:   false,
     keepExclusive: false,
@@ -574,8 +569,10 @@ defaultOptions === {
     trace:         false,
     verbose:       false,
   },
-  globalLinger:     500,
-  debug:            {
+  
+  throwOnUnconsumedEvents: false,
+  
+  debug:                   {
     all:                    true,
     addListener:            false,
     emitEvent:              false,
