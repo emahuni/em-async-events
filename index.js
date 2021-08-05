@@ -655,7 +655,15 @@ class AsyncEvents {
     if (!eventMeta.stopNow) {
       return this.__lingerEvent({ ...arguments[0], payload, eventMeta });
     } else {
-      return payload;
+      if (!eventMeta.consumed) {
+        if(this.options.debug.all) {
+          console.warn(`[em-async-events]-660: - eventName: %o wasn't consumed! Check the event name correctness, or adjust its "linger" time or the listeners' "catchUp" time to bust event race conditions.`, eventName);
+        }
+        
+        return Promise.reject(`Event "${eventName}" NOT consumed!`)
+      } else {
+        return Promise.resolve(payload);
+      }
     }
   }
   
@@ -857,8 +865,8 @@ class AsyncEvents {
       } else {
         const index = this.lingeringEvents[eventName].findIndex(e => e.id === exclusiveLingeredEvent.id);
         this.lingeringEvents[eventName][index] = event;
-        // todo if used with Infinity, this creates an event based state updated by emissions and read by once listeners
-        //  (may actually create an easy API around this ;D)
+        // todo if we update state using bait, this can create an event based state updated by emissions and read by once listeners
+        //  (may actually create an easy API around this... problem is the API is based on this module ;D)
         //  you need to somehow make sure payload isn't overwritten, it should merge it.
       }
       
@@ -866,11 +874,15 @@ class AsyncEvents {
       let timeout = eventOptions.linger || this.options.globalLinger;
       if (timeout >= Infinity) timeout = 2147483647; // set to maximum allowed so that we don't have an immediate bailout
       setTimeout(() => {
-        // finally resolve lingering event promise
-        event.lingeringEventPromise.resolve(event.args[0]); // finally settle lingering promise
+        // finally resolve/reject lingering event promise
+        if (eventMeta.consumed) {
+          event.lingeringEventPromise.resolve(event.args[0]);
+        } else {
+          event.lingeringEventPromise.reject(`Lingered Event "${eventName}" NOT consumed!`);
+        }
         
         const i = this.lingeringEvents[eventName].findIndex(le => le.id === id);
-        this.__removeLingeringEventAtIndex(eventName, i, eventOptions);
+        this.__removeLingeringEventAtIndex(eventName, i, eventOptions, eventMeta);
       }, timeout);
       
       
@@ -909,16 +921,20 @@ class AsyncEvents {
           
           if (eventOptions.bait && eventMeta.consumed) {
             // noinspection JSUnfilteredForInLoop
-            this.__removeLingeringEventAtIndex(eventName, ei, eventOptions);
+            this.__removeLingeringEventAtIndex(eventName, ei, eventOptions, eventMeta);
           }
         }
       }
     }
   }
   
-  __removeLingeringEventAtIndex (eventName, index, eventOptions) {
+  __removeLingeringEventAtIndex (eventName, index, eventOptions, eventMeta) {
     if (this.options.debug.all && this.options.debug.lingerEvent || eventOptions.trace) {
       console.info(`[em-async-events]-911: remove lingerEvent - eventName: %o on index: %o`, eventName, index);
+    }
+    
+    if (this.options.debug.all && !eventMeta.consumed) {
+      console.warn(`[em-async-events]-924: - Lingered eventName: %o wasn't consumed! Check the event name correctness, or adjust its "linger" time or the listeners' "catchUp" time to bust event race conditions.`, eventName);
     }
     
     this.lingeringEvents[eventName].splice(index, 1);
@@ -1177,6 +1193,7 @@ class AsyncEvents {
         const { listenerOrigin } = listener;
         console.info(`[em-async-events]-721: ${this.options.fallSilent || '$fallSilent(this.__removeCallbacks)'} eventName: %o origin: %o \nListener: %o`, eventName, _.get(listenerOrigin, '$options.name', '???'), listener);
       }
+      
       events[eventName].splice(indexOfSubscriber, 1);
     }
     

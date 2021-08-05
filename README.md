@@ -21,6 +21,7 @@ listeners, and a customizable atomic API. Has a Vue plugin.
     - invoke/fire multiple callbacks from multiple events.
     - register these using atomic statements.
 - **you can use it *without* of Vue!**
+- **excellent debugging and logging support**: trace and debug everything to quickly see what's going on. Tip: it's so useful to turn on `debug.all` option during development.
 
 ## Installation
 
