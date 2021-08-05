@@ -30,7 +30,7 @@ class AsyncEvents {
     
     this.options = _.defaultsDeep(options, {
       ...names,
-      listenersOptions:        {
+      listenersOptions: {
         extra:            undefined,
         stopHere:         false,
         expire:           0,
@@ -42,17 +42,18 @@ class AsyncEvents {
         trace:            false,
         verbose:          false,
       },
-      eventsOptions:           {
-        linger:        500,
-        bait:          false,
-        isExclusive:   false,
-        keepExclusive: false,
-        range:         'first-parent',
-        trace:         false,
-        verbose:       false,
+      eventsOptions:    {
+        linger:           500,
+        bait:             false,
+        isExclusive:      false,
+        keepExclusive:    false,
+        range:            'first-parent',
+        trace:            false,
+        verbose:          false,
+        rejectUnconsumed: false,
       },
-      throwOnUnconsumedEvents: false,
-      debug:                   {
+      
+      debug: {
         all:                    true,
         addListener:            false,
         emitEvent:              false,
@@ -660,7 +661,7 @@ class AsyncEvents {
           console.warn(`[em-async-events]-660: - eventName: %o wasn't consumed! Check the event name correctness, or adjust its "linger" time or the listeners' "catchUp" time to bust event race conditions.`, eventName);
         }
         
-        if(this.options.throwOnUnconsumedEvents) return Promise.reject(`Event "${eventName}" NOT consumed!`);
+        if (eventOptions.rejectUnconsumed) return Promise.reject(`Event "${eventName}" NOT consumed!`);
         else return Promise.resolve();
       } else {
         return Promise.resolve(payload);
@@ -875,7 +876,7 @@ class AsyncEvents {
         if (eventMeta.consumed) {
           event.lingeringEventPromise.resolve(event.args[0]);
         } else {
-          if(this.options.throwOnUnconsumedEvents) event.lingeringEventPromise.reject(`Lingered Event "${eventName}" NOT consumed!`);
+          if (eventOptions.rejectUnconsumed) event.lingeringEventPromise.reject(`Lingered Event "${eventName}" NOT consumed!`);
           else event.lingeringEventPromise.resolve();
         }
         
@@ -904,7 +905,7 @@ class AsyncEvents {
         const { eventOptions, eventOrigin } = eventMeta;
         
         // was linger ordered by the event or if listener catchUp is within range (linger time was taken from defaults events linger)
-        if ( eventMeta.linger || Math.abs(listener.listenerOptions.catchUp) <= (Date.now() - eventMeta.eventTimestamp)) {
+        if (eventMeta.linger || Math.abs(listener.listenerOptions.catchUp) <= (Date.now() - eventMeta.eventTimestamp)) {
           // noinspection JSIgnoredPromiseFromCall
           // run event async resolution, see this.__lingerEvent and update payload argument for next listener of lingering event
           _event.args[0] = this.__runListenersCallbacks({

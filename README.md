@@ -278,9 +278,12 @@ this.$emitEvent('some-event', { test: 'one' });
 
 #### Use lingered events
 
-Why use linger? bust race conditions. it doesn't matter how your order your events and listeners when using this it will make sure that events can fire and wait for listeners to pop in within a certain timespan. 
+Why use linger? bust race conditions. it doesn't matter how your order your events and listeners when using this it will
+make sure that events can fire and wait for listeners to pop in within a certain timespan.
+
 - Each event is actually lingered `500`ms by default. See `eventsOptions.linger` in options below.
-- If `linger` timeout isn't specified on an event, then `eventsOptions.linger` is imposed as a default, but you can regulate it using `catchUp` time on listeners' options.
+- If `linger` timeout isn't specified on an event, then `eventsOptions.linger` is imposed as a default, but you can
+  regulate it using `catchUp` time on listeners' options.
 - `globalLinger` - was deprecated in favour of using the default options' `eventsOptions.linger` option.
 
 eg: Linger for 5000ms for new listeners of the event.
@@ -292,11 +295,13 @@ eg: Linger for 5000ms for new listeners of the event.
 ##### CatchUp
 
 To adjust how long a listener can catch up to an event use `catchUp` time defined in listener options.
+
 - the max value is the value of default options `eventsOptions.linger`. Change the default option if needed; see below
 - the event doesn't have to be a lingered event coz every event is lingered by default.
 - if `catchUp` is falsy, then the listener won't catch up to any lingering event at all.
 
-For example to catch up an event that happened not more than 100 milliseconds ago (without using `linger` option when emitting the event):
+For example to catch up an event that happened not more than 100 milliseconds ago (without using `linger` option when
+emitting the event):
 
 ```js
   this.$onEvent('some-event', (payload) => {/*...*/}, { catchUp: 100 });
@@ -548,7 +553,7 @@ Default options that you don't have to set all the time or that control certain 
 
 ```js
 defaultOptions === {
-  listenersOptions:        {
+  listenersOptions: {
     extra:            undefined,
     stopHere:         false,
     expire:           0,
@@ -560,19 +565,18 @@ defaultOptions === {
     trace:            false,
     verbose:          false,
   },
-  eventsOptions:           {
-    linger:        500,
-    bait:          false,
-    isExclusive:   false,
-    keepExclusive: false,
-    range:         'first-parent',
-    trace:         false,
-    verbose:       false,
+  eventsOptions:    {
+    linger:           500,
+    bait:             false,
+    isExclusive:      false,
+    keepExclusive:    false,
+    range:            'first-parent',
+    trace:            false,
+    verbose:          false,
+    rejectUnconsumed: false,
   },
   
-  throwOnUnconsumedEvents: false,
-  
-  debug:                   {
+  debug: {
     all:                    true,
     addListener:            false,
     emitEvent:              false,
