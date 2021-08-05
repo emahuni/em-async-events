@@ -635,7 +635,7 @@ class AsyncEvents {
       eventOptions:   _.cloneDeep(eventOptions),
       eventOrigin,
       stopNow:        false,
-      consumed:       false,
+      wasConsumed:       false,
       level,
       listenersTally,
     };
@@ -652,7 +652,7 @@ class AsyncEvents {
       return this.__lingerEvent({ eventName, payload, eventOptions, eventMeta });
     } else {
       console.debug(`[index]-659: __runEvent_linger() - eventMeta: %o`, eventMeta);
-      if (!eventMeta.consumed) {
+      if (!eventMeta.wasConsumed) {
         if (this.options.debug.all) {
           console.warn(`[em-async-events]-660: - eventName: %o wasn't consumed! Check the event name correctness, or adjust its "linger" time or the listeners' "catchUp" time to bust event race conditions.`, eventName);
         }
@@ -734,7 +734,7 @@ class AsyncEvents {
               listener.listenerPromise.settlement = 1; // resolved
               listener.listenerPromise.resolve(finalOutcome);
               eventMeta.payloads.push(finalOutcome);
-              eventMeta.consumed = true;
+              eventMeta.wasConsumed = true;
             }
           } catch (e) {
             if (listener.listenerPromise.settlement === 0) {
@@ -826,7 +826,7 @@ class AsyncEvents {
       }
       
       // bailout if baited but consumed event
-      if (eventMeta.consumed && eventOptions.bait) {
+      if (eventMeta.wasConsumed && eventOptions.bait) {
         if (this.options.debug.all && this.options.debug.lingerEvent || eventOptions.trace) {
           let trace = console.info;
           if (eventOptions.verbose) trace = console.trace;
@@ -870,25 +870,32 @@ class AsyncEvents {
         //  you need to somehow make sure payload isn't overwritten, it should merge it.
       }
       
-      // order the splice after linger ms later
-      let timeout = eventOptions.linger;
-      if (timeout >= Infinity) timeout = 2147483647; // set to maximum allowed so that we don't have an immediate bailout
-      setTimeout(() => {
-        // finally resolve/reject lingering event promise
-        if (event.eventMeta.consumed) {
-          event.lingeringEventPromise.resolve(event.payload);
-        } else {
-          if (eventOptions.rejectUnconsumed) event.lingeringEventPromise.reject(`Lingered Event "${eventName}" NOT consumed!`);
-          else event.lingeringEventPromise.resolve();
-        }
-        console.debug(`[index]-882: () - eventMeta: %o`, event.eventMeta);
-        const i = this.lingeringEvents[eventName].findIndex(le => le.id === id);
-        this.__removeLingeringEventAtIndex(eventName, i, eventOptions, event.eventMeta);
-      }, timeout);
-      
+      this.__decayLingeredEvent(eventName, event, eventOptions);
       
       return event.lingeringEventPromise.promise;
     }
+  }
+  
+  
+  __decayLingeredEvent (eventName, event, eventOptions) {
+    // order the splice after linger ms later
+    let timeout = eventOptions.linger;
+    if (timeout >= Infinity) timeout = 2147483647; // set to maximum allowed so that we don't have an immediate bailout
+    
+    setTimeout((e) => {
+      // finally resolve/reject lingering event promise
+      if (e.eventMeta.wasConsumed) {
+        e.lingeringEventPromise.resolve(e.payload);
+      } else {
+        if (eventOptions.rejectUnconsumed) e.lingeringEventPromise.reject(`Lingered Event "${eventName}" NOT consumed!`);
+        else e.lingeringEventPromise.resolve();
+      }
+      
+      console.debug(`[index]-893: () - eventMeta: %o`, e.eventMeta);
+      
+      const i = this.lingeringEvents[eventName].findIndex(le => le.id === id);
+      this.__removeLingeringEventAtIndex(eventName, i, eventOptions, e.eventMeta);
+    }, timeout, event);
   }
   
   
@@ -920,7 +927,7 @@ class AsyncEvents {
             eventMeta,
           });
           
-          if (eventOptions.bait && eventMeta.consumed) {
+          if (eventOptions.bait && eventMeta.wasConsumed) {
             // noinspection JSUnfilteredForInLoop
             this.__removeLingeringEventAtIndex(eventName, ei, eventOptions, eventMeta);
           }
@@ -934,7 +941,7 @@ class AsyncEvents {
       console.info(`[em-async-events]-911: remove lingerEvent - eventName: %o on index: %o`, eventName, index);
     }
     
-    if (this.options.debug.all && !eventMeta.consumed) {
+    if (this.options.debug.all && !eventMeta.wasConsumed) {
       console.warn(`[em-async-events]-924: - Lingered eventName: %o wasn't consumed! Check the event name correctness, or adjust its "linger" time or the listeners' "catchUp" time to bust event race conditions.`, eventName);
     }
     
