@@ -4,7 +4,7 @@
   "description": "Easier and more useful events system that has a Vue2.x plugin. Features include async events and listeners, expirable, lingering and catch-up async events and listeners (auto-removed), and a customizable atomic API.",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "jest"
   },
   "repository": {
     "type": "git",
@@ -29,5 +29,11 @@
   "homepage": "https://github.com/emahuni/em-async-events#readme",
   "dependencies": {
     "lodash": "^4.17.21"
+  },
+  "devDependencies": {
+    "jest": "^27.0.6",
+    "jest-extended": "^0.11.5",
+    "jest-sinon": "^1.0.4",
+    "sinon": "^11.1.2"
   }
 }
