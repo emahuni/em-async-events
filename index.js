@@ -42,8 +42,8 @@ class AsyncEvents {
         trace:            false,
         verbose:          false,
       },
-      eventsOptions:    {
-        linger:        0,
+      eventsOptions:           {
+        linger:        500,
         bait:          false,
         isExclusive:   false,
         keepExclusive: false,
@@ -809,7 +809,7 @@ class AsyncEvents {
    * @param eventMeta
    */
   __lingerEvent ({ eventName, payload, eventOptions, eventMeta }) {
-    if (this.lingeringEvents && (eventOptions.linger || this.options.globalLinger)) {
+    if (this.lingeringEvents && (eventOptions.linger || this.options.eventsOptions.linger)) {
       // get existing exclusive lingered event
       const exclusiveLingeredEvent = (this.lingeringEvents[eventName] || []).find(e => e.args[1].eventOptions.isExclusive);
       
@@ -868,7 +868,7 @@ class AsyncEvents {
       }
       
       // order the splice after linger ms later
-      let timeout = eventOptions.linger || this.options.globalLinger;
+      let timeout = eventOptions.linger;
       if (timeout >= Infinity) timeout = 2147483647; // set to maximum allowed so that we don't have an immediate bailout
       setTimeout(() => {
         // finally resolve/reject lingering event promise
@@ -896,15 +896,15 @@ class AsyncEvents {
    */
   __runLingeredEventsAtAddListener ({ eventName, listener }) {
     // check if listener has an events lingering for it, if so then trigger these events on listener to handle
-    if (this.hasLingeringEvents(eventName)) {
+    if (!!listener.listenerOptions.catchUp && this.hasLingeringEvents(eventName)) {
       for (let ei in this.lingeringEvents[eventName]) {
         // noinspection JSUnfilteredForInLoop
         const _event = this.lingeringEvents[eventName][ei];
         const [payload, eventMeta] = _event.args;
         const { eventOptions, eventOrigin } = eventMeta;
         
-        // was linger ordered by the event or if listener catchUp is within range (linger was ordered by global linger)
-        if (eventMeta.linger || listener.listenerOptions.catchUp <= (Date.now() - eventMeta.eventTimestamp)) {
+        // was linger ordered by the event or if listener catchUp is within range (linger time was taken from defaults events linger)
+        if ( eventMeta.linger || Math.abs(listener.listenerOptions.catchUp) <= (Date.now() - eventMeta.eventTimestamp)) {
           // noinspection JSIgnoredPromiseFromCall
           // run event async resolution, see this.__lingerEvent and update payload argument for next listener of lingering event
           _event.args[0] = this.__runListenersCallbacks({
