@@ -2,12 +2,15 @@ const jexpect = expect;
 const sinon = require('sinon');
 
 const chai = require('chai');
-const { default: chaiJest } = require('chai-jest');
+require('chai-jest');
 
-chai.use(chaiJest);
+const sinonChai = require('sinon-chai');
+chai.use(sinonChai);
+
 const chaiMatchPattern = require('chai-match-pattern');
 chai.use(chaiMatchPattern);
 const _ = chaiMatchPattern.getLodashModule();
+
 
 _.mixin({
   isAny: function () { return true;},
@@ -31,10 +34,12 @@ _.mixin({
   },
 });
 
+const chaiJestSnapshot = require('chai-jest-snapshot');
+chai.use(chaiJestSnapshot);
 
 module.exports = {
   expect: chai.expect,
   jexpect,
   _,
-  sinon
+  sinon,
 };

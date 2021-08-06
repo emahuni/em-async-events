@@ -1,13 +1,18 @@
-const { expect, _, sinon } = require('../helpers/setup.js');
+const { expect, _, jexpect, sinon } = require('../helpers/setup.js');
 
 const AsyncEvents = require('../../index');
 
 let ae = new AsyncEvents();
 
-const cb1 = sinon.spy();
-const cb2 = sinon.spy();
-const cb3 = sinon.spy();
-const cb4 = sinon.spy();
+const onceEventSpyResponse = 'once-event-spy-response';
+// noinspection JSCheckFunctionSignatures
+const onceEventSpy = sinon.spy((p, m) => {
+  /*console.debug(`p: %o, m: %o`, p, m);*/
+  return onceEventSpyResponse;
+});
+
+const onEventSpy = sinon.spy();
+const asyncEventSpy = sinon.spy();
 
 const defaultOptionsMatcher = {
   listenersOptions: {
@@ -34,27 +39,28 @@ const defaultOptionsMatcher = {
   },
 };
 
-describe(`em-async-events`, function () {
+
+describe(`# em-async-events`, function () {
   it(`creates a once listener with basic information: onceEvent()`, async function () {
-    ae.onceEvent('huga', cb1);
-    expect('huga' in ae.events).to.be.true;
-    expect(ae.events['huga'][0].listenerOptions).to.matchPattern(defaultOptionsMatcher.listenersOptions);
+    ae.onceEvent('once-event', onceEventSpy);
+    expect('once-event' in ae.events).to.be.true;
+    expect(ae.events['once-event'][0].listenerOptions).to.matchPattern(defaultOptionsMatcher.listenersOptions);
   });
   
   it(`can detect the listener: hasListener()`, async function () {
-    expect(ae.hasListener('huga')).to.be.true;
+    expect(ae.hasListener('once-event')).to.be.true;
   });
   
   it(`creates a perpetual listener with basic information: onEvent()`, async function () {
-    ae.onEvent('huga1', cb2);
-    expect(ae.hasListener('huga1')).to.be.true;
-    expect(ae.events['huga1'][0].listenerOptions).to.matchPattern(defaultOptionsMatcher.listenersOptions);
+    ae.onEvent('on-event', onEventSpy);
+    expect(ae.hasListener('on-event')).to.be.true;
+    expect(ae.events['on-event'][0].listenerOptions).to.matchPattern(defaultOptionsMatcher.listenersOptions);
   });
   
   it(`can detect the listeners: hasListeners()`, async function () {
-    expect(ae.hasListeners('huga')).to.be.true;
-    expect(ae.hasListeners('huga1')).to.be.true;
-    expect(ae.hasListeners(['huga', 'huga1'])).to.be.true;
+    expect(ae.hasListeners('once-event')).to.be.true;
+    expect(ae.hasListeners('on-event')).to.be.true;
+    expect(ae.hasListeners(['once-event', 'on-event'])).to.be.true;
   });
   
   
