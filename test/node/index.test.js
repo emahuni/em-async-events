@@ -1,14 +1,18 @@
 const { expect, _, jexpect, sinon } = require('../helpers/setup.js');
 
+const Bluebird = require('bluebird');
 const AsyncEvents = require('../../index');
 
 let ae = new AsyncEvents();
 
 const onceEventSpyResponse = 'once-event-spy-response';
-// noinspection JSCheckFunctionSignatures
 const onceEventSpy = sinon.spy((p, m) => {
   /*console.debug(`p: %o, m: %o`, p, m);*/
   return onceEventSpyResponse;
+});
+const onceEventSpyResponse2 = 'once-event-spy-2-response';
+const onceEventSpy2 = sinon.spy((p, m) => {
+  return onceEventSpyResponse2;
 });
 
 const onEventSpy = sinon.spy();
@@ -66,14 +70,15 @@ describe(`# em-async-events`, function () {
   
   
   describe(`# emitEvent() `, function () {
-    let vow, payload = 'emit-payload';
+    let vowEmit, payload = 'emit-payload';
     
     beforeAll(async function () {
-      vow = ae.emitEvent('once-event', payload);
+      vowEmit = ae.emitEvent('once-event', payload);
     });
     
-    it(`returned a promise that is not yet resolved`, async function () {
-      expect(vow).to.be.an.instanceof(Promise);
+    it(`returned a Bluebird promise that is not yet resolved`, async function () {
+      expect(vowEmit).to.be.an.instanceof(Bluebird);
+      expect(vowEmit.isPending()).to.be.true;
     });
     
     describe(`# onceEventSpy ()`, function () {
@@ -96,12 +101,34 @@ describe(`# em-async-events`, function () {
     });
     
     describe(`# lingering event`, function () {
-      it(`has once-event lingering event`, async function () {
+      let vowOnceEvent1, vowOnceEvent2;
+      
+      it(`has "once-event" lingering event and no listeners.`, async function () {
         expect(ae.hasLingeringEvent('once-event')).to.be.true;
+        expect(ae.hasListener('once-event')).to.be.false;
       });
       
-      it.skip(`returned a promise with result of last callback`, async function () {
-        expect(vow).to.be.an.instanceof(Promise);
+      test(`new listener "hears" lingering event without callback, and is not curated.`, async function () {
+        vowOnceEvent1 = ae.onceEvent('once-event');
+        expect(ae.hasListener('once-event')).to.be.false;
+        
+        expect(vowOnceEvent1.isPending()).to.be.true;
+        expect(vowEmit.isPending()).to.be.true; // still pending
+      });
+      
+      test(`new listener "hears" lingering event with callback, and is not curated.`, async function () {
+        vowOnceEvent2 = ae.onceEvent('once-event', onceEventSpy2);
+        expect(ae.hasListener('once-event')).to.be.false;
+        
+        expect(vowOnceEvent2.isPending()).to.be.true;
+        expect(vowEmit.isPending()).to.be.true;
+      });
+      
+      test(`onEmit() Bluebird promise resolves with result of last callback (onceEventSpy2)`, async function () {
+        expect(vowEmit.isPending()).to.be.true;
+        const outcome = await vowEmit;
+        expect(vowEmit.isResolved()).to.be.true;
+        expect(outcome).to.be.equal(onceEventSpyResponse2);
       });
     });
   });
@@ -109,18 +136,18 @@ describe(`# em-async-events`, function () {
   
   
   
-  describe(`# onEvent() - returns a promise that resolves to event payload`, function () {
+  describe(`# onEvent() - returns a Bluebird promise that resolves to event payload`, function () {
     let vow;
     beforeAll(async function () {
       vow = ae.onEvent('async-event', asyncEventSpy);
     });
     
-    it(`returned a promise`, async function () {
+    it(`returned a Bluebird promise`, async function () {
       expect(ae.hasListener('async-event')).to.be.true;
-      expect(vow).to.be.an.instanceof(Promise);
+      expect(vow).to.be.an.instanceof(Bluebird);
     });
     
-    it.skip(`promise resolves to event payload`, async function () {
+    it.skip(`Bluebird promise resolves to event payload`, async function () {
     
     });
   });

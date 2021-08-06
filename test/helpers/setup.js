@@ -7,11 +7,12 @@ require('chai-jest');
 const sinonChai = require('sinon-chai');
 chai.use(sinonChai);
 
+const chaiAsPromised = require('chai-as-promised');
+chai.use(chaiAsPromised);
+
 const chaiMatchPattern = require('chai-match-pattern');
 chai.use(chaiMatchPattern);
 const _ = chaiMatchPattern.getLodashModule();
-
-
 _.mixin({
   isAny: function () { return true;},
   
