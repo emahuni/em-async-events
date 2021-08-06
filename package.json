@@ -31,6 +31,9 @@
     "lodash": "^4.17.21"
   },
   "devDependencies": {
+    "chai": "^4.3.4",
+    "chai-jest": "^1.0.2",
+    "chai-match-pattern": "^1.2.0",
     "jest": "^27.0.6",
     "jest-extended": "^0.11.5",
     "jest-sinon": "^1.0.4",
