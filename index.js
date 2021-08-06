@@ -88,7 +88,7 @@ class AsyncEvents {
    * @param listenerOrigin
    * @return {Bluebird<*>|array<Bluebird<*>>} - allows waiting for invocation of event with a promise only once (use if you want to continue execution where you adding the listener only when promise is fulfilled)
    */
-  onEvent (eventName, callback, listenerOptions, subscriberId = _.uniqueId(), listenerOrigin) {
+  onEvent (eventName, callback, listenerOptions, subscriberId = this.__genUniqID(), listenerOrigin) {
     if (!_.isString(eventName) && !_.isArray(eventName)) throw new Error(`[index]-91: onEvent() - eventName should be specified as an string or array of strings representing event name(s)!`);
     
     if (!_.isFunction(callback) && !_.isArray(callback) && _.isNil(listenerOptions)) {
@@ -141,7 +141,7 @@ class AsyncEvents {
    * @param listenerOrigin
    * @return {Bluebird<*>|array<Bluebird<*>>} - allows waiting for invocation of event with a promise only once (use if you want to continue execution where you adding the listener only when promise is fulfilled)
    * */
-  onceEvent (eventName, callback, listenerOptions, subscriberId = _.uniqueId(), listenerOrigin) {
+  onceEvent (eventName, callback, listenerOptions, subscriberId = this.__genUniqID(), listenerOrigin) {
     listenerOptions = _.merge({}, this.options.listenersOptions, listenerOptions);
     listenerOptions.once = true;
     
@@ -376,7 +376,7 @@ class AsyncEvents {
         };
       },
       beforeCreate: function vueHookedAsyncEventsBeforeCreate () {
-        this._uniqID = _.uniqueId();
+        this._uniqID = AE_this.__genUniqID();
       },
       
       beforeDestroy: function vueHookedAsyncEventsBeforeDestroy () {
@@ -1256,7 +1256,7 @@ class AsyncEvents {
    * @return {string}
    */
   __genUniqID () {
-    return Math.random().toString(36).substr(2, 9);
+    return   _.uniqueId(Math.random().toString(36).substr(2, 9));
   }
   
   __showDeprecationWarning (dep, extra) {
