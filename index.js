@@ -115,10 +115,10 @@ class AsyncEvents {
       if (!_.isArray(eventName)) eventName = [eventName];
       if (!_.isArray(callback)) callback = [callback];
       
-      const promises = [];
+      const vows = [];
       for (let eventNameIndex = 0, len = eventName.length; eventNameIndex < len; eventNameIndex++) {
         for (let callbackIndex = 0, _len = callback.length; callbackIndex < _len; callbackIndex++) {
-          promises.push(this.__addListener({
+          vows.push(this.__addListener({
             ...args,
             eventName: eventName[eventNameIndex],
             callback:  callback[callbackIndex],
@@ -126,7 +126,7 @@ class AsyncEvents {
         }
       }
       
-      return promises;
+      return vows;
     } else {
       return this.__addListener(args);
     }
@@ -169,28 +169,35 @@ class AsyncEvents {
       // eventOptions.isExclusive = true;
     }
     
+    const eventMeta = {};
+    
     const args = {
       eventName,
       payload,
       eventOptions,
       eventOrigin,
+      eventMeta,
     };
     
-    let promises = [];
+    let vows = [];
     
+    /*if (eventOptions.volatile) {
+      return this.__runEvent(args);
+    } else {*/
     if (_.isArray(eventName)) {
       for (let ei = 0, _len2 = eventName.length; ei < _len2; ei++) {
-        promises.push(this.__runEvent_linger({
+        vows.push(this.__runEvent_linger({
           ...args,
           eventName: eventName[ei],
           payload,
         }));
       }
       
-      return promises;
+      return vows;
     }
     
     return this.__runEvent_linger(args);
+    // }
   }
   
   
@@ -586,25 +593,29 @@ class AsyncEvents {
       console.info(`[em-async-events]-394: ${listenerOptions.once ? this.options.onceEvent : this.options.onEvent}(addListener) eventName: %o Listener Origin: %o \nListener: %o`, eventName, _.get(listenerOrigin, '$options.name', '???'), listener);
     }
     
-    if (!exclusiveListener) {
-      (this.events[eventName] || (this.events[eventName] = [])).push(listener);
-    } else {
-      const index = this.events[eventName].findIndex(l => l.id === exclusiveListener.id);
-      // replace the exclusive listener
-      this.events[eventName][index] = listener;
-    }
-    
-    if (listenerOptions.expire) {
-      setTimeout(() => {
-        if (!!listenerOptions.expiryCallback) listenerOptions.expiryCallback(listener);
-        // noinspection JSCheckFunctionSignatures
-        this.__removeListeners({ ...listener });
-      }, listenerOptions.expire);
-    }
-    
     // results that happen here will be sent thru the listener promise chain.
-    this.__runLingeredEventsAtAddListener({ ...arguments[0], listener });
+    this.__invokeLingeredEventsAtAddListener({ ...arguments[0], listener });
     
+    // only add to listeners if the it's not once or isn't settled yet.
+    if (!listenerOptions.once || listener.listenerPromise.settlement === 0) {
+      if (!exclusiveListener) {
+        (this.events[eventName] || (this.events[eventName] = [])).push(listener);
+      } else {
+        const index = this.events[eventName].findIndex(l => l.id === exclusiveListener.id);
+        // replace the exclusive listener
+        this.events[eventName][index] = listener;
+      }
+      
+      if (listenerOptions.expire) {
+        setTimeout(() => {
+          if (!!listenerOptions.expiryCallback) listenerOptions.expiryCallback(listener);
+          // noinspection JSCheckFunctionSignatures
+          this.__removeListeners({ ...listener });
+        }, listenerOptions.expire);
+      }
+    }
+    
+    // todo return the actual promise, don't create another one?
     switch (listener.listenerPromise.settlement) {
       case 1:
         return Bluebird.resolve(listener.listenerPromise.outcome);
@@ -621,14 +632,16 @@ class AsyncEvents {
    * @param payload
    * @param eventOptions
    * @param eventOrigin
-   * @return {Bluebird<*>}
+   * @param eventMeta
+   * @return {Bluebird|Promise}
    */
-  __runEvent_linger ({ eventName, payload, eventOptions, eventOrigin }) {
+  __runEvent_linger ({ eventName, payload, eventOptions, eventOrigin, eventMeta }) {
+    /** run event */
     let listeners = this.events[eventName];
     let listenersTally = listeners && listeners.length;
     const level = this.__getOriginLevel(eventOrigin);
     
-    let eventMeta = {
+    _.merge(eventMeta, {
       events:         this.events,
       eventName,
       payloads:       [payload],
@@ -636,19 +649,22 @@ class AsyncEvents {
       eventOptions:   _.cloneDeep(eventOptions),
       eventOrigin,
       stopNow:        false,
-      wasConsumed:       false,
+      wasConsumed:    false,
       level,
       listenersTally,
-    };
+    });
     
     if (this.options.debug.all && this.options.debug.emitEvent || eventOptions.trace) {
       console.info(`[em-async-events]-152: ${this.options.emitEvent} eventName: %o payload: %o\n origin: %o eventMeta: %o`, eventName, payload, _.get(eventOrigin, '$options.name', '???'), eventMeta);
     }
     
-    payload = this.__runListenersCallbacks({
+    payload = this.__runListeners({
       listeners, eventName, payload, eventOptions, eventOrigin, eventMeta,
     });
     
+    
+    
+    /** linger */
     if (!eventMeta.stopNow) {
       return this.__lingerEvent({ eventName, payload, eventOptions, eventMeta });
     } else {
@@ -658,6 +674,7 @@ class AsyncEvents {
           console.warn(`[em-async-events]-660: - eventName: %o wasn't consumed! Check the event name correctness, or adjust its "linger" time or the listeners' "catchUp" time to bust event race conditions.`, eventName);
         }
         
+        // todo use single promise point
         if (eventOptions.rejectUnconsumed) return Bluebird.reject(`Event "${eventName}" NOT consumed!`);
         else return Bluebird.resolve();
       } else {
@@ -668,7 +685,6 @@ class AsyncEvents {
   
   /**
    *
-   * @param [events]
    * @param listeners
    * @param eventName
    * @param payload
@@ -678,8 +694,7 @@ class AsyncEvents {
    * @return {Bluebird<*>}
    * @private
    */
-  __runListenersCallbacks ({
-                             events = this.events,
+  __runListeners ({
                              listeners,
                              eventName,
                              payload,
@@ -711,10 +726,10 @@ class AsyncEvents {
         closestListener = closestListeners && closestListeners[i];
         downListener = downListeners && downListeners[i];
         
-        // console.debug(`[em-async-events]-423: this.__runListenersCallbacks() - upListener: %o, downListener: %o`, upListener, downListener);
+        // console.debug(`[em-async-events]-423: this.__runListeners() - upListener: %o, downListener: %o`, upListener, downListener);
         
         const upClosestDownListeners = [closestListener, upListener, downListener].filter(l => !_.isNil(l));
-        // console.debug(`[em-async-events]-426: this.__runListenersCallbacks() - upClosestDownListeners: %o`, upClosestDownListeners);
+        // console.debug(`[em-async-events]-426: this.__runListeners() - upClosestDownListeners: %o`, upClosestDownListeners);
         
         // run both up and down listeners (which ever is available)
         for (let listener of upClosestDownListeners) {
@@ -726,9 +741,15 @@ class AsyncEvents {
             trace(`[em-async-events]-380: Invoke Listener - eventName: %o, payload: %o, \n origin: %o, eventOrigin: %o, Listener: %o\neventMeta: %o\nresponse: %o, \nstoppingHere: %o`, eventName, payload, _.get(listener.listenerOrigin, '$options.name', '???'), _.get(eventOrigin, '$options.name', '???'), listener, eventMeta, finalOutcome, stopHere);
           }
           
-          // todo check if this is ok, as in catching errors
           try {
-            finalOutcome = this.__runCallback({ events, payload: finalOutcome, eventMeta, listener });
+            if (_.isFunction(listener.callback)) {
+              finalOutcome = listener.callback(payload, {
+                eventMeta,
+                listenerOptions: listener.listenerOptions,
+                extra:           listener.listenerOptions.extra,
+              });
+            }
+            
             // only capture the first outcome becoz that's what promises do, once resolved or rejected it's settled.
             if (listener.listenerPromise.settlement === 0) {
               listener.listenerPromise.outcome = finalOutcome;
@@ -744,6 +765,16 @@ class AsyncEvents {
               listener.listenerPromise.reject(finalOutcome);
             }
           }
+          
+          
+          if (listener.listenerOptions.once) {
+            this.__removeCallbacks({
+              eventName,
+              subscriberId: listener.subscriberId,
+              callback:     listener.callback,
+            });
+          }
+          
           
           if (stopHere) {
             eventMeta.stopNow = true;
@@ -766,40 +797,6 @@ class AsyncEvents {
   
   
   /**
-   * run given callback
-   * @param [events]
-   * @param payload
-   * @param eventMeta
-   * @param listener
-   * @return {Bluebird<*>|undefined}
-   */
-  __runCallback ({ events = this.events, payload, eventMeta, listener }) {
-    // console.debug(`[em-async-events] index-397: this.__runCallbacks() - listener: %o`, listener.listenerOrigin._uid);
-    
-    listener.listenerOptions = _.merge({}, this.options.listenersOptions, listener.listenerOptions);
-    
-    const { eventName } = eventMeta;
-    
-    if (listener.listenerOptions.once) {
-      this.__removeCallbacks({
-        events,
-        eventName,
-        subscriberId: listener.subscriberId,
-        callback:     listener.callback,
-      });
-    }
-    
-    if (_.isFunction(listener.callback)) {
-      return listener.callback(payload, {
-        eventMeta,
-        listenerOptions: listener.listenerOptions,
-        extra:           listener.listenerOptions.extra,
-      });
-    }
-  }
-  
-  
-  /**
    * linger a given event it it's lingerable
    * @param eventName
    * @param payload
@@ -811,7 +808,7 @@ class AsyncEvents {
       eventOptions.linger = this.options.eventsOptions.linger;
     }
     
-    if (this.lingeringEvents && eventOptions.linger > 0) {
+    if (eventOptions.linger > 0) {
       // get existing exclusive lingered event
       const exclusiveLingeredEvent = (this.lingeringEvents[eventName] || []).find(e => e.eventMeta.eventOptions.isExclusive);
       
@@ -846,7 +843,7 @@ class AsyncEvents {
       let lResolve, lReject;
       const event = {
         id,
-        // to be resolved by run callbacks, see this.__runLingeredEventsAtAddListener
+        // to be resolved by run callbacks, see this.__invokeLingeredEventsAtAddListener
         lingeringEventPromise: {
           promise: new Bluebird((resolve, reject) => {
             lResolve = resolve;
@@ -905,21 +902,20 @@ class AsyncEvents {
    * @param eventName
    * @param listener
    */
-  __runLingeredEventsAtAddListener ({ eventName, listener }) {
+  __invokeLingeredEventsAtAddListener ({ eventName, listener }) {
     // check if listener has an events lingering for it, if so then trigger these events on listener to handle
     if (!!listener.listenerOptions.catchUp && this.hasLingeringEvents(eventName)) {
       for (let ei in this.lingeringEvents[eventName]) {
         // noinspection JSUnfilteredForInLoop
-        const event = this.lingeringEvents[eventName][ei];
-        const { payload, eventMeta } = event;
-        const { eventOptions, eventOrigin } = eventMeta;
+        const lingeringEvent = this.lingeringEvents[eventName][ei];
+        const { payload, eventMeta } = lingeringEvent;
         
-        // was linger ordered by the event or if listener catchUp is within range (linger time was taken from defaults events linger)
-        if (eventMeta.linger || Math.abs(listener.listenerOptions.catchUp) <= (Date.now() - eventMeta.eventTimestamp)) {
-          // noinspection JSIgnoredPromiseFromCall
-          // run event async resolution, see this.__lingerEvent and update payload argument for next listener of lingering event
-          event.payload = this.__runListenersCallbacks({
-            events:    [event],
+        // is listener catchUp within range?
+        if (Math.abs(listener.listenerOptions.catchUp) <= (Date.now() - eventMeta.eventTimestamp)) {
+          const { eventOptions, eventOrigin } = eventMeta;
+          
+          // the reason here is that we need it to pass thru the levels logic too
+          listener.listenerPromise.outcome = this.__runListeners({
             payload,
             listeners: [listener],
             eventName,
@@ -928,6 +924,7 @@ class AsyncEvents {
             eventMeta,
           });
           
+          // todo bait logic should be done only when all listeners have taken the bait, since we can add multiple listeners per onEvent/onceEvent
           if (eventOptions.bait && eventMeta.wasConsumed) {
             // noinspection JSUnfilteredForInLoop
             this.__removeLingeringEventAtIndex(eventName, ei, eventOptions, eventMeta);
@@ -1184,29 +1181,28 @@ class AsyncEvents {
   
   /**
    * remove event callbacks
-   * @param [events]
    * @param eventName
    * @param subscriberId
    * @param callback
    */
-  __removeCallbacks ({ events = this.events, eventName, subscriberId, callback }) {
-    if (!events[eventName]) return;
+  __removeCallbacks ({  eventName, subscriberId, callback }) {
+    if (!this.events[eventName]) return;
     
-    let indexOfSubscriber = events[eventName].findIndex(function (el) {
+    let indexOfSubscriber = this.events[eventName].findIndex(function (el) {
       return el.subscriberId === subscriberId && el.callback === callback;
     });
     
     if (~indexOfSubscriber) {
-      if (this.options.debug.all && this.options.debug.removeListener || events[eventName][indexOfSubscriber].listenerOptions.trace) {
-        const listener = events[eventName][indexOfSubscriber];
+      if (this.options.debug.all && this.options.debug.removeListener || this.events[eventName][indexOfSubscriber].listenerOptions.trace) {
+        const listener = this.events[eventName][indexOfSubscriber];
         const { listenerOrigin } = listener;
         console.info(`[em-async-events]-721: ${this.options.fallSilent || '$fallSilent(this.__removeCallbacks)'} eventName: %o origin: %o \nListener: %o`, eventName, _.get(listenerOrigin, '$options.name', '???'), listener);
       }
       
-      events[eventName].splice(indexOfSubscriber, 1);
+      this.events[eventName].splice(indexOfSubscriber, 1);
     }
     
-    if (_.isEmpty(events[eventName])) delete events[eventName];
+    if (_.isEmpty(this.events[eventName])) delete this.events[eventName];
   }
   
   
