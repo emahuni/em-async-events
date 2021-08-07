@@ -301,48 +301,56 @@ class AsyncEvents {
   
   /**
    * check to see if we have any listener for the given eventID
-   * @param {string} eventID - event id to check
-   * @param {object} listeners - events listeners that we should check from
+   * @param {string} [eventID] - event id to check
+   * @param {object} store - store that we should check from
    * @return {boolean}
    */
-  hasListener (eventID, listeners = this.listenersStore) {
-    return this.hasListeners(eventID, listeners);
+  hasListener (eventID, store = this.listenersStore) {
+    return this.__storeHas(store, eventID);
   }
   
   /**
    * check to see if we have any listener for any of the given eventID(s)
-   * @param {Array<string>|string} eventIDs - event ids or just a single event id to check
-   * @param {object} listeners - events listeners that we should check from
+   * @param {Array<string>|string} [eventIDs] - event ids or just a single event id to check
+   * @param {object} store - store that we should check from
    * @return {boolean}
    */
-  hasListeners (eventIDs, listeners = this.listenersStore) {
-    if (!eventIDs) return false;
-    if (!_.isArray(eventIDs)) eventIDs = [eventIDs];
-    return eventIDs.some(eid => !_.isEmpty(_.get(listeners, eid)));
+  hasListeners (eventIDs, store = this.listenersStore) {
+    return this.__storeHas(store, eventIDs);
   }
   
   /**
    * check to see if we have any lingeringEvent for the given eventID
-   * @param {string} eventID - event id to check
-   * @param {object} levents - lingering events that we should check from
+   * @param {string} [eventID] - event id to check
+   * @param {object} [store] - store that we should check from
    * @return {boolean}
    */
-  hasLingeringEvent (eventID, levents = this.lingeringEventsStore) {
-    return this.hasLingeringEvents(eventID, levents);
+  hasLingeringEvent (eventID, store = this.lingeringEventsStore) {
+    return this.__storeHas(store, eventID);
   }
   
   /**
    * check to see if we have any lingering events for any of the given eventID(s)
-   * @param {Array<string>|string} eventIDs - event ids or just a single event id to check
-   * @param {object} levents - lingering events that we should check from
+   * @param {Array<string>|string} [eventIDs] - event ids or just a single event id to check
+   * @param {object} [store] - store that we should check from
    * @return {boolean}
    */
-  hasLingeringEvents (eventIDs, levents = this.lingeringEventsStore) {
-    if (!eventIDs) return false;
-    if (!_.isArray(eventIDs)) eventIDs = [eventIDs];
-    return eventIDs.some(eid => !_.isEmpty(_.get(levents, eid)));
+  hasLingeringEvents (eventIDs, store = this.lingeringEventsStore) {
+    return this.__storeHas(store, eventIDs);
   }
   
+  /**
+   * check if given store has the given subjects and that they are not empty
+   * @param {object} store - the store to check
+   * @param {string|array<string>} [subjects] - subjects to check. Just eventIDs. If undefined or empty then it checks if store is empty.
+   * @return {boolean}
+   * @private
+   */
+  __storeHas (store, subjects) {
+    if (!subjects) return !_.isEmpty(store);
+    if (!_.isArray(subjects)) subjects = [subjects];
+    return subjects.some(eid => !_.isEmpty(_.get(store, eid)));
+  }
   
   
   // noinspection JSUnusedGlobalSymbols
