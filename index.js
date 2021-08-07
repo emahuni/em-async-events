@@ -754,9 +754,9 @@ class AsyncEvents {
               listener.listenerPromise.outcome = finalOutcome;
               listener.listenerPromise.settlement = 1;
               listener.listenerPromise.resolve(finalOutcome);
-              eventMeta.payloads.push(finalOutcome);
-              eventMeta.wasConsumed = true;
             }
+            eventMeta.payloads.push(finalOutcome);
+            eventMeta.wasConsumed = true;
           } catch (e) {
             if (listener.listenerPromise.settlement === 0) {
               listener.listenerPromise.settlement = -1; // rejected

@@ -228,7 +228,22 @@ describe(`# em-async-events`, function () {
       });
       
       
-      
+      describe(`# "on-event" lingering`, function () {
+        test(`"vowEmit_onEvent" and "vowEmit_onEvent2" resolve to the event's last callback payload.`, async function () {
+          expect(vowEmit_onEvent.isPending()).to.be.true;
+          expect(vowEmit_onEvent2.isPending()).to.be.true;
+          
+          const outcome2 = await vowEmit_onEvent;
+          const outcome3 = await vowEmit_onEvent2;
+          expect(outcome2).to.be.equal(payload_onEvent2);
+          expect(outcome3).to.be.equal(payload_onEvent2);
+          
+          expect(vowEmit_onEvent.isResolved()).to.be.true;
+          expect(vowEmit_onEvent.isRejected()).to.be.false;
+          expect(vowEmit_onEvent.isResolved()).to.be.true;
+          expect(vowEmit_onEvent.isRejected()).to.be.false;
+        });
+      });
     });
   });
 });
