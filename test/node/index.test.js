@@ -148,10 +148,35 @@ describe(`# em-async-events`, function () {
         expect(vowEmit.isRejected()).to.be.false;
       });
       
-      test(`lingering event and listeners are clear from stores`, async function () {
+      test(`"once-event" lingering event and listeners are clear from stores`, async function () {
         expect(ae.hasListener('once-event')).to.be.false;
         expect(ae.hasLingeringEvent('once-event')).to.be.false;
       });
+      
+      describe(`# lingering disabled`, function () {
+        let onceEventR, emitOnceEventR, payload = 'simple-payload';
+        beforeAll(async function () {
+          onceEventSpy.resetHistory();
+          
+          onceEventR = ae.onceEvent('once-event', onceEventSpy);
+          emitOnceEventR = ae.emitEvent('once-event', payload, { linger: false, rejectUnconsumed: true });
+        });
+        
+        test(`there is no "once-event" lingering event.`, async function () {
+          expect(ae.hasLingeringEvents('once-event')).to.be.false;
+        });
+  
+        test(`"emitOnceEventR" resolved and didn't throw any errors or rejected`, async function () {
+          expect(emitOnceEventR.isResolved()).to.be.true;
+          return expect(emitOnceEventR).to.not.have.rejected;
+        });
+  
+        test(`"once-event" was listened to and heard without a problem.`, async function () {
+          return expect(onceEventR).to.eventually.equal(payload).and.not.have.rejected;
+        });
+      });
+      
+      
     });
   });
   
