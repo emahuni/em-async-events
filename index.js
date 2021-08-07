@@ -849,7 +849,6 @@ class AsyncEvents {
             lResolve = resolve;
             lReject = reject;
           }),
-          settled: false,
           resolve: lResolve,
           reject:  lReject,
         },
@@ -863,6 +862,11 @@ class AsyncEvents {
       
       return event.lingeringEventPromise.promise;
     }
+    
+    if (eventMeta.wasConsumed) return Promise.resolve(payload);
+    else if (eventOptions.rejectUnconsumed) return Promise.reject(`Un-lingered Event "${eventName}" was NOT consumed!`);
+    
+    return Promise.resolve();
   }
   
   
