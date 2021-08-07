@@ -1,7 +1,7 @@
 'use strict';
 
 const _ = require('lodash');
-const Bluebird = require('bluebird');
+const Promise = require('bluebird');
 
 const names = {
   asyncEvents:          '$asyncEvents',
@@ -86,7 +86,7 @@ class AsyncEvents {
    * @param listenerOptions
    * @param subscriberId
    * @param listenerOrigin
-   * @return {Bluebird|Promise|array<Bluebird|Promise>} - allows waiting for invocation of event with a promise only once (use if you want to continue execution where you adding the listener only when promise is fulfilled)
+   * @return {Promise|array<Promise>} - allows waiting for invocation of event with a promise only once (use if you want to continue execution where you adding the listener only when promise is fulfilled)
    */
   onEvent (eventName, callback, listenerOptions, subscriberId = this.__genUniqID(), listenerOrigin) {
     if (!_.isString(eventName) && !_.isArray(eventName)) throw new Error(`[index]-91: onEvent() - eventName should be specified as an string or array of strings representing event name(s)!`);
@@ -139,7 +139,7 @@ class AsyncEvents {
    * @param listenerOptions
    * @param subscriberId
    * @param listenerOrigin
-   * @return {Bluebird<*>|array<Bluebird<*>>} - allows waiting for invocation of event with a promise only once (use if you want to continue execution where you adding the listener only when promise is fulfilled)
+   * @return {Promise<*>|array<Promise<*>>} - allows waiting for invocation of event with a promise only once (use if you want to continue execution where you adding the listener only when promise is fulfilled)
    * */
   onceEvent (eventName, callback, listenerOptions, subscriberId = this.__genUniqID(), listenerOrigin) {
     listenerOptions = _.merge({}, this.options.listenersOptions, listenerOptions);
@@ -155,7 +155,7 @@ class AsyncEvents {
    * @param payload
    * @param eventOptions
    * @param eventOrigin
-   * @return {Bluebird<*>|array<Bluebird>}
+   * @return {Promise<*>|array<Promise>}
    */
   emitEvent (eventName, payload, eventOptions, eventOrigin) {
     if (!_.isString(eventName) && !_.isArray(eventName)) throw new Error(`[index]-160: emitEvent() - eventName should be specified as an string or array of strings representing event name(s)!`);
@@ -209,7 +209,7 @@ class AsyncEvents {
    * chain listeners results
    * @param payload
    * @param newPayload
-   * @return {Bluebird<*>}
+   * @return {Promise<*>}
    */
   chainCallbackPayload (payload, newPayload) {
     if (this.options.debug.all && this.options.debug.chainListenerCallbacks) {
@@ -459,7 +459,7 @@ class AsyncEvents {
      * @param eventName
      * @param payload
      * @param eventOptions
-     * @return {Bluebird<*>|array<Bluebird>}
+     * @return {Promise<*>|array<Promise>}
      */
     Vue.prototype[emitEventProp] = function (eventName, payload, eventOptions) {
       return AE_this.emitEvent(eventName, payload, eventOptions, this);
@@ -470,7 +470,7 @@ class AsyncEvents {
      * chain listeners results
      * @param payload
      * @param newPayload
-     * @return {Bluebird<*>}
+     * @return {Promise<*>}
      */
     Vue.prototype[chainCallbackPayloadProp] = function (payload, newPayload) {
       return AE_this.chainCallbackPayload(payload, newPayload);
@@ -583,7 +583,7 @@ class AsyncEvents {
       subscriberId,
       listenerOrigin,
       listenerPromise: {
-        promise:    new Bluebird((resolve, reject) => {
+        promise:    new Promise((resolve, reject) => {
           lResolve = resolve;
           lReject = reject;
         }),
@@ -627,7 +627,7 @@ class AsyncEvents {
    * @param eventOptions
    * @param eventOrigin
    * @param eventMeta
-   * @return {Bluebird|Promise}
+   * @return {Promise}
    */
   __runEvent_linger ({ eventName, payload, eventOptions, eventOrigin, eventMeta }) {
     /** run event */
@@ -666,10 +666,10 @@ class AsyncEvents {
         }
         
         // todo use single promise point
-        if (eventOptions.rejectUnconsumed) return Bluebird.reject(`Event "${eventName}" NOT consumed!`);
-        else return Bluebird.resolve();
+        if (eventOptions.rejectUnconsumed) return Promise.reject(`Event "${eventName}" NOT consumed!`);
+        else return Promise.resolve();
       } else {
-        return Bluebird.resolve(payload);
+        return Promise.resolve(payload);
       }
     }
   }
@@ -682,7 +682,7 @@ class AsyncEvents {
    * @param eventOptions
    * @param eventOrigin
    * @param eventMeta
-   * @return {Bluebird<*>}
+   * @return {Promise<*>}
    * @private
    */
   __runListeners ({
@@ -822,7 +822,7 @@ class AsyncEvents {
           trace(`[em-async-events]-827: ABORTING lingerEvent - baited but consumed eventName: %o eventMeta: %o`, eventName, eventMeta);
         }
         
-        return Bluebird.resolve(payload);
+        return Promise.resolve(payload);
       }
       
       if (this.options.debug.all && this.options.debug.lingerEvent || eventOptions.trace) {
@@ -837,7 +837,7 @@ class AsyncEvents {
         id,
         // to be resolved by run callbacks, see this.__invokeLingeredEventsAtAddListener
         lingeringEventPromise: {
-          promise: new Bluebird((resolve, reject) => {
+          promise: new Promise((resolve, reject) => {
             lResolve = resolve;
             lReject = reject;
           }),

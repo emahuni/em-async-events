@@ -49,14 +49,5 @@ declare namespace Chai {
 
     /** chai match pattern */
     matchPattern(pattern: string | object | RegExp): Assertion;
-
-
-    /** chai-promised */
-    eventually: Assertion;
-    fulfilled: Assertion;
-    rejected: Assertion;
-    rejectedWith(error: Error): Assertion;
-    notify(done: Function): Assertion;
-    become(value: unknown, message: string): Assertion;
   }
 }

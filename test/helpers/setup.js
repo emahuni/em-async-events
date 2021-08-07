@@ -10,6 +10,9 @@ chai.use(sinonChai);
 const chaiAsPromised = require('chai-as-promised');
 chai.use(chaiAsPromised);
 
+const chaiChanges = require("chai-changes");
+chai.use(chaiChanges);
+
 const chaiMatchPattern = require('chai-match-pattern');
 chai.use(chaiMatchPattern);
 const _ = chaiMatchPattern.getLodashModule();
