@@ -647,6 +647,7 @@ class AsyncEvents {
     
     _.merge(eventMeta, {
       eventName,
+      listeners:      this.listenersStore,
       payloads:       [payload],
       eventTimestamp: Date.now(),
       eventOptions:   _.cloneDeep(eventOptions),
@@ -956,7 +957,7 @@ class AsyncEvents {
           if (eventMeta.wasConsumed) {
             // lingeringEvent.eventMeta.listeners[listener.eventName].push(listener);
             // const exclusiveEvent = this.__getExclusiveEvent(listener.eventName, this.lingeringEventsStore);
-            this.__stashListenerOrEvent(listener, listener.eventName, this.listenersStore);
+            this.__stashListenerOrEvent(listener, listener.eventName, lingeringEvent.eventMeta.listeners);
             
             lingeringEvent.payload = payload;
             
