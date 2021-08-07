@@ -47,8 +47,8 @@ const defaultOptionsMatcher = {
 describe(`# em-async-events`, function () {
   it(`creates a once listener with basic information: onceEvent()`, async function () {
     ae.onceEvent('once-event', onceEventSpy);
-    expect('once-event' in ae.listeners).to.be.true;
-    expect(ae.listeners['once-event'][0].listenerOptions).to.matchPattern(defaultOptionsMatcher.listenersOptions);
+    expect('once-event' in ae.listenersStore).to.be.true;
+    expect(ae.listenersStore['once-event'][0].listenerOptions).to.matchPattern(defaultOptionsMatcher.listenersOptions);
   });
   
   it(`can detect the listener: hasListener()`, async function () {
@@ -58,7 +58,7 @@ describe(`# em-async-events`, function () {
   it(`creates a perpetual listener with basic information: onEvent()`, async function () {
     ae.onEvent('on-event', onEventSpy);
     expect(ae.hasListener('on-event')).to.be.true;
-    expect(ae.listeners['on-event'][0].listenerOptions).to.matchPattern(defaultOptionsMatcher.listenersOptions);
+    expect(ae.listenersStore['on-event'][0].listenerOptions).to.matchPattern(defaultOptionsMatcher.listenersOptions);
   });
   
   it(`can detect the listeners: hasListeners()`, async function () {

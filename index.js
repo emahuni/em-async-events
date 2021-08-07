@@ -24,8 +24,8 @@ class AsyncEvents {
   // __vueReservedProps
   
   constructor (options = {}) {
-    this.listeners = {};
-    this.lingeringEvents = {};
+    this.listenersStore = {};
+    this.lingeringEventsStore = {};
     
     this.__vueReservedProps = ['$options', '$parent', '$root', '$children', '$refs', '$vnode', '$slots', '$scopedSlots', '$createElement', '$attrs', '$listeners', '$el'];
     
@@ -228,7 +228,7 @@ class AsyncEvents {
    * @param eventName
    */
   eraseEvent (eventName) {
-    if (!_.isEmpty(this.listeners)) {
+    if (!_.isEmpty(this.listenersStore)) {
       if (_.isArray(eventName)) {
         for (let eventIndex = 0, len = eventName.length; eventIndex < len; eventIndex++) {
           this.__removeAllListeners({ eventName: eventName[eventIndex] });
@@ -249,9 +249,9 @@ class AsyncEvents {
   fallSilent (eventName, callback, subscriberId) {
     // console.debug(`[em-async-events]-205: fallSilentProp () compo: %o, eventName: %o, callback: %o`, this, eventName, callback);
     
-    if (!_.isEmpty(this.listeners)) {
+    if (!_.isEmpty(this.listenersStore)) {
       // Unsubscribe component from specific event
-      if (!callback && typeof eventName === 'string' && eventName in this.listeners) {
+      if (!callback && typeof eventName === 'string' && eventName in this.listenersStore) {
         // console.debug(`[em-async-events]-210: fallSilentProp() - Unsubscribe component from specific event: %o`, this);
         this.__removeListeners({ eventName, subscriberId });
         
@@ -292,7 +292,7 @@ class AsyncEvents {
       // remove all events in component, since no eventName or callback specified; done automatically
       if (!eventName && !callback) {
         // console.debug(`[em-async-events]-249: fallSilentProp() - remove all events in component, since no eventName or callback specified; done automatically: %o`, this);
-        for (let eventName in this.listeners) {
+        for (let eventName in this.listenersStore) {
           this.__removeListeners({ eventName, subscriberId });
         }
       }
@@ -305,7 +305,7 @@ class AsyncEvents {
    * @param {object} listeners - events listeners that we should check from
    * @return {boolean}
    */
-  hasListener (eventID, listeners = this.listeners) {
+  hasListener (eventID, listeners = this.listenersStore) {
     return this.hasListeners(eventID, listeners);
   }
   
@@ -315,7 +315,7 @@ class AsyncEvents {
    * @param {object} listeners - events listeners that we should check from
    * @return {boolean}
    */
-  hasListeners (eventIDs, listeners = this.listeners) {
+  hasListeners (eventIDs, listeners = this.listenersStore) {
     if (!eventIDs) return false;
     if (!_.isArray(eventIDs)) eventIDs = [eventIDs];
     return eventIDs.some(eid => !_.isEmpty(_.get(listeners, eid)));
@@ -327,7 +327,7 @@ class AsyncEvents {
    * @param {object} levents - lingering events that we should check from
    * @return {boolean}
    */
-  hasLingeringEvent (eventID, levents = this.lingeringEvents) {
+  hasLingeringEvent (eventID, levents = this.lingeringEventsStore) {
     return this.hasLingeringEvents(eventID, levents);
   }
   
@@ -337,7 +337,7 @@ class AsyncEvents {
    * @param {object} levents - lingering events that we should check from
    * @return {boolean}
    */
-  hasLingeringEvents (eventIDs, levents = this.lingeringEvents) {
+  hasLingeringEvents (eventIDs, levents = this.lingeringEventsStore) {
     if (!eventIDs) return false;
     if (!_.isArray(eventIDs)) eventIDs = [eventIDs];
     return eventIDs.some(eid => !_.isEmpty(_.get(levents, eid)));
@@ -395,8 +395,8 @@ class AsyncEvents {
      * plugin local state
      */
     Vue.prototype[asyncEventsProp] = {
-      listeners:       this.listeners,
-      lingeringEvents: this.lingeringEvents,
+      listeners:       this.listenersStore,
+      lingeringEvents: this.lingeringEventsStore,
       options:         this.options,
       
       /**
@@ -515,7 +515,7 @@ class AsyncEvents {
      * @return {boolean}
      */
     Vue.prototype[hasListenerProp] = function (eventID) {
-      return checkComponentEvents(eventID, AE_this.listeners, 'listenerOrigin', this);
+      return checkComponentEvents(eventID, AE_this.listenersStore, 'listenerOrigin', this);
     };
     /**
      * check to see if the component has any listeners for any of the given eventID(s)
@@ -523,7 +523,7 @@ class AsyncEvents {
      * @return {boolean}
      */
     Vue.prototype[hasListenersProp] = function (eventIDs) {
-      return checkComponentEvents(eventIDs, AE_this.listeners, 'listenerOrigin', this);
+      return checkComponentEvents(eventIDs, AE_this.listenersStore, 'listenerOrigin', this);
     };
     
     
@@ -533,7 +533,7 @@ class AsyncEvents {
      * @return {boolean}
      */
     Vue.prototype[hasLingeringEventProp] = function (eventID) {
-      return checkComponentEvents(eventID, AE_this.lingeringEvents, 'eventMeta.eventOrigin', this);
+      return checkComponentEvents(eventID, AE_this.lingeringEventsStore, 'eventMeta.eventOrigin', this);
     };
     /**
      * check to see if we have any lingering event for any of the given eventID(s)
@@ -541,7 +541,7 @@ class AsyncEvents {
      * @return {boolean}
      */
     Vue.prototype[hasLingeringEventsProp] = function (eventIDs) {
-      return checkComponentEvents(eventIDs, AE_this.lingeringEvents, 'eventMeta.eventOrigin', this);
+      return checkComponentEvents(eventIDs, AE_this.lingeringEventsStore, 'eventMeta.eventOrigin', this);
     };
   }
   
@@ -559,7 +559,7 @@ class AsyncEvents {
    */
   __addListener ({ eventName, callback, listenerOptions, subscriberId, listenerOrigin }) {
     // get existing exclusive listener
-    const exclusiveListener = (this.listeners[eventName] || []).find(l => l.listenerOptions.isExclusive && l.subscriberId === subscriberId);
+    const exclusiveListener = (this.listenersStore[eventName] || []).find(l => l.listenerOptions.isExclusive && l.subscriberId === subscriberId);
     
     // bailout if there is an exclusive listener of the same event name on the component
     if (exclusiveListener && !exclusiveListener.replaceExclusive) {
@@ -605,7 +605,7 @@ class AsyncEvents {
     
     // only add to listeners if the it's not once or isn't settled yet.
     if (!listenerOptions.once || listener.listenerPromise.settlement === 0) {
-      this.__stashListenerOrEvent(listener, eventName, this.listeners, exclusiveListener);
+      this.__stashListenerOrEvent(listener, eventName, this.listenersStore, exclusiveListener);
       
       if (listenerOptions.expire) {
         setTimeout(() => {
@@ -631,13 +631,13 @@ class AsyncEvents {
    */
   __runEvent_linger ({ eventName, payload, eventOptions, eventOrigin, eventMeta }) {
     /** run event */
-    let listeners = this.listeners[eventName];
+    let listeners = this.listenersStore[eventName];
     let listenersTally = listeners && listeners.length;
     const level = this.__getOriginLevel(eventOrigin);
     
     _.merge(eventMeta, {
       eventName,
-      listeners:      this.listeners,
+      listeners:      this.listenersStore,
       payloads:       [payload],
       eventTimestamp: Date.now(),
       eventOptions:   _.cloneDeep(eventOptions),
@@ -801,7 +801,7 @@ class AsyncEvents {
     
     if (eventOptions.linger > 0) {
       // get existing exclusive lingered event
-      const exclusiveLingeredEvent = (this.lingeringEvents[eventName] || []).find(e => e.eventMeta.eventOptions.isExclusive);
+      const exclusiveLingeredEvent = (this.lingeringEventsStore[eventName] || []).find(e => e.eventMeta.eventOptions.isExclusive);
       
       // bailout if exclusive lingered event is set to be kept (meaning don't replace with fresh event)
       if (exclusiveLingeredEvent && exclusiveLingeredEvent.keepExclusive) {
@@ -849,7 +849,7 @@ class AsyncEvents {
         eventMeta,
       };
       
-      this.__stashListenerOrEvent(event, eventName, this.lingeringEvents, exclusiveLingeredEvent);
+      this.__stashListenerOrEvent(event, eventName, this.lingeringEventsStore, exclusiveLingeredEvent);
       
       this.__decayLingeredEvent(eventName, event, eventOptions);
       
@@ -872,7 +872,7 @@ class AsyncEvents {
         else e.lingeringEventPromise.resolve();
       }
       
-      const i = this.lingeringEvents[eventName].findIndex(le => le.id === e.id);
+      const i = this.lingeringEventsStore[eventName].findIndex(le => le.id === e.id);
       this.__removeLingeringEventAtIndex(eventName, i, eventOptions, e.eventMeta);
     }, timeout, event);
   }
@@ -882,7 +882,7 @@ class AsyncEvents {
    * - if the event is exclusive then it will be replaced by the new subject
    * @param {object} subject - the event or listener to stash
    * @param {string} subjectID - event id
-   * @param {object} store - the store to use (this.listeners or this.lingeringEvents)
+   * @param {object} store - the store to use (this.listenersStore or this.lingeringEventsStore)
    * @param {object} exclusive - exclusive subject that we found already in the store (will be replaced by the new subject)
    * @private
    */
@@ -908,9 +908,9 @@ class AsyncEvents {
     // console.debug(`[index]-908: __invokeLingeredEventsAtAddListener() - listener subscriberId: %o, hasLingeringEvent? %o, catchUp? %o`, listener.listenerOptions.subscriberId, this.hasLingeringEvents(eventName), !!listener.listenerOptions.catchUp);
     // check if listener has an events lingering for it, if so then trigger these events on listener to handle
     if (!!listener.listenerOptions.catchUp && this.hasLingeringEvents(eventName)) {
-      for (let ei in this.lingeringEvents[eventName]) {
+      for (let ei in this.lingeringEventsStore[eventName]) {
         // noinspection JSUnfilteredForInLoop
-        const lingeringEvent = this.lingeringEvents[eventName][ei];
+        const lingeringEvent = this.lingeringEventsStore[eventName][ei];
         let { payload, eventMeta } = lingeringEvent;
         
         // is listener catchUp within range?
@@ -957,8 +957,8 @@ class AsyncEvents {
       console.warn(`[em-async-events]-924: - Lingered eventName: %o wasn't consumed! Check the event name correctness, or adjust its "linger" time or the listeners' "catchUp" time to bust event race conditions.`, eventName);
     }
     
-    this.lingeringEvents[eventName].splice(index, 1);
-    if (_.isEmpty(this.lingeringEvents[eventName])) delete this.lingeringEvents[eventName];
+    this.lingeringEventsStore[eventName].splice(index, 1);
+    if (_.isEmpty(this.lingeringEventsStore[eventName])) delete this.lingeringEventsStore[eventName];
   }
   
   
@@ -1176,17 +1176,17 @@ class AsyncEvents {
    * @param id
    */
   __removeListeners ({ eventName, subscriberId, id }) {
-    if (!this.listeners[eventName]) return;
+    if (!this.listenersStore[eventName]) return;
     
-    for (let li = 0; li < this.listeners[eventName].length; li++) {
-      if (this.listeners[eventName][li].subscriberId === subscriberId && (!id || id === this.listeners[eventName][li].id)) {
-        if (this.options.debug.all && this.options.debug.removeListener || this.listeners[eventName][li].listenerOptions.trace) {
-          const listener = this.listeners[eventName][li];
+    for (let li = 0; li < this.listenersStore[eventName].length; li++) {
+      if (this.listenersStore[eventName][li].subscriberId === subscriberId && (!id || id === this.listenersStore[eventName][li].id)) {
+        if (this.options.debug.all && this.options.debug.removeListener || this.listenersStore[eventName][li].listenerOptions.trace) {
+          const listener = this.listenersStore[eventName][li];
           const { listenerOrigin } = listener;
           console.info(`[em-async-events]-694: ${this.options.fallSilent || '$fallSilent(removeListener)'} eventName: %o origin: %o \nListener: %o`, eventName, _.get(listenerOrigin, '$options.name', '???'), listener);
         }
         
-        this.listeners[eventName].splice(li, 1);
+        this.listenersStore[eventName].splice(li, 1);
       }
     }
   }
@@ -1199,23 +1199,23 @@ class AsyncEvents {
    * @param callback
    */
   __removeCallbacks ({ eventName, subscriberId, callback }) {
-    if (!this.listeners[eventName]) return;
+    if (!this.listenersStore[eventName]) return;
     
-    let indexOfSubscriber = this.listeners[eventName].findIndex(function (el) {
+    let indexOfSubscriber = this.listenersStore[eventName].findIndex(function (el) {
       return el.subscriberId === subscriberId && el.callback === callback;
     });
     
     if (~indexOfSubscriber) {
-      if (this.options.debug.all && this.options.debug.removeListener || this.listeners[eventName][indexOfSubscriber].listenerOptions.trace) {
-        const listener = this.listeners[eventName][indexOfSubscriber];
+      if (this.options.debug.all && this.options.debug.removeListener || this.listenersStore[eventName][indexOfSubscriber].listenerOptions.trace) {
+        const listener = this.listenersStore[eventName][indexOfSubscriber];
         const { listenerOrigin } = listener;
         console.info(`[em-async-events]-721: ${this.options.fallSilent || '$fallSilent(this.__removeCallbacks)'} eventName: %o origin: %o \nListener: %o`, eventName, _.get(listenerOrigin, '$options.name', '???'), listener);
       }
       
-      this.listeners[eventName].splice(indexOfSubscriber, 1);
+      this.listenersStore[eventName].splice(indexOfSubscriber, 1);
     }
     
-    if (_.isEmpty(this.listeners[eventName])) delete this.listeners[eventName];
+    if (_.isEmpty(this.listenersStore[eventName])) delete this.listenersStore[eventName];
   }
   
   
@@ -1224,12 +1224,12 @@ class AsyncEvents {
    * @param eventName
    */
   __removeAllListeners ({ eventName }) {
-    for (let event in this.listeners) {
+    for (let event in this.listenersStore) {
       if (event === eventName) {
         if (this.options.debug.all && this.options.debug.eraseEvent) {
-          console.info(`[em-async-events]-737: ${this.options.eraseEvent} eventName: %o \nListener: %o`, eventName, this.listeners[eventName]);
+          console.info(`[em-async-events]-737: ${this.options.eraseEvent} eventName: %o \nListener: %o`, eventName, this.listenersStore[eventName]);
         }
-        delete this.listeners[eventName];
+        delete this.listenersStore[eventName];
       }
     }
   }
