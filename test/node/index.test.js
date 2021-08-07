@@ -235,7 +235,7 @@ describe(`# em-async-events`, function () {
           
           const outcome2 = await vowEmit_onEvent;
           const outcome3 = await vowEmit_onEvent2;
-          expect(outcome2).to.be.equal(payload_onEvent2);
+          expect(outcome2).to.be.equal(payload_onEvent);
           expect(outcome3).to.be.equal(payload_onEvent2);
           
           expect(vowEmit_onEvent.isResolved()).to.be.true;
