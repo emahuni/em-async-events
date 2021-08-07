@@ -54,6 +54,8 @@ class AsyncEvents {
         rejectUnconsumed: false,
       },
       
+      maxCachedPayloads: 5,
+      
       debug: {
         all:                    true,
         addListener:            false,
@@ -645,7 +647,6 @@ class AsyncEvents {
     
     _.merge(eventMeta, {
       eventName,
-      listeners:      this.listenersStore,
       payloads:       [payload],
       eventTimestamp: Date.now(),
       eventOptions:   _.cloneDeep(eventOptions),
@@ -756,6 +757,8 @@ class AsyncEvents {
               listener.listenerPromise.resolve(finalOutcome);
             }
             eventMeta.payloads.push(finalOutcome);
+            if (eventMeta.payloads.length >= this.options.maxCachedPayloads)  eventMeta.payloads.shift();
+            
             eventMeta.wasConsumed = true;
           } catch (e) {
             if (listener.listenerPromise.settlement === 0) {
@@ -809,7 +812,7 @@ class AsyncEvents {
     
     if (eventOptions.linger > 0) {
       // get existing exclusive lingered event
-      const exclusiveLingeredEvent = (this.lingeringEventsStore[eventName] || []).find(e => e.eventMeta.eventOptions.isExclusive);
+      const exclusiveLingeredEvent = this.__getExclusiveEvent(eventName, this.lingeringEventsStore);
       
       // bailout if exclusive lingered event is set to be kept (meaning don't replace with fresh event)
       if (exclusiveLingeredEvent && exclusiveLingeredEvent.keepExclusive) {
@@ -895,7 +898,7 @@ class AsyncEvents {
    * @param {object} subject - the event or listener to stash
    * @param {string} subjectID - event id
    * @param {object} store - the store to use (this.listenersStore or this.lingeringEventsStore)
-   * @param {object} exclusive - exclusive subject that we found already in the store (will be replaced by the new subject)
+   * @param {object} [exclusive] - exclusive subject that we found already in the store (will be replaced by the new subject)
    * @private
    */
   __stashListenerOrEvent (subject, subjectID, store, exclusive) {
@@ -908,6 +911,17 @@ class AsyncEvents {
       //  (may actually create an easy API around this... problem is the API is based on this module ;D)
       //  you need to somehow make sure payload isn't overwritten, it should merge it.
     }
+  }
+  
+  /**
+   * Get the exclusive event for the given eventID
+   * @param {string} eventID - the event id associated with the event we want to check exclusives for
+   * @param {object} store - the store to get it from
+   * @return {object} - the exclusive event object
+   * @private
+   */
+  __getExclusiveEvent (eventID, store) {
+    return (store[eventID] || []).find(e => e.eventMeta.eventOptions.isExclusive);
   }
   
   
@@ -940,7 +954,10 @@ class AsyncEvents {
           });
           
           if (eventMeta.wasConsumed) {
-            lingeringEvent.eventMeta.listeners[listener.eventName].push(listener);
+            // lingeringEvent.eventMeta.listeners[listener.eventName].push(listener);
+            // const exclusiveEvent = this.__getExclusiveEvent(listener.eventName, this.lingeringEventsStore);
+            this.__stashListenerOrEvent(listener, listener.eventName, this.listenersStore);
+            
             lingeringEvent.payload = payload;
             
             // todo bait logic should be done only when all listeners have taken the bait, since we can add multiple listeners per onEvent/onceEvent

@@ -13,7 +13,8 @@ listeners, and a customizable atomic API. Has a Vue plugin.
     - auto-removal of listeners on destruction.
     - expirable listeners that listen for a specified time before they are removed.
 - **async events** that get responses from listeners. Returns Bluebird 3 promise.
-- **async listeners** that can wait for callback(s) to fire the first time before proceeding. Returns Bluebird 3 promise.
+- **async listeners** that can wait for callback(s) to fire the first time before proceeding. Returns Bluebird 3
+  promise.
 - **lingering events;** these are events that are fired and used by current listeners, but wait for newer listeners
   until a specified time before being discarded or wait until its listener is added (bait mode).
 - **multiple callbacks and events registrations:**
@@ -282,7 +283,9 @@ Why use linger? bust race conditions. it doesn't matter how your order your even
 make sure that events can fire and wait for listeners to pop in within a certain timespan.
 
 - Each event is actually lingered `500`ms by default. See `eventsOptions.linger` in options below.
-- To Disable lingering on a specific event, set `linger: false` on event options when emitting. Figures < 0 or falsy will cause the default options `eventsOptions.linger` time to be applied. And if falsy also, it will disable lingering altogether.
+- To Disable lingering on a specific event, set `linger: false` on event options when emitting. Figures < 0 or falsy
+  will cause the default options `eventsOptions.linger` time to be applied. And if falsy also, it will disable lingering
+  altogether.
 - You can regulate each listener's linger catching up using `catchUp` time on listeners' options.
 - `globalLinger` - was deprecated in favour of using the default options' `eventsOptions.linger` option.
 
@@ -575,6 +578,8 @@ defaultOptions === {
     verbose:          false,
     rejectUnconsumed: false,
   },
+  
+  maxCachedPayloads: 5,
   
   debug: {
     all:                    true,
