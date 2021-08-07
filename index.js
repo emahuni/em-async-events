@@ -86,7 +86,7 @@ class AsyncEvents {
    * @param listenerOptions
    * @param subscriberId
    * @param listenerOrigin
-   * @return {Bluebird<*>|array<Bluebird<*>>} - allows waiting for invocation of event with a promise only once (use if you want to continue execution where you adding the listener only when promise is fulfilled)
+   * @return {Bluebird|Promise|array<Bluebird|Promise>} - allows waiting for invocation of event with a promise only once (use if you want to continue execution where you adding the listener only when promise is fulfilled)
    */
   onEvent (eventName, callback, listenerOptions, subscriberId = this.__genUniqID(), listenerOrigin) {
     if (!_.isString(eventName) && !_.isArray(eventName)) throw new Error(`[index]-91: onEvent() - eventName should be specified as an string or array of strings representing event name(s)!`);
@@ -345,6 +345,7 @@ class AsyncEvents {
   
   
   
+  // noinspection JSUnusedGlobalSymbols
   /**
    * install plugin
    * @param Vue
@@ -370,6 +371,7 @@ class AsyncEvents {
     
     const AE_this = this;
     
+    // noinspection JSUnusedGlobalSymbols
     /**
      * mix into vue
      */
@@ -384,6 +386,7 @@ class AsyncEvents {
       },
       
       beforeDestroy: function vueHookedAsyncEventsBeforeDestroy () {
+        // noinspection JSUnresolvedVariable
         if (this.shouldFallSilent) this[fallSilentProp]();
       },
     });
@@ -1248,7 +1251,7 @@ class AsyncEvents {
   
   
   /**
-   * get the component hierachy level of a given Vue component
+   * get the component hierarchy level of a given Vue component
    * @param origin
    * @return {number}
    */
