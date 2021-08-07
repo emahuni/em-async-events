@@ -602,13 +602,7 @@ class AsyncEvents {
     
     // only add to listeners if the it's not once or isn't settled yet.
     if (!listenerOptions.once || listener.listenerPromise.settlement === 0) {
-      if (!exclusiveListener) {
-        (this.listeners[eventName] || (this.listeners[eventName] = [])).push(listener);
-      } else {
-        const index = this.listeners[eventName].findIndex(l => l.id === exclusiveListener.id);
-        // replace the exclusive listener
-        this.listeners[eventName][index] = listener;
-      }
+      this.__stashListenerOrEvent(listener, eventName, this.listeners, exclusiveListener);
       
       if (listenerOptions.expire) {
         setTimeout(() => {
@@ -852,16 +846,7 @@ class AsyncEvents {
         eventMeta,
       };
       
-      // stash event for later use on new listeners of same eventName
-      if (!exclusiveLingeredEvent) {
-        (this.lingeringEvents[eventName] || (this.lingeringEvents[eventName] = [])).push(event);
-      } else {
-        const index = this.lingeringEvents[eventName].findIndex(e => e.id === exclusiveLingeredEvent.id);
-        this.lingeringEvents[eventName][index] = event;
-        // todo if we update state using bait, this can create an event based state updated by emissions and read by once listeners
-        //  (may actually create an easy API around this... problem is the API is based on this module ;D)
-        //  you need to somehow make sure payload isn't overwritten, it should merge it.
-      }
+      this.__stashListenerOrEvent(event, eventName, this.lingeringEvents, exclusiveLingeredEvent);
       
       this.__decayLingeredEvent(eventName, event, eventOptions);
       
@@ -887,6 +872,27 @@ class AsyncEvents {
       const i = this.lingeringEvents[eventName].findIndex(le => le.id === e.id);
       this.__removeLingeringEventAtIndex(eventName, i, eventOptions, e.eventMeta);
     }, timeout, event);
+  }
+  
+  /**
+   * Stash the subject (listener or lingering event) into their respective stores.
+   * - if the event is exclusive then it will be replaced by the new subject
+   * @param {object} subject - the event or listener to stash
+   * @param {string} subjectID - event id
+   * @param {object} store - the store to use (this.listeners or this.lingeringEvents)
+   * @param {object} exclusive - exclusive subject that we found already in the store (will be replaced by the new subject)
+   * @private
+   */
+  __stashListenerOrEvent (subject, subjectID, store, exclusive) {
+    if (!exclusive) {
+      (store[subjectID] || (store[subjectID] = [])).push(subject);
+    } else {
+      const index = store[subjectID].findIndex(e => e.id === exclusive.id);
+      store[subjectID][index] = subject;
+      // todo if we update state using bait, this can create an event based state updated by emissions and read by once listeners
+      //  (may actually create an easy API around this... problem is the API is based on this module ;D)
+      //  you need to somehow make sure payload isn't overwritten, it should merge it.
+    }
   }
   
   
