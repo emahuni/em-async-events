@@ -109,20 +109,25 @@ describe(`# em-async-events`, function () {
       });
       
       test(`new listener "hears" lingering event without callback, and is not curated.`, async function () {
-        globalThis.debug = true;
-        vowOnceEvent1 = ae.onceEvent('once-event');
+        vowOnceEvent1 = ae.onceEvent('once-event', undefined, { subscriberId: 111 });
         expect(ae.hasListener('once-event')).to.be.false;
-        
-        expect(vowOnceEvent1.isPending()).to.be.true;
+        expect(vowOnceEvent1.isPending()).to.be.false;
         expect(vowEmit.isPending()).to.be.true; // still pending
       });
       
       test(`new listener "hears" lingering event with callback, and is not curated.`, async function () {
+        expect(ae.hasLingeringEvent('once-event')).to.be.true;
         vowOnceEvent2 = ae.onceEvent('once-event', onceEventSpy2);
+        
         expect(ae.hasListener('once-event')).to.be.false;
         
-        expect(vowOnceEvent2.isPending()).to.be.true;
+        expect(vowOnceEvent2.isPending()).to.be.false;
         expect(vowEmit.isPending()).to.be.true;
+      });
+      
+      test(`"onceEventSpy2" to have been called once and returned the appropriate response`, async function () {
+        expect(onceEventSpy2).to.have.been.calledOnce;
+        expect(onceEventSpy2).to.have.returned(onceEventSpyResponse2);
       });
       
       test(`onEmit() Bluebird promise resolves with result of last callback (onceEventSpy2)`, async function () {
