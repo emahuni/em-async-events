@@ -164,6 +164,9 @@ module.exports = {
   // Setting this value to "fake" allows the use of fake timers for functions such as "setTimeout"
   // timers: "real",
   
+  testTimeout: 60000,
+  
+  
   // A map from regular expressions to paths to transformers
   // transform: undefined,
   
