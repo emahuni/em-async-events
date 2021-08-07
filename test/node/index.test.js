@@ -10,9 +10,9 @@ const onceEventSpy = sinon.spy((p, m) => {
   /*console.debug(`p: %o, m: %o`, p, m);*/
   return onceEventSpyResponse;
 });
-const onceEventSpyResponse2 = 'once-event-spy-2-response';
+const onceEventSpy2Response = 'once-event-spy-2-response';
 const onceEventSpy2 = sinon.spy((p, m) => {
-  return onceEventSpyResponse2;
+  return onceEventSpy2Response;
 });
 
 const onEventSpy = sinon.spy();
@@ -112,12 +112,12 @@ describe(`# em-async-events`, function () {
         vowOnceEvent1 = ae.onceEvent('once-event', undefined, { subscriberId: 111 });
         expect(ae.hasListener('once-event')).to.be.false;
         expect(vowOnceEvent1.isPending()).to.be.false;
-        expect(vowEmit.isPending()).to.be.true; // still pending
+        expect(vowEmit.isPending()).to.be.true;
       });
       
       test(`"vowOnceEvent1" resolves to "onceEventSpy" response.`, async function () {
         expect(vowOnceEvent1).to.be.instanceof(Promise);
-        return expect(vowOnceEvent1).to.not.become(onceEventSpyResponse);
+        return expect(vowOnceEvent1).to.become(onceEventSpyResponse);
       });
       
       test(`new listener "hears" lingering event with callback, and is not curated.`, async function () {
@@ -130,16 +130,27 @@ describe(`# em-async-events`, function () {
         expect(vowEmit.isPending()).to.be.true;
       });
       
-      test(`"onceEventSpy2" to have been called once and returned the appropriate response`, async function () {
-        expect(onceEventSpy2).to.have.been.calledOnce;
-        expect(onceEventSpy2).to.have.returned(onceEventSpyResponse2);
+      test(`"vowOnceEvent2" resolves to "onceEventSpy2" response.`, async function () {
+        expect(vowOnceEvent2).to.be.instanceof(Promise);
+        return expect(vowOnceEvent2).to.become(onceEventSpy2Response);
       });
       
-      test(`onEmit() Bluebird promise resolves with result of last callback (onceEventSpy2)`, async function () {
+      test(`"onceEventSpy2" to have been called once and returned the appropriate response`, async function () {
+        expect(onceEventSpy2).to.have.been.calledOnce;
+        expect(onceEventSpy2).to.have.returned(onceEventSpy2Response);
+      });
+      
+      test(`"onEmit()" Bluebird promise resolves with result of last callback "onceEventSpy2" and wasn't rejected`, async function () {
         expect(vowEmit.isPending()).to.be.true;
         const outcome = await vowEmit;
+        expect(outcome).to.be.equal(onceEventSpy2Response);
         expect(vowEmit.isResolved()).to.be.true;
-        expect(outcome).to.be.equal(onceEventSpyResponse2);
+        expect(vowEmit.isRejected()).to.be.false;
+      });
+      
+      test(`lingering event and listeners are clear from stores`, async function () {
+        expect(ae.hasListener('once-event')).to.be.false;
+        expect(ae.hasLingeringEvent('once-event')).to.be.false;
       });
     });
   });
