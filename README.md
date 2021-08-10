@@ -71,51 +71,6 @@ This package aims to address the above features and avoid some thorny issues tha
 called `vue-hooked-em-async-events` because it mainly focused on **Vue**, but it was so good at solving many common
 event problems that the author decided to make it work without Vue and created `em-async-events`.
 
-### Standard event bus approach & its issues
-
-With Vue, to create a global event system, the standard is to create an event bus:
-
-```javascript
-    Vue.prototype.$eventBus = new Vue();
-// or
-export const EventBus = new Vue();
-```
-
-#### Issues
-
-- Major issue with using standard vue event bus is that it creates a new `Vue` instance with lots of unused methods and
-  properties.
-- It is managed by Vue since it'll be a complete Vue component, thereby creating a lot of overhead.
-  `em-async-events` on the other hand creates a simple object containing awesome events-related functionalities that
-  doesn't add any overhead or watchers/observers of any kind.
-
-- You can't quickly remove events by just writing `this.$eventBus.off()` to unsubscribe only `this` component's events.
-  Even if it is typed it will remove all events it was subscribed to that have a common event type amongst components
-  eg: `this.$eventBus.off('some-event')`.
-- You have to make sure you manually remove events in the component you listen from eg:
-
-```javascript
-export default {
-  beforeDestroy () {
-    this.$eventBus.off('event-one', this.methodOne);
-    this.$eventBus.off('event-two', this.methodTwo);
-    this.$eventBus.off('event-three', this.methodThree);
-    this.$eventBus.off('event-four', this.methodFour);
-    // ... and so on
-  }
-}
-```
-
-### Async Events Approach
-
-So with `em-async-events` you instead write:
-
-```javascript
-```
-
-**Yes. Correct. Nothing.** Plugin will handle all of this by itself, unsubscribing current component listeners in
-its `beforeDestroy` hook.
-
 ## Methods
 
 There are several methods used to manage events with super duper conveniences like async events/listeners/callbacks.
@@ -147,7 +102,7 @@ argument, eg:
 ```js
     metadata == {
   extra:           'extra payload (not event related) from listener adding line. see below',
-  payloads:        [/* array of all previous event callbacks' outcomes (if there multiple listeners or multiple cbs for the event), see below */],
+  payloads:        [/* array of all previous event callbacks' outcomes (if there're multiple listeners), see below */],
   eventName:       "some-event",
   eventOptions:    {/*opts passed to event*/ },
   listenerOptions: {/*opts passed to listener*/ },
@@ -195,7 +150,7 @@ Only allow this listener for this event on this component (any subsequent listen
 this.$onEvent('some-event', eventCallback1, { isExclusive: true, replaceExclusive: true });
 ```
 
-Only continue after event has been used by callback.
+Only continue after event has been used by callback using async nature of lib.
 
 - This is particularly useful for putting up code that doesn't execute as long as a certain event has not yet happened,
   as well as use the usual callbacks approach. Any further events will be handled by callback(s).
@@ -246,6 +201,7 @@ this.$onEvent('some-other-event', [eventCallback, eventCallback2, (payload) => {
 this.$onEvent(['second-event', 'third-event', 'fourth-event'], [eventCallback1, eventCallback2]);
 
 function eventCallback (payload) {
+  // payload is data given at initial event emission. If chain is true in eventOptions, then
   // payload is the data being passed by the event or from previous callback listener in the chain of callbacks
   // for the event. EG: if this callback returns then the response is the next callback's payload.
 }
@@ -569,6 +525,7 @@ defaultOptions === {
     verbose:          false,
   },
   eventsOptions:    {
+    chain:            false,
     linger:           500,
     bait:             false,
     isExclusive:      false,

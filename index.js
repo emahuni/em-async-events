@@ -44,6 +44,7 @@ class AsyncEvents {
         verbose:          false,
       },
       eventsOptions:    {
+        chain:            false,
         linger:           500,
         bait:             false,
         isExclusive:      false,
@@ -648,7 +649,7 @@ class AsyncEvents {
     _.merge(eventMeta, {
       eventName,
       listeners:      this.listenersStore,
-      payloads:       [payload],
+      payloads:       [],
       eventTimestamp: Date.now(),
       eventOptions:   _.cloneDeep(eventOptions),
       level,
@@ -703,7 +704,7 @@ class AsyncEvents {
                     eventOrigin,
                     eventMeta,
                   }) {
-    let finalOutcome = payload;
+    let finalOutcome;
     let listenersTally = listeners && listeners.length;
     
     // console.debug(`[em-async-events] index-564: - eventName: %o, \neventOrigin: %o, \n_listeners: %o\neventMeta: %o`, eventName, eventOrigin, listeners, eventMeta);
@@ -758,9 +759,10 @@ class AsyncEvents {
               listener.listenerPromise.resolve(finalOutcome);
             }
             eventMeta.payloads.push(finalOutcome);
-            if (eventMeta.payloads.length >= this.options.maxCachedPayloads)  eventMeta.payloads.shift();
+            if (eventMeta.payloads.length >= this.options.maxCachedPayloads) eventMeta.payloads.shift();
             
             eventMeta.wasConsumed = true;
+            if (eventMeta.chain) payload = finalOutcome;
           } catch (e) {
             if (listener.listenerPromise.settlement === 0) {
               listener.listenerPromise.settlement = -1; // rejected
