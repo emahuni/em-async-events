@@ -389,7 +389,7 @@ class AsyncEvents {
     Vue.mixin({
       data () {
         return {
-          shouldFallSilent: true,
+          $toFallSilent: true,
         };
       },
       beforeCreate: function vueHookedAsyncEventsBeforeCreate () {
@@ -398,7 +398,7 @@ class AsyncEvents {
       
       beforeDestroy: function vueHookedAsyncEventsBeforeDestroy () {
         // noinspection JSUnresolvedVariable
-        if (this.shouldFallSilent) this[fallSilentProp]();
+        if (this.$toFallSilent) this[fallSilentProp]();
       },
     });
     
