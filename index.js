@@ -670,13 +670,11 @@ class AsyncEvents {
     if (!eventMeta.stopNow) {
       return this.__lingerEvent({ eventName, payload, eventOptions, eventMeta });
     } else {
-      console.debug(`[index]-659: __runEvent_linger() - eventMeta: %o`, eventMeta);
       if (!eventMeta.wasConsumed) {
-        if (this.options.debug.all) {
+        if (this.options.debug.all && this.options.debug.emitEvent || eventOptions.trace) {
           console.warn(`[em-async-events]-660: - eventName: %o wasn't consumed! Check the event name correctness, or adjust its "linger" time or the listeners' "catchUp" time to bust event race conditions.`, eventName);
         }
         
-        // todo use single promise point
         if (eventOptions.rejectUnconsumed) return Promise.reject(`Event "${eventName}" NOT consumed!`);
         else return Promise.resolve();
       } else {
@@ -983,10 +981,10 @@ class AsyncEvents {
   __removeLingeringEventAtIndex (eventName, index, eventOptions, eventMeta) {
     if (this.options.debug.all && this.options.debug.lingerEvent || eventOptions.trace) {
       console.info(`[em-async-events]-911: remove lingerEvent - eventName: %o on index: %o`, eventName, index);
-    }
-    
-    if (this.options.debug.all && !eventMeta.wasConsumed) {
-      console.warn(`[em-async-events]-924: - Lingered eventName: %o wasn't consumed! Check the event name correctness, or adjust its "linger" time or the listeners' "catchUp" time to bust event race conditions.`, eventName);
+      
+      if (!eventMeta.wasConsumed) {
+        console.warn(`[em-async-events]-924: - Lingered eventName: %o wasn't consumed! Check the event name correctness, or adjust its "linger" time or the listeners' "catchUp" time to bust event race conditions.`, eventName);
+      }
     }
     
     this.lingeringEventsStore[eventName].splice(index, 1);
