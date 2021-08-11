@@ -621,6 +621,10 @@ class AsyncEvents {
       if (listenerOptions.expire) {
         setTimeout(() => {
           if (!!listenerOptions.expiryCallback) listenerOptions.expiryCallback(listener);
+          else {
+            if (this.options.debug.all && this.options.debug.addListener || listenerOptions.trace)
+              console.info(`[em-async-events]-627: ${listenerOptions.once ? this.options.onceEvent : this.options.onEvent}(addListener) eventName: %o has no expiryCallback...`, eventName);
+          }
           // noinspection JSCheckFunctionSignatures
           this.__removeListeners({ ...listener });
         }, listenerOptions.expire);
