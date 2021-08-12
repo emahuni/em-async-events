@@ -841,18 +841,11 @@ class AsyncEvents {
       const id = this.__genUniqID();
       
       eventMeta.isLingered = true;
-      let lResolve, lReject;
+      // to be resolved by run callbacks, see this.__invokeLingeredEventsAtAddListener
+      const lingeringEventPromise = this.__createPromise();
       const event = {
         id,
-        // to be resolved by run callbacks, see this.__invokeLingeredEventsAtAddListener
-        lingeringEventPromise: {
-          promise: new Promise((resolve, reject) => {
-            lResolve = resolve;
-            lReject = reject;
-          }),
-          resolve: lResolve,
-          reject:  lReject,
-        },
+        lingeringEventPromise,
         payload,
         eventMeta,
       };
