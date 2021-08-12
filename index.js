@@ -216,7 +216,7 @@ class AsyncEvents {
    */
   chainCallbackPayload (payload, newPayload) {
     if (this.options.debug.all && this.options.debug.chainListenerCallbacks) {
-      console.info(`[em-async-events]-169: ${this.options.chainCallbackPayload} payload: %o \nnewPayload: %o`, payload, newPayload);
+      console.info(`[em-async-events]-169: ${this.options.chainCallbackPayload} payload: %o \nnewPayload: %o`, _.cloneDeep(payload), _.cloneDeep(newPayload));
     }
     
     // see if there is any callback that already prepared the results chain if not create it
@@ -661,7 +661,7 @@ class AsyncEvents {
     });
     
     if (this.options.debug.all && this.options.debug.emitEvent || eventOptions.trace) {
-      console.info(`[em-async-events]-152: ${this.options.emitEvent} eventName: %o payload: %o\n origin: %o eventMeta: %o`, eventName, payload, _.get(eventOrigin, '$options.name', '???'), eventMeta);
+      console.info(`[em-async-events]-152: ${this.options.emitEvent} eventName: %o payload: %o\n origin: %o eventMeta: %o`, eventName, _.cloneDeep(payload), _.get(eventOrigin, '$options.name', '???'), eventMeta);
     }
     
     payload = this.__runListeners({
@@ -742,7 +742,7 @@ class AsyncEvents {
           if (this.options.debug.all && this.options.debug.invokeListener || eventOptions.trace || listener.listenerOptions.trace) {
             let trace = console.info;
             if (eventOptions.verbose || listener.listenerOptions.verbose) trace = console.trace;
-            trace(`[em-async-events]-380: Invoke Listener - eventName: %o, payload: %o, \n origin: %o, eventOrigin: %o, Listener: %o\neventMeta: %o\nresponse: %o, \nstoppingHere: %o`, eventName, payload, _.get(listener.listenerOrigin, '$options.name', '???'), _.get(eventOrigin, '$options.name', '???'), listener, eventMeta, finalOutcome, stopHere);
+            trace(`[em-async-events]-380: Invoke Listener - eventName: %o, payload: %o, \n origin: %o, eventOrigin: %o, Listener: %o\neventMeta: %o\nresponse: %o, \nstoppingHere: %o`, eventName, _.cloneDeep(payload), _.get(listener.listenerOrigin, '$options.name', '???'), _.get(eventOrigin, '$options.name', '???'), listener, eventMeta, finalOutcome, stopHere);
           }
           
           try {
