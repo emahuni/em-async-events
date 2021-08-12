@@ -2,8 +2,9 @@
 
 const _ = require('lodash');
 const Promise = require('bluebird');
+const isPromise = require('ispromise');
 
-const names = {
+const NAMES = {
   asyncEvents:          '$asyncEvents',
   onEvent:              '$onEvent',
   onceEvent:            '$onceEvent',
@@ -16,6 +17,10 @@ const names = {
   hasLingeringEvent:    '$hasLingeringEvent',
   hasLingeringEvents:   '$hasLingeringEvents',
 };
+
+const PENDING = 0;
+const RESOLVED = 1;
+const REJECTED = -1;
 
 class AsyncEvents {
   // listeners;
@@ -30,7 +35,7 @@ class AsyncEvents {
     this.__vueReservedProps = ['$options', '$parent', '$root', '$children', '$refs', '$vnode', '$slots', '$scopedSlots', '$createElement', '$attrs', '$listeners', '$el'];
     
     this.options = _.defaultsDeep(options, {
-      ...names,
+      ...NAMES,
       listenersOptions: {
         extra:            undefined,
         stopHere:         false,
@@ -69,17 +74,17 @@ class AsyncEvents {
       },
     });
     
-    this.options.asyncEvents = this.__isCorrectCustomName('asyncEvents', options) || names.asyncEvents;
-    this.options.onEvent = this.__isCorrectCustomName('onEvent', options) || names.onEvent;
-    this.options.onceEvent = this.__isCorrectCustomName('onceEvent', options) || names.onceEvent;
-    this.options.emitEvent = this.__isCorrectCustomName('emitEvent', options) || names.emitEvent;
-    this.options.eraseEvent = this.__isCorrectCustomName('eraseEvent', options) || names.eraseEvent;
-    this.options.fallSilent = this.__isCorrectCustomName('fallSilent', options) || names.fallSilent;
-    this.options.chainCallbackPayload = this.__isCorrectCustomName('chainCallbackPayload', options) || names.chainCallbackPayload;
-    this.options.hasListener = this.__isCorrectCustomName('hasListener', options) || names.hasListener;
-    this.options.hasListeners = this.__isCorrectCustomName('hasListeners', options) || names.hasListeners;
-    this.options.hasLingeringEvent = this.__isCorrectCustomName('hasLingeringEvent', options) || names.hasLingeringEvent;
-    this.options.hasLingeringEvents = this.__isCorrectCustomName('hasLingeringEvents', options) || names.hasLingeringEvents;
+    this.options.asyncEvents = this.__isCorrectCustomName('asyncEvents', options) || NAMES.asyncEvents;
+    this.options.onEvent = this.__isCorrectCustomName('onEvent', options) || NAMES.onEvent;
+    this.options.onceEvent = this.__isCorrectCustomName('onceEvent', options) || NAMES.onceEvent;
+    this.options.emitEvent = this.__isCorrectCustomName('emitEvent', options) || NAMES.emitEvent;
+    this.options.eraseEvent = this.__isCorrectCustomName('eraseEvent', options) || NAMES.eraseEvent;
+    this.options.fallSilent = this.__isCorrectCustomName('fallSilent', options) || NAMES.fallSilent;
+    this.options.chainCallbackPayload = this.__isCorrectCustomName('chainCallbackPayload', options) || NAMES.chainCallbackPayload;
+    this.options.hasListener = this.__isCorrectCustomName('hasListener', options) || NAMES.hasListener;
+    this.options.hasListeners = this.__isCorrectCustomName('hasListeners', options) || NAMES.hasListeners;
+    this.options.hasLingeringEvent = this.__isCorrectCustomName('hasLingeringEvent', options) || NAMES.hasLingeringEvent;
+    this.options.hasLingeringEvents = this.__isCorrectCustomName('hasLingeringEvents', options) || NAMES.hasLingeringEvents;
   }
   
   /**
@@ -597,6 +602,7 @@ class AsyncEvents {
       listenerPromise,
       id,
       level,
+      calls: [],
     };
     
     if (this.options.debug.all && this.options.debug.addListener || listenerOptions.trace) {
@@ -607,7 +613,7 @@ class AsyncEvents {
     this.__invokeLingeredEventsAtAddListener({ ...arguments[0], listener });
     
     // only add to listeners if the it's not once or isn't settled yet.
-    if (!listenerOptions.once || listener.listenerPromise.settlement === 0) {
+    if (!listenerOptions.once || listener.listenerPromise.settlement === PENDING) {
       this.__stashListenerOrEvent(listener, eventName, this.listenersStore, exclusiveListener);
       
       if (listenerOptions.expire) {
@@ -737,37 +743,61 @@ class AsyncEvents {
             trace(`[em-async-events]-380: Invoke Listener - eventName: %o, payload: %o, \n origin: %o, eventOrigin: %o, Listener: %o\neventMeta: %o\nresponse: %o, \nstoppingHere: %o`, eventName, _.cloneDeep(payload), _.get(listener.listenerOrigin, '$options.name', '???'), _.get(eventOrigin, '$options.name', '???'), listener, eventMeta, finalOutcome, stopHere);
           }
           
+          const callbackPromise = this.__createPromise();
           try {
             if (_.isFunction(listener.callback)) {
+              // todo is inSeries true
+              // todo check if calls has anything
+              // todo wait for existing callbacks promises
+              // todo then push this call's promise
+              listener.calls.push(callbackPromise);
+              /** do the actual call of the callback */
               finalOutcome = listener.callback(payload, {
+                extra:        listener.listenerOptions.extra,
                 eventMeta,
                 listenerMeta: listener,
-                extra:        listener.listenerOptions.extra,
+                call_id:      callbackPromise.id,
               });
               
+              const settlePromise = (outcome) => {
+                callbackPromise.settlement = RESOLVED;
+                // only capture the first outcome becoz that's what promises do, once resolved or rejected it's settled.
+                if (listener.listenerPromise.settlement === PENDING) {
+                  listener.listenerPromise.outcome = outcome;
+                  listener.listenerPromise.settlement = RESOLVED;
+                  listener.listenerPromise.resolve(outcome);
+                }
+                eventMeta.payloads.push(outcome);
+                if (eventMeta.payloads.length >= this.options.maxCachedPayloads) eventMeta.payloads.shift();
+                
+                eventMeta.wasConsumed = true;
+                if (eventMeta.chain) payload = outcome;
+                
+                listener.calls.splice(listener.calls.indexOf(callbackPromise), 1);
+              };
               
-              // only capture the first outcome becoz that's what promises do, once resolved or rejected it's settled.
-              if (listener.listenerPromise.settlement === 0) {
-                listener.listenerPromise.outcome = finalOutcome;
-                listener.listenerPromise.settlement = 1;
-                listener.listenerPromise.resolve(finalOutcome);
+              if (isPromise(finalOutcome)) {
+                // todo check error handling of promise here
+                // noinspection BadExpressionStatementJS
+                finalOutcome.then(settlePromise);
+              } else {
+                settlePromise(finalOutcome);
               }
-              eventMeta.payloads.push(finalOutcome);
-              if (eventMeta.payloads.length >= this.options.maxCachedPayloads) eventMeta.payloads.shift();
-              
-              eventMeta.wasConsumed = true;
-              if (eventMeta.chain) payload = finalOutcome;
             }
           } catch (e) {
-            if (listener.listenerPromise.settlement === 0) {
-              listener.listenerPromise.settlement = -1; // rejected
+            // todo error handling ?
+            callbackPromise.settlement = REJECTED;
+            callbackPromise.outcome = finalOutcome;
+            if (listener.listenerPromise.settlement === PENDING) {
+              listener.listenerPromise.settlement = REJECTED;
               // rejects with previous finalOutcome.
               listener.listenerPromise.reject(finalOutcome);
+              listener.listenerPromise.outcome = finalOutcome;
             }
           }
           
           
-          if (listener.listenerOptions.once && listener.listenerPromise.settlement !== 0) {
+          if (listener.listenerOptions.once && listener.listenerPromise.settlement !== PENDING) {
             this.__removeCallbacks({
               eventName,
               subscriberId: listener.subscriberId,
@@ -840,9 +870,9 @@ class AsyncEvents {
       
       const id = this.__genUniqID();
       
-      eventMeta.isLingered = true;
       // to be resolved by run callbacks, see this.__invokeLingeredEventsAtAddListener
       const lingeringEventPromise = this.__createPromise();
+      eventMeta.isLingered = true;
       const event = {
         id,
         lingeringEventPromise,
@@ -953,7 +983,7 @@ class AsyncEvents {
             
             // todo bait logic should be done only when all listeners have taken the bait, since we can add multiple listeners per onEvent/onceEvent
             if (eventOptions.bait) {
-              lingeringEvent.lingeringEventPromise.settlement = 1;
+              lingeringEvent.lingeringEventPromise.settlement = RESOLVED;
               lingeringEvent.lingeringEventPromise.resolve(payload);
               // noinspection JSUnfilteredForInLoop
               this.__removeLingeringEventAtIndex(eventName, ei, eventOptions, eventMeta);
@@ -1299,19 +1329,22 @@ class AsyncEvents {
   
   /**
    * create a promise to keep track of what is going on
-   * @return {{resolve, reject, promise: Promise, outcome: undefined, settlement: number}}
+   * @return {{resolve, reject, promise: Promise, id: string, outcome: undefined, settlement: number}}
    * @private
    */
   __createPromise () {
-    let RESOLVE, REJECT;
+    let _RESOLVE, _REJECT;
+    const promise = new Promise((resolve, reject) => {
+      _RESOLVE = resolve;
+      _REJECT = reject;
+    });
+    
     return {
-      promise:    new Promise((resolve, reject) => {
-        RESOLVE = resolve;
-        REJECT = reject;
-      }),
-      resolve:    RESOLVE,
-      reject:     REJECT,
-      settlement: 0, // 0: it's pending, 1: it's resolved, and -1: it's rejected
+      id:         this.__genUniqID(),
+      promise,
+      resolve:    _RESOLVE,
+      reject:     _REJECT,
+      settlement: PENDING,
       outcome:    undefined,
     };
   }
