@@ -585,7 +585,8 @@ class AsyncEvents {
     const level = listenerOrigin ? this.__getOriginLevel(listenerOrigin) : 0;
     const id = this.__genUniqID();
     // create a promise that can be waited for by listener
-    let lResolve, lReject;
+    const listenerPromise = this.__createPromise();
+    
     // create listener object
     const listener = {
       eventName,
@@ -593,16 +594,7 @@ class AsyncEvents {
       listenerOptions,
       subscriberId,
       listenerOrigin,
-      listenerPromise: {
-        promise:    new Promise((resolve, reject) => {
-          lResolve = resolve;
-          lReject = reject;
-        }),
-        resolve:    lResolve,
-        reject:     lReject,
-        settlement: 0, // 0: it's pending, 1: it's resolved, and -1: it's rejected
-        outcome:    undefined,
-      },
+      listenerPromise,
       id,
       level,
     };
@@ -749,22 +741,23 @@ class AsyncEvents {
             if (_.isFunction(listener.callback)) {
               finalOutcome = listener.callback(payload, {
                 eventMeta,
-                listenerOptions: listener.listenerOptions,
-                extra:           listener.listenerOptions.extra,
+                listenerMeta: listener,
+                extra:        listener.listenerOptions.extra,
               });
+              
+              
+              // only capture the first outcome becoz that's what promises do, once resolved or rejected it's settled.
+              if (listener.listenerPromise.settlement === 0) {
+                listener.listenerPromise.outcome = finalOutcome;
+                listener.listenerPromise.settlement = 1;
+                listener.listenerPromise.resolve(finalOutcome);
+              }
+              eventMeta.payloads.push(finalOutcome);
+              if (eventMeta.payloads.length >= this.options.maxCachedPayloads) eventMeta.payloads.shift();
+              
+              eventMeta.wasConsumed = true;
+              if (eventMeta.chain) payload = finalOutcome;
             }
-            
-            // only capture the first outcome becoz that's what promises do, once resolved or rejected it's settled.
-            if (listener.listenerPromise.settlement === 0) {
-              listener.listenerPromise.outcome = finalOutcome;
-              listener.listenerPromise.settlement = 1;
-              listener.listenerPromise.resolve(finalOutcome);
-            }
-            eventMeta.payloads.push(finalOutcome);
-            if (eventMeta.payloads.length >= this.options.maxCachedPayloads) eventMeta.payloads.shift();
-            
-            eventMeta.wasConsumed = true;
-            if (eventMeta.chain) payload = finalOutcome;
           } catch (e) {
             if (listener.listenerPromise.settlement === 0) {
               listener.listenerPromise.settlement = -1; // rejected
@@ -1309,6 +1302,25 @@ class AsyncEvents {
   
   __showDeprecationWarning (dep, extra) {
     console.warn(`${dep} was deprecated and no longer supported. ${extra || ''}`);
+  }
+  
+  /**
+   * create a promise to keep track of what is going on
+   * @return {{resolve, reject, promise: Promise, outcome: undefined, settlement: number}}
+   * @private
+   */
+  __createPromise () {
+    let RESOLVE, REJECT;
+    return {
+      promise:    new Promise((resolve, reject) => {
+        RESOLVE = resolve;
+        REJECT = reject;
+      }),
+      resolve:    RESOLVE,
+      reject:     REJECT,
+      settlement: 0, // 0: it's pending, 1: it's resolved, and -1: it's rejected
+      outcome:    undefined,
+    };
   }
 }
 

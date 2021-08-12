@@ -100,14 +100,19 @@ function eventCallback1 (payload, metadata) {
 argument, eg:
 
 ```js
-    metadata == {
+metadata == {
   extra:           'extra payload (not event related) from listener adding line. see below',
-  payloads:        [/* array of all previous event callbacks' outcomes (if there're multiple listeners), see below */],
-  eventName:       "some-event",
-  eventOptions:    {/*opts passed to event*/ },
-  listenerOptions: {/*opts passed to listener*/ },
-  eventOrigin:     VueComponent /*vue compo that emitted the event when applicable */,
-  listenersTally:  6 // number of listeners for this event
+  eventMeta: {
+    payloads:        [/* array of all previous event callbacks' outcomes (if there're multiple listeners), see below */],
+    eventName:       "some-event",
+    eventOptions:    {/*opts passed to event*/ },
+    listenerOptions: {/*opts passed to listener*/ },
+    eventOrigin:     VueComponent /*vue compo that emitted the event when applicable */,
+    listenersTally:  6 // number of listeners for this event
+  },
+  listenerMeta: {
+    // ... todo document both when stable
+  }
 };
 ```
 

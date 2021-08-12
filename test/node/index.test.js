@@ -106,9 +106,9 @@ describe(`# em-async-events`, function () {
       
       it(`called "onEventSpy" with appropriate arguments.`, async function () {
         expect(onceEventSpy).to.have.been.calledWith(payload_onceEvent, sinon.match({
-          eventMeta:       sinon.match.object,
-          listenerOptions: sinon.match.object,
-          extra:           undefined,
+          eventMeta:    sinon.match.object,
+          listenerMeta: sinon.match.object,
+          extra:        undefined,
         }));
       });
       
@@ -127,9 +127,9 @@ describe(`# em-async-events`, function () {
       
       it(`called "onEventSpy" with appropriate arguments.`, async function () {
         expect(onEventSpy).to.have.been.calledWith(payload_onEvent, sinon.match({
-          eventMeta:       sinon.match.object,
-          listenerOptions: sinon.match.object,
-          extra:           undefined,
+          eventMeta:    sinon.match.object,
+          listenerMeta: sinon.match.object,
+          extra:        undefined,
         }));
       });
       
