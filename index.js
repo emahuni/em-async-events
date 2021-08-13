@@ -39,6 +39,8 @@ class AsyncEvents {
       listenersOptions: {
         extra:            undefined,
         serialCallbacks:  false,
+        debounce:         null,
+        throttle:         null,
         stopHere:         false,
         expire:           0,
         expiryCallback:   undefined,
@@ -592,6 +594,16 @@ class AsyncEvents {
     const id = this.__genUniqID();
     // create a promise that can be waited for by listener
     const listenerPromise = this.__createPromise();
+    
+    // todo test and doc debounce callback using lodash debounce if debounce is specified in options. debounce: {wait,leading,trailing, maxWait}
+    if (_.isObject(listenerOptions.debounce)) {
+      const de = listenerOptions.debounce;
+      callback = _.debounce(callback, de.wait, { leading: de.leading, trailing: de.trailing, maxWait: de.maxWait });
+    } else if (_.isObject(listenerOptions.debounce)) {
+      // todo test and doc throttle callback using lodash throttle if throttle is specified in options. throttle: {wait,leading,trailing}
+      const th = listenerOptions.throttle;
+      callback = _.throttle(callback, th.wait, { leading: th.leading, trailing: th.trailing });
+    }
     
     // create listener object
     const listener = {
