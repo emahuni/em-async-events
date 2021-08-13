@@ -30,6 +30,7 @@ const asyncEventSpy = sinon.spy();
 const defaultOptionsMatcher = {
   listenersOptions: {
     extra:            `_.isAny`,
+    isSerial:         _.isBoolean,
     expiryCallback:   `_.isOr|isFunction|isUndefined`,
     stopHere:         _.isBoolean,
     expire:           _.isNumber,
@@ -44,6 +45,7 @@ const defaultOptionsMatcher = {
     linger:           `_.isOr|isNumber|isNil|isFalse`,
     range:            _.isString,
     bait:             _.isBoolean,
+    chain:            _.isBoolean,
     isExclusive:      _.isBoolean,
     keepExclusive:    _.isBoolean,
     trace:            _.isBoolean,
@@ -144,7 +146,6 @@ describe(`# em-async-events`, function () {
         expect(onEventSpy).to.have.been.calledTwice;
         expect(ae.hasListener('on-event')).to.be.true;
       });
-      
     });
     
     
@@ -246,4 +247,27 @@ describe(`# em-async-events`, function () {
       });
     });
   });
+  
+  
+  describe(`# serial callback`, function () {
+    let accum = 0, vows = [];
+    const serialSpy = sinon.spy((payl) => new Promise(r => setTimeout(() => r(accum += payl), payl)));
+    
+    test(`serial listener callback invocation`, async function () {
+      ae.onEvent('serial-event', serialSpy, { isSerial: true });
+      const startTime = Date.now();
+      {
+        vows.push(ae.emitEvent('serial-event', 200));
+        await new Promise(resolve => setTimeout(() => resolve(vows.push(ae.emitEvent('serial-event', 150))), 50));
+        await new Promise(resolve => setTimeout(() => resolve(vows.push(ae.emitEvent('serial-event', 100))), 50));
+        await Promise.all(vows);
+      }
+      const stopTime = Date.now();
+      
+      expect(serialSpy).to.have.been.calledThrice;
+      expect(stopTime - startTime).to.be.at.least(550); // this shows that the callback waited for all the given timeouts + the gaps between
+      expect(accum).to.be.equal(450); // just checking we got all arguments correctly
+    });
+  });
+  
 });

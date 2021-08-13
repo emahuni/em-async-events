@@ -38,6 +38,7 @@ class AsyncEvents {
       ...NAMES,
       listenersOptions: {
         extra:            undefined,
+        isSerial:         false,
         stopHere:         false,
         expire:           0,
         expiryCallback:   undefined,
@@ -746,42 +747,52 @@ class AsyncEvents {
           const callbackPromise = this.__createPromise();
           try {
             if (_.isFunction(listener.callback)) {
-              // todo is inSeries true
-              // todo check if calls has anything
-              // todo wait for existing callbacks promises
-              // todo then push this call's promise
-              listener.calls.push(callbackPromise);
-              /** do the actual call of the callback */
-              finalOutcome = listener.callback(payload, {
-                extra:        listener.listenerOptions.extra,
-                eventMeta,
-                listenerMeta: listener,
-                call_id:      callbackPromise.id,
-              });
-              
-              const settlePromise = (outcome) => {
-                callbackPromise.settlement = RESOLVED;
-                // only capture the first outcome becoz that's what promises do, once resolved or rejected it's settled.
-                if (listener.listenerPromise.settlement === PENDING) {
-                  listener.listenerPromise.outcome = outcome;
-                  listener.listenerPromise.settlement = RESOLVED;
-                  listener.listenerPromise.resolve(outcome);
+              // create a reusable chunk of code
+              const continueCallback = () => {
+                listener.calls.push(callbackPromise);
+                /** do the actual call of the callback */
+                finalOutcome = listener.callback(payload, {
+                  extra:        listener.listenerOptions.extra,
+                  eventMeta,
+                  listenerMeta: listener,
+                  call_id:      callbackPromise.id,
+                });
+                
+                const settlePromise = (outcome) => {
+                  callbackPromise.settlement = RESOLVED;
+                  callbackPromise.resolve(outcome);
+                  // only capture the first outcome becoz that's what promises do, once resolved or rejected it's settled.
+                  if (listener.listenerPromise.settlement === PENDING) {
+                    listener.listenerPromise.outcome = outcome;
+                    listener.listenerPromise.settlement = RESOLVED;
+                    listener.listenerPromise.resolve(outcome);
+                  }
+                  eventMeta.payloads.push(outcome);
+                  if (eventMeta.payloads.length >= this.options.maxCachedPayloads) eventMeta.payloads.shift();
+                  
+                  eventMeta.wasConsumed = true;
+                  if (eventMeta.chain) payload = outcome;
+                  
+                  listener.calls.splice(_.findIndex(listener.calls, c=>c.id === callbackPromise.id), 1);
+                  return outcome;
+                };
+                
+                if (isPromise(finalOutcome)) {
+                  // todo check error handling of promise here
+                  // noinspection BadExpressionStatementJS
+                  return finalOutcome.then(settlePromise);
+                } else {
+                  return settlePromise(finalOutcome);
                 }
-                eventMeta.payloads.push(outcome);
-                if (eventMeta.payloads.length >= this.options.maxCachedPayloads) eventMeta.payloads.shift();
-                
-                eventMeta.wasConsumed = true;
-                if (eventMeta.chain) payload = outcome;
-                
-                listener.calls.splice(listener.calls.indexOf(callbackPromise), 1);
               };
               
-              if (isPromise(finalOutcome)) {
-                // todo check error handling of promise here
-                // noinspection BadExpressionStatementJS
-                finalOutcome.then(settlePromise);
+              const calls = listener.calls.map(c => c.promise);
+              //  check if calls has anything
+              if (calls.length && listener.listenerOptions.isSerial) {
+                finalOutcome = Promise.all(calls).then(continueCallback);
+                // continueCallback();
               } else {
-                settlePromise(finalOutcome);
+                finalOutcome = continueCallback();
               }
             }
           } catch (e) {
