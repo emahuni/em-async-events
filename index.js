@@ -1111,12 +1111,13 @@ class AsyncEvents {
   /**
    * get event broadcast components level range
    * @param eventName
+   * @param eventMeta
    * @param eventOptions
    * @param eventOrigin
    * @param listeners
    * @param eventLevel
    */
-  __getBroadcastListenerRange ({ eventName, eventOptions, eventOrigin, listeners, eventLevel }) {
+  __getBroadcastListenerRange ({ eventName, eventMeta, eventOptions, eventOrigin, listeners, eventLevel }) {
     let
         /**
          * use listeners going up
@@ -1215,7 +1216,7 @@ class AsyncEvents {
     down = _.isNil(down) ? -1 : down;
     stop = _.isNil(stop) ? false : stop;
     
-    let ranged = this.__listenersInRange({ listeners, eventLevel, up, down, selfOnly, eventOrigin });
+    let ranged = this.__listenersInRange({ listeners, eventLevel, up, down, selfOnly, eventOrigin, eventMeta });
     
     return { stop, selfOnly, ...ranged };
   }
@@ -1224,20 +1225,21 @@ class AsyncEvents {
   /**
    * get all listeners that are in range of the given bounds
    * @param listeners
-   * @param level
+   * @param eventLevel
    * @param up
    * @param down
    * @param selfOnly
+   * @param eventOrigin
+   * @param eventMeta
    * @return {*}
    */
-  __listenersInRange ({ listeners, eventLevel, up, down, selfOnly, eventOrigin }) {
+  __listenersInRange ({ listeners, eventLevel, up, down, selfOnly, eventOrigin, eventMeta }) {
     // console.debug(`[em-async-events]-603: this.__listenersInRange() - arguments: %o`, arguments[0]);
     
     let closest, upListeners = [], closestListeners = [], downListeners = [];
     
     if (selfOnly) {
-      // todo get eventMeta.emitterID instead of eventOrigin._uid
-      closestListeners = [listeners.find(l => l.subscriberID === _.get(eventOrigin, '_uid', l.subscriberID))].filter(l => !_.isNil(l));
+      closestListeners = [listeners.find(l => l.subscriberID === eventMeta.emitterID)].filter(l => !_.isNil(l));
     } else {
       let i = 0;
       let minDiff = 1000;
