@@ -305,13 +305,14 @@ For example to NOT catch up an event at all (if we missed the event don't use th
 
 ##### Exclusive events
 
-When an event is lingered and `isExclusive: true`, newer events will replace the older one, keeping only one fresh event
-unless `keepExclusive: true` option is set, it will ignore lingering other events until the lingered expires. eg:
+When an event is lingered and `isGloballyExclusive: true`, newer events will replace the older one, keeping only one
+fresh event unless `keepExclusive: true` option is set, it will ignore lingering other events until the lingered
+expires. eg:
 exclusively linger this event; no other events of the same event name ('some-event5') will be lingered until after
 5000ms
 
 ```js
-    this.$emitEvent('some-event5', { test: 'one' }, { linger: 5000, isExclusive: true });
+    this.$emitEvent('some-event5', { test: 'one' }, { linger: 5000, isGloballyExclusive: true });
 
 // hint: this creates an event based state updated by emissions and read by listeners
 //  - may actually create an easy API around this ;D
@@ -563,15 +564,15 @@ defaultOptions === {
     verbose:          false,
   },
   eventsOptions:    {
-    chain:            false,
-    linger:           500,
-    bait:             false,
-    isExclusive:      false,
-    keepExclusive:    false,
-    range:            'first-parent',
-    trace:            false,
-    verbose:          false,
-    rejectUnconsumed: false,
+    chain:               false,
+    linger:              500,
+    bait:                false,
+    isGloballyExclusive: false,
+    keepExclusive:       false,
+    range:               'first-parent',
+    trace:               false,
+    verbose:             false,
+    rejectUnconsumed:    false,
   },
   
   maxCachedPayloads: 5,

@@ -56,15 +56,15 @@ class AsyncEvents {
         verbose:          false,
       },
       eventsOptions:    {
-        chain:            false,
-        linger:           500,
-        bait:             false,
-        isExclusive:      false,
-        keepExclusive:    false,
-        range:            'first-parent',
-        trace:            false,
-        verbose:          false,
-        rejectUnconsumed: false,
+        chain:               false,
+        linger:              500,
+        bait:                false,
+        isGloballyExclusive: false,
+        keepExclusive:       false,
+        range:               'first-parent',
+        trace:               false,
+        verbose:             false,
+        rejectUnconsumed:    false,
       },
       
       maxCachedPayloads: 5,
@@ -181,7 +181,7 @@ class AsyncEvents {
     
     if (eventOptions.bait /*&& !eventOptions.linger*/) {
       eventOptions.linger = Infinity;
-      // eventOptions.isExclusive = true;
+      // eventOptions.isGloballyExclusive = true;
     }
     
     const eventMeta = {
@@ -993,7 +993,7 @@ class AsyncEvents {
    * @private
    */
   __getExclusiveEvent (eventID, store) {
-    return (store[eventID] || []).find(e => e.eventMeta.eventOptions.isExclusive);
+    return (store[eventID] || []).find(e => e.eventMeta.eventOptions.isGloballyExclusive);
   }
   
   
