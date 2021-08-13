@@ -95,14 +95,16 @@ function eventCallback1 (payload, metadata) {
   return /* whatever response you want to return to the event; see below */
 }
 ```
+
 ##### metadata
+
 `metadata` is information about the event and the listener itself passed to the callback function as the second
 argument, eg:
 
 ```js
 metadata == {
-  extra:           'extra payload (not event related) from listener adding line. see below',
-  eventMeta: {
+  extra:        'extra payload (not event related) from listener adding line. see below',
+  eventMeta:    {
     payloads:        [/* array of all previous event callbacks' outcomes (if there're multiple listeners), see below */],
     eventName:       "some-event",
     eventOptions:    {/*opts passed to event*/ },
@@ -115,9 +117,12 @@ metadata == {
   }
 };
 ```
+
 ##### extra information to callback
+
 Send extra info to a callback from emission side.
-- callback should extract extra info from the second argument. 
+
+- callback should extract extra info from the second argument.
 
 ```js
   this.$onEvent('some-event', eventCallbackExtra, { extra: { blah: 'bloh' } });
@@ -145,7 +150,9 @@ async function eventCallback2 (payload, metadata) {
 }
 
 ```
+
 ##### Exclusive listener support
+
 Only allow this listener for this event on this component (any subsequent listeners are ignored)
 
 ```js
@@ -155,6 +162,7 @@ this.$onEvent('some-event', eventCallback1, { isExclusive: true, replaceExclusiv
 ```
 
 ##### Async listener registration
+
 Only continue after event has been used by callback using async nature of lib.
 
 - This is particularly useful for putting up code that doesn't execute as long as a certain event has not yet happened,
@@ -172,7 +180,7 @@ result = await this.$onceEvent('some-event');
 // will wait again for the event to happen without any callbacks associated with it
 ```
 
-##### Expiring listeners 
+##### Expiring listeners
 
 ```js
   // automatically stop listening after 5000 milliseconds
@@ -194,17 +202,24 @@ function eventCallback3 (payload, metadata) {
   ```
 
 ##### Serial callbacks
-Run a single instance of the associated callback(s) at a time. It means callbacks will wait for each other to complete before even starting. 
-- useful if you don't want to have certain data modified by multiple calls at the same time.
+
+Run a single instance of the associated callback(s) at a time. It means callbacks will wait for each other to complete
+before even starting. They don't pass outcomes to each here, they are just independent calls.
+
+- useful if you don't want to have certain data modified by multiple calls at the same time or something happening at
+  the same time using the same callback function.
+
 ```js
-this.$onEvent('some-event', eventCallback3, { serialCallbacks: true });
+this.$onEvent('some-event', eventCallback3, { callbacks: { serialExecution: true } });
 this.$emitEvent('some-event', 'payload');
 this.$emitEvent('some-event', 'payload1');
 this.$emitEvent('some-event', 'payload2');
 ```
-eventCallback3 will be executed in a serial fashion, waiting for each callback to complete before invoking the next event's callback instance.
 
-#####Atomic listener API:
+eventCallback3 will be executed in a serial fashion, waiting for each callback to complete before invoking the next
+event's callback instance.
+
+##### Atomic listener API:
 
 - multiple events being listened to and handled by one callback
 - multiple events being listened to and handled by multiple callbacks
@@ -530,7 +545,13 @@ Default options that you don't have to set all the time or that control certain 
 defaultOptions === {
   listenersOptions: {
     extra:            undefined,
-    serialCallbacks:  false,
+    callbacks:        {
+      serialExecution:  false,
+      debounce:         null, // lodash debounce opts; {wait, leading, trailing, maxWait}
+      throttle:         null, // lodash throttle opts; {wait, leading, trailing}
+      isExclusive:      false,
+      replaceExclusive: false,
+    },
     stopHere:         false,
     expire:           0,
     expiryCallback:   undefined,

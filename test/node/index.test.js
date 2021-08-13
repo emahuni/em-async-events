@@ -30,7 +30,13 @@ const asyncEventSpy = sinon.spy();
 const defaultOptionsMatcher = {
   listenersOptions: {
     extra:            `_.isAny`,
-    serialCallbacks:         _.isBoolean,
+    callbacks:        {
+      serialExecution:  _.isBoolean,
+      debounce:         `_.isOr|isBoolean|isObject|isNil`,
+      throttle:         `_.isOr|isBoolean|isObject|isNil`,
+      isExclusive:      _.isBoolean,
+      replaceExclusive: _.isBoolean,
+    },
     expiryCallback:   `_.isOr|isFunction|isUndefined`,
     stopHere:         _.isBoolean,
     expire:           _.isNumber,

@@ -38,9 +38,13 @@ class AsyncEvents {
       ...NAMES,
       listenersOptions: {
         extra:            undefined,
-        serialCallbacks:  false,
-        debounce:         null,
-        throttle:         null,
+        callbacks:        {
+          serialExecution:  false,
+          debounce:         null,
+          throttle:         null,
+          isExclusive:      false,
+          replaceExclusive: false,
+        },
         stopHere:         false,
         expire:           0,
         expiryCallback:   undefined,
@@ -596,12 +600,12 @@ class AsyncEvents {
     const listenerPromise = this.__createPromise();
     
     // todo test and doc debounce callback using lodash debounce if debounce is specified in options. debounce: {wait,leading,trailing, maxWait}
-    if (_.isObject(listenerOptions.debounce)) {
-      const de = listenerOptions.debounce;
+    if (_.isObject(listenerOptions.callbacks.debounce)) {
+      const de = listenerOptions.callbacks.debounce;
       callback = _.debounce(callback, de.wait, { leading: de.leading, trailing: de.trailing, maxWait: de.maxWait });
-    } else if (_.isObject(listenerOptions.debounce)) {
+    } else if (_.isObject(listenerOptions.callbacks.throttle)) {
       // todo test and doc throttle callback using lodash throttle if throttle is specified in options. throttle: {wait,leading,trailing}
-      const th = listenerOptions.throttle;
+      const th = listenerOptions.callbacks.throttle;
       callback = _.throttle(callback, th.wait, { leading: th.leading, trailing: th.trailing });
     }
     
@@ -760,7 +764,7 @@ class AsyncEvents {
           try {
             if (_.isFunction(listener.callback)) {
               //  check if calls has anything
-              if (listener.calls.length && listener.listenerOptions.serialCallbacks) {
+              if (listener.calls.length && listener.listenerOptions.callbacks.serialExecution) {
                 // todo check if finalOutcome will get the return of __runCallbackPromise in then not Promise.all?
                 finalOutcome = Promise.all(listener.calls.map(c => c.promise))
                                       .then((outcome) => {
