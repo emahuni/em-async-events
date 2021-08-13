@@ -1292,20 +1292,32 @@ class AsyncEvents {
     }
   }
   
+  /**
+   * find the index of the given callback in listenersStore
+   * @param {function} callback
+   * @param {string} eventName
+   * @param {string} [subscriberId]
+   * @return {number}
+   * @private
+   */
+  __findIndexOfCallback (callback, eventName, subscriberId) {
+    return this.listenersStore[eventName].findIndex(function (el) {
+      return (!el.subscriberId || el.subscriberId === subscriberId) && el.callback === callback;
+    });
+  }
   
   /**
    * remove event callbacks
-   * @param eventName
-   * @param subscriberId
-   * @param callback
+   * @param {string} eventName
+   * @param {string} [subscriberId]
+   * @param {function} callback
    */
-  __removeCallbacks ({ eventName, subscriberId, callback }) {
+  __removeCallbacks ({ eventName, callback, subscriberId }) {
     if (!this.listenersStore[eventName]) return;
     
-    let indexOfSubscriber = this.listenersStore[eventName].findIndex(function (el) {
-      return el.subscriberId === subscriberId && el.callback === callback;
-    });
+    const indexOfSubscriber = this.__findIndexOfCallback(callback, eventName, subscriberId);
     
+    // noinspection JSUnresolvedVariable
     if (~indexOfSubscriber) {
       if (this.options.debug.all && this.options.debug.removeListener || this.listenersStore[eventName][indexOfSubscriber].listenerOptions.trace) {
         const listener = this.listenersStore[eventName][indexOfSubscriber];
