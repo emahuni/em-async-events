@@ -771,7 +771,6 @@ class AsyncEvents {
                   if (eventMeta.payloads.length >= this.options.maxCachedPayloads) eventMeta.payloads.shift();
                   
                   eventMeta.wasConsumed = true;
-                  if (eventMeta.chain) payload = outcome;
                   
                   listener.calls.splice(_.findIndex(listener.calls, c => c.id === callbackPromise.id), 1);
                   return outcome;
@@ -792,6 +791,8 @@ class AsyncEvents {
               } else {
                 finalOutcome = continueCallback();
               }
+              
+              if (eventMeta.chain) payload = finalOutcome;
             }
           } catch (e) {
             // todo error handling ?
