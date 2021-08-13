@@ -786,11 +786,9 @@ class AsyncEvents {
                 }
               };
               
-              const calls = listener.calls.map(c => c.promise);
               //  check if calls has anything
-              if (calls.length && listener.listenerOptions.isSerial) {
-                finalOutcome = Promise.all(calls).then(continueCallback);
-                // continueCallback();
+              if (listener.calls.length && listener.listenerOptions.isSerial) {
+                finalOutcome = Promise.all(listener.calls.map(c => c.promise)).then(continueCallback);
               } else {
                 finalOutcome = continueCallback();
               }

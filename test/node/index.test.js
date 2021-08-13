@@ -249,7 +249,7 @@ describe(`# em-async-events`, function () {
   });
   
   
-  describe(`# serial callback`, function () {
+  describe(`# serial callback - callback runs exclusively and listener waits for callback to resolve before running it for other events.`, function () {
     let accum = 0, vows = [];
     const serialSpy = sinon.spy((payl) => new Promise(r => setTimeout(() => r(accum += payl), payl)));
     
