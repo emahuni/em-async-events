@@ -584,21 +584,17 @@ class AsyncEvents {
    * @param listenerOrigin
    */
   __addListener ({ eventName, callback, listenerOptions, subscriberID, listenerOrigin }) {
-    // get existing exclusive listener
-    const exclusiveListener = (this.listenersStore[eventName] || []).find(l => this.__isExclusiveListener(l, subscriberID) || this.__isExclusiveCallback(callback, l, subscriberID));
-    
-    // doesn't work when throttling or debounce is used
-    const exclusiveCallback = (this.listenersStore[eventName] || []).find(l => this.__isExclusiveCallback(callback, l, subscriberID));
+    let isExclusiveCallbackListener = false;
+    const exclusiveListener = (this.listenersStore[eventName] || []).find(l => this.__isExclusiveListener(l, subscriberID) || this.__isExclusiveCallback(callback, l, subscriberID) && (isExclusiveCallbackListener = true));
     
     // bailout if there is an exclusive listener of the same event name on the component
-    if (exclusiveListener && !listenerOptions.replaceExclusive || exclusiveCallback && !listenerOptions.callbacks.replaceExclusive) {
+    if (exclusiveListener && (!isExclusiveCallbackListener && !listenerOptions.replaceExclusive || isExclusiveCallbackListener && !listenerOptions.callbacks.replaceExclusive)) {
       if (this.options.debug.all && this.options.debug.addListener || listenerOptions.trace) {
-        console.info(`[em-async-events]-593: ABORTING (exclusive ${(exclusiveCallback ? 'callback' : 'listener')} exists) ${listenerOptions.once ? this.options.onceEvent : this.options.onEvent}(addListener) eventName: %o Listener Origin: %o`, eventName, _.get(listenerOrigin, '$options.name', '???'));
+        console.warn(`[em-async-events]-593: ABORTING (exclusive ${(isExclusiveCallbackListener ? 'callback' : 'listener')} exists) ${listenerOptions.once ? this.options.onceEvent : this.options.onEvent}(addListener) eventName: %o Exclusive Listener Origin: %o, Requesting Origin: %o`, eventName, _.get(exclusiveListener.listenerOrigin, '$options.name', '???'), _.get(listenerOrigin, '$options.name', '???'));
       }
       // todo we should throw here
       return;
     }
-    
     
     // todo we can add level to add listener options for non-vue usage
     const level = listenerOrigin ? this.__getOriginLevel(listenerOrigin) : 0;
@@ -608,7 +604,7 @@ class AsyncEvents {
     // todo test and doc debounce callback using lodash debounce if debounce is specified in options. debounce: {wait,leading,trailing, maxWait}
     if (_.isObject(listenerOptions.callbacks.debounce)) {
       const de = listenerOptions.callbacks.debounce;
-      callback = _.debounce(exclusiveCallback || callback, de.wait, {
+      callback = _.debounce(_.get(exclusiveListener, 'callback', callback), de.wait, {
         leading:  de.leading,
         trailing: de.trailing,
         maxWait:  de.maxWait,
@@ -616,13 +612,16 @@ class AsyncEvents {
     } else if (_.isObject(listenerOptions.callbacks.throttle)) {
       // todo test and doc throttle callback using lodash throttle if throttle is specified in options. throttle: {wait,leading,trailing}
       const th = listenerOptions.callbacks.throttle;
-      callback = _.throttle(exclusiveCallback || callback, th.wait, { leading: th.leading, trailing: th.trailing });
+      callback = _.throttle(_.get(exclusiveListener, 'callback', callback), th.wait, {
+        leading:  th.leading,
+        trailing: th.trailing,
+      });
     }
     
     // create listener object
     const listener = {
       eventName,
-      callback: exclusiveCallback || callback,
+      callback: _.get(exclusiveListener, 'callback', callback),
       listenerOptions,
       subscriberID,
       listenerOrigin,
