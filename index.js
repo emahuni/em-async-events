@@ -38,7 +38,7 @@ class AsyncEvents {
       ...NAMES,
       listenersOptions: {
         extra:            undefined,
-        isSerial:         false,
+        serialCallbacks:  false,
         stopHere:         false,
         expire:           0,
         expiryCallback:   undefined,
@@ -773,7 +773,7 @@ class AsyncEvents {
                   eventMeta.wasConsumed = true;
                   if (eventMeta.chain) payload = outcome;
                   
-                  listener.calls.splice(_.findIndex(listener.calls, c=>c.id === callbackPromise.id), 1);
+                  listener.calls.splice(_.findIndex(listener.calls, c => c.id === callbackPromise.id), 1);
                   return outcome;
                 };
                 
@@ -787,7 +787,7 @@ class AsyncEvents {
               };
               
               //  check if calls has anything
-              if (listener.calls.length && listener.listenerOptions.isSerial) {
+              if (listener.calls.length && listener.listenerOptions.serialCallbacks) {
                 finalOutcome = Promise.all(listener.calls.map(c => c.promise)).then(continueCallback);
               } else {
                 finalOutcome = continueCallback();

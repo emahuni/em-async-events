@@ -30,7 +30,7 @@ const asyncEventSpy = sinon.spy();
 const defaultOptionsMatcher = {
   listenersOptions: {
     extra:            `_.isAny`,
-    isSerial:         _.isBoolean,
+    serialCallbacks:         _.isBoolean,
     expiryCallback:   `_.isOr|isFunction|isUndefined`,
     stopHere:         _.isBoolean,
     expire:           _.isNumber,
@@ -254,7 +254,7 @@ describe(`# em-async-events`, function () {
     const serialSpy = sinon.spy((payl) => new Promise(r => setTimeout(() => r(accum += payl), payl)));
     
     test(`serial listener callback invocation`, async function () {
-      ae.onEvent('serial-event', serialSpy, { isSerial: true });
+      ae.onEvent('serial-event', serialSpy, { serialCallbacks: true });
       const startTime = Date.now();
       {
         vows.push(ae.emitEvent('serial-event', 200));

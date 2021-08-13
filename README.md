@@ -95,7 +95,7 @@ function eventCallback1 (payload, metadata) {
   return /* whatever response you want to return to the event; see below */
 }
 ```
-
+##### metadata
 `metadata` is information about the event and the listener itself passed to the callback function as the second
 argument, eg:
 
@@ -115,10 +115,9 @@ metadata == {
   }
 };
 ```
-
-Send extra info to a callback in addition to the payload given by emit.
-
-- callback should extract extra info.
+##### extra information to callback
+Send extra info to a callback from emission side.
+- callback should extract extra info from the second argument. 
 
 ```js
   this.$onEvent('some-event', eventCallbackExtra, { extra: { blah: 'bloh' } });
@@ -129,7 +128,7 @@ async function eventCallbackExtra (payload, { extra }) {
 }
 ```
 
-Listen once and remove
+##### Listen once and remove
 
 ```js
   this.$onceEvent('some-event', eventCallback2);
@@ -146,7 +145,7 @@ async function eventCallback2 (payload, metadata) {
 }
 
 ```
-
+##### Exclusive listener support
 Only allow this listener for this event on this component (any subsequent listeners are ignored)
 
 ```js
@@ -155,11 +154,12 @@ Only allow this listener for this event on this component (any subsequent listen
 this.$onEvent('some-event', eventCallback1, { isExclusive: true, replaceExclusive: true });
 ```
 
+##### Async listener registration
 Only continue after event has been used by callback using async nature of lib.
 
 - This is particularly useful for putting up code that doesn't execute as long as a certain event has not yet happened,
   as well as use the usual callbacks approach. Any further events will be handled by callback(s).
-- `isAsync` option was deprecated and no longer required as all events and listeners are now async by default
+- ~~isAsync~~ option was deprecated and no longer required as all events and listeners are now async by default
 
 ```js
   let result = await this.$onceEvent('some-event', (payload, metadata) => {
@@ -172,7 +172,7 @@ result = await this.$onceEvent('some-event');
 // will wait again for the event to happen without any callbacks associated with it
 ```
 
-Expiring events
+##### Expiring listeners 
 
 ```js
   // automatically stop listening after 5000 milliseconds
@@ -193,7 +193,18 @@ function eventCallback3 (payload, metadata) {
 }
   ```
 
-Atomic listener API:
+##### Serial callbacks
+Run a single instance of the associated callback(s) at a time. It means callbacks will wait for each other to complete before even starting. 
+- useful if you don't want to have certain data modified by multiple calls at the same time.
+```js
+this.$onEvent('some-event', eventCallback3, { serialCallbacks: true });
+this.$emitEvent('some-event', 'payload');
+this.$emitEvent('some-event', 'payload1');
+this.$emitEvent('some-event', 'payload2');
+```
+eventCallback3 will be executed in a serial fashion, waiting for each callback to complete before invoking the next event's callback instance.
+
+#####Atomic listener API:
 
 - multiple events being listened to and handled by one callback
 - multiple events being listened to and handled by multiple callbacks
@@ -248,7 +259,7 @@ make sure that events can fire and wait for listeners to pop in within a certain
   will cause the default options `eventsOptions.linger` time to be applied. And if falsy also, it will disable lingering
   altogether.
 - You can regulate each listener's linger catching up using `catchUp` time on listeners' options.
-- `globalLinger` - was deprecated in favour of using the default options' `eventsOptions.linger` option.
+- ~~globalLinger~~ - was deprecated in favour of using the default options' `eventsOptions.linger` option.
 
 eg: Linger for 5000ms for new listeners of the event.
 
@@ -519,6 +530,7 @@ Default options that you don't have to set all the time or that control certain 
 defaultOptions === {
   listenersOptions: {
     extra:            undefined,
+    serialCallbacks:  false,
     stopHere:         false,
     expire:           0,
     expiryCallback:   undefined,
