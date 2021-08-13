@@ -747,49 +747,15 @@ class AsyncEvents {
           const callbackPromise = this.__createPromise();
           try {
             if (_.isFunction(listener.callback)) {
-              // create a reusable chunk of code
-              const continueCallback = () => {
-                listener.calls.push(callbackPromise);
-                /** do the actual call of the callback */
-                finalOutcome = listener.callback(payload, {
-                  extra:        listener.listenerOptions.extra,
-                  eventMeta,
-                  listenerMeta: listener,
-                  call_id:      callbackPromise.id,
-                });
-                
-                const settlePromise = (outcome) => {
-                  callbackPromise.settlement = RESOLVED;
-                  callbackPromise.resolve(outcome);
-                  // only capture the first outcome becoz that's what promises do, once resolved or rejected it's settled.
-                  if (listener.listenerPromise.settlement === PENDING) {
-                    listener.listenerPromise.outcome = outcome;
-                    listener.listenerPromise.settlement = RESOLVED;
-                    listener.listenerPromise.resolve(outcome);
-                  }
-                  eventMeta.payloads.push(outcome);
-                  if (eventMeta.payloads.length >= this.options.maxCachedPayloads) eventMeta.payloads.shift();
-                  
-                  eventMeta.wasConsumed = true;
-                  
-                  listener.calls.splice(_.findIndex(listener.calls, c => c.id === callbackPromise.id), 1);
-                  return outcome;
-                };
-                
-                if (isPromise(finalOutcome)) {
-                  // todo check error handling of promise here
-                  // noinspection BadExpressionStatementJS
-                  return finalOutcome.then(settlePromise);
-                } else {
-                  return settlePromise(finalOutcome);
-                }
-              };
-              
               //  check if calls has anything
               if (listener.calls.length && listener.listenerOptions.serialCallbacks) {
-                finalOutcome = Promise.all(listener.calls.map(c => c.promise)).then(continueCallback);
+                // todo check if finalOutcome will get the return of __runCallbackPromise in then not Promise.all?
+                finalOutcome = Promise.all(listener.calls.map(c => c.promise))
+                                      .then((outcome) => {
+                                        return this.__runCallbackPromise(listener, callbackPromise, payload, eventMeta);
+                                      });
               } else {
-                finalOutcome = continueCallback();
+                finalOutcome = this.__runCallbackPromise(listener, callbackPromise, payload, eventMeta);
               }
               
               if (eventMeta.chain) payload = finalOutcome;
@@ -834,6 +800,65 @@ class AsyncEvents {
     
     return finalOutcome;
   }
+  
+  /**
+   * run listener callback promise
+   * @param listener
+   * @param callbackPromise
+   * @param payload
+   * @param eventMeta
+   * @return {*}
+   * @private
+   */
+  __runCallbackPromise (listener, callbackPromise, payload, eventMeta) {
+    listener.calls.push(callbackPromise);
+    /** do the actual call of the callback */
+    let finalOutcome = listener.callback(payload, {
+      extra:        listener.listenerOptions.extra,
+      eventMeta,
+      listenerMeta: listener,
+      call_id:      callbackPromise.id,
+    });
+    
+    
+    if (isPromise(finalOutcome)) {
+      // todo check error handling of promise here
+      // noinspection BadExpressionStatementJS
+      return finalOutcome.then((outcome) => this.__settleCallbackPromise(listener, callbackPromise, outcome, eventMeta));
+    } else {
+      return this.__settleCallbackPromise(listener, callbackPromise, finalOutcome, eventMeta);
+    }
+  }
+  
+  /**
+   * Settle callback promise
+   * @param listener
+   * @param callbackPromise
+   * @param outcome
+   * @param eventMeta
+   * @return {*}
+   * @private
+   */
+  __settleCallbackPromise (listener, callbackPromise, outcome, eventMeta) {
+    callbackPromise.settlement = RESOLVED;
+    callbackPromise.resolve(outcome);
+    
+    // only capture the first outcome becoz that's what promises do, once resolved or rejected it's settled.
+    if (listener.listenerPromise.settlement === PENDING) {
+      listener.listenerPromise.outcome = outcome;
+      listener.listenerPromise.settlement = RESOLVED;
+      listener.listenerPromise.resolve(outcome);
+    }
+    
+    eventMeta.payloads.push(outcome);
+    if (eventMeta.payloads.length >= this.options.maxCachedPayloads) eventMeta.payloads.shift();
+    
+    eventMeta.wasConsumed = true;
+    
+    listener.calls.splice(_.findIndex(listener.calls, c => c.id === callbackPromise.id), 1);
+    return outcome;
+  }
+  
   
   
   /**
