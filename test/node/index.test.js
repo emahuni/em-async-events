@@ -29,31 +29,34 @@ const asyncEventSpy = sinon.spy();
 
 const defaultOptionsMatcher = {
   listenersOptions: {
-    extra:            `_.isAny`,
-    callbacks:        {
-      serialExecution:  _.isBoolean,
-      debounce:         `_.isOr|isBoolean|isObject|isNil`,
-      throttle:         `_.isOr|isBoolean|isObject|isNil`,
-      isExclusive:      _.isBoolean,
-      replaceExclusive: _.isBoolean,
+    extra:               `_.isAny`,
+    callbacks:           {
+      serialExecution:     _.isBoolean,
+      debounce:            `_.isOr|isBoolean|isObject|isNil`,
+      throttle:            `_.isOr|isBoolean|isObject|isNil`,
+      isLocallyExclusive:  _.isBoolean,
+      isGloballyExclusive: _.isBoolean,
+      replaceExclusive:    _.isBoolean,
     },
-    expiryCallback:   `_.isOr|isFunction|isUndefined`,
-    stopHere:         _.isBoolean,
-    expire:           _.isNumber,
-    catchUp:          `_.isOr|isFalse|isNil|isNumber`,
-    once:             _.isBoolean,
-    isExclusive:      _.isBoolean,
-    replaceExclusive: _.isBoolean,
-    trace:            _.isBoolean,
-    verbose:          _.isBoolean,
+    expiryCallback:      `_.isOr|isFunction|isUndefined`,
+    stopHere:            _.isBoolean,
+    expire:              _.isNumber,
+    catchUp:             `_.isOr|isFalse|isNil|isNumber`,
+    once:                _.isBoolean,
+    isLocallyExclusive:  _.isBoolean,
+    isGloballyExclusive: _.isBoolean,
+    replaceExclusive:    _.isBoolean,
+    trace:               _.isBoolean,
+    verbose:             _.isBoolean,
   },
   eventsOptions:    {
     linger:              `_.isOr|isNumber|isNil|isFalse`,
     range:               _.isString,
     bait:                _.isBoolean,
     chain:               _.isBoolean,
+    islocallyExclusive:  _.isBoolean,
     isGloballyExclusive: _.isBoolean,
-    keepExclusive:       _.isBoolean,
+    replaceExclusive:       _.isBoolean,
     trace:               _.isBoolean,
     verbose:             _.isBoolean,
     rejectUnconsumed:    _.isBoolean,
@@ -165,7 +168,7 @@ describe(`# em-async-events`, function () {
         });
         
         test(`new listener "hears" lingering event without callback, and is not curated.`, async function () {
-          vowOnceEvent1 = ae.onceEvent('once-event', undefined, { subscriberId: 111 });
+          vowOnceEvent1 = ae.onceEvent('once-event', undefined, { subscriberID: 111 });
           expect(ae.hasListener('once-event')).to.be.false;
           expect(vowOnceEvent1.isPending()).to.be.false;
           expect(vowEmit_onceEvent.isPending()).to.be.true;

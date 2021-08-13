@@ -153,12 +153,26 @@ async function eventCallback2 (payload, metadata) {
 
 ##### Exclusive listener support
 
+###### Relative to component
+
 Only allow this listener for this event on this component (any subsequent listeners are ignored)
 
 ```js
-  this.$onEvent('some-event', eventCallback1, { isExclusive: true });
+  this.$onEvent('some-event', eventCallback1, { isLocallyExclusive: true });
 // or just replace any existing exclusive listener 
-this.$onEvent('some-event', eventCallback1, { isExclusive: true, replaceExclusive: true });
+this.$onEvent('some-event', eventCallback1, { isLocallyExclusive: true, replaceExclusive: true });
+```
+
+###### globally
+
+Only allow this listener for this event globally (any subsequent listeners are ignored).
+
+- this means that no listener of that name can be registered globally.
+
+```js
+  this.$onEvent('some-event', eventCallback1, { isGloballyExclusive: true });
+// or just replace any existing exclusive listener 
+this.$onEvent('some-event', eventCallback1, { isGloballyExclusive: true, replaceExclusive: true });
 ```
 
 ##### Async listener registration
@@ -305,9 +319,8 @@ For example to NOT catch up an event at all (if we missed the event don't use th
 
 ##### Exclusive events
 
-When an event is lingered and `isGloballyExclusive: true`, newer events will replace the older one, keeping only one
-fresh event unless `keepExclusive: true` option is set, it will ignore lingering other events until the lingered
-expires. eg:
+When an event is lingered and `isGloballyExclusive: true`, newer events will will be ignored until the lingered event
+expires, unless `replaceExclusive: true`, which will replace the exclusive event with a fresh one. eg:
 exclusively linger this event; no other events of the same event name ('some-event5') will be lingered until after
 5000ms
 
@@ -545,30 +558,33 @@ Default options that you don't have to set all the time or that control certain 
 ```js
 defaultOptions === {
   listenersOptions: {
-    extra:            undefined,
-    callbacks:        {
-      serialExecution:  false,
-      debounce:         null, // lodash debounce opts; {wait, leading, trailing, maxWait}
-      throttle:         null, // lodash throttle opts; {wait, leading, trailing}
-      isExclusive:      false,
-      replaceExclusive: false,
+    extra:               undefined,
+    callbacks:           {
+      serialExecution:     false,
+      debounce:            null, // lodash debounce opts; {wait, leading, trailing, maxWait}
+      throttle:            null, // lodash throttle opts; {wait, leading, trailing}
+      isLocallyExclusive:  false,
+      isGloballyExclusive: false,
+      replaceExclusive:    false,
     },
-    stopHere:         false,
-    expire:           0,
-    expiryCallback:   undefined,
-    catchUp:          100,
-    once:             false,
-    isExclusive:      false,
-    replaceExclusive: false,
-    trace:            false,
-    verbose:          false,
+    stopHere:            false,
+    expire:              0,
+    expiryCallback:      undefined,
+    catchUp:             100,
+    once:                false,
+    isLocallyExclusive:  false,
+    isGloballyExclusive: false,
+    replaceExclusive:    false,
+    trace:               false,
+    verbose:             false,
   },
   eventsOptions:    {
     chain:               false,
     linger:              500,
     bait:                false,
+    isLocallyExclusive:  false,
     isGloballyExclusive: false,
-    keepExclusive:       false,
+    replaceExclusive:    false,
     range:               'first-parent',
     trace:               false,
     verbose:             false,
