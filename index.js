@@ -585,16 +585,20 @@ class AsyncEvents {
    */
   __addListener ({ eventName, callback, listenerOptions, subscriberID, listenerOrigin }) {
     // get existing exclusive listener
-    const exclusiveListener = (this.listenersStore[eventName] || []).find(l => l.listenerOptions.isGloballyExclusive || l.listenerOptions.isLocallyExclusive && l.subscriberID === subscriberID);
+    const exclusiveListener = (this.listenersStore[eventName] || []).find(l => this.__isExclusiveListener(l, subscriberID) || this.__isExclusiveCallback(callback, l, subscriberID));
+    
+    // doesn't work when throttling or debounce is used
+    const exclusiveCallback = (this.listenersStore[eventName] || []).find(l => this.__isExclusiveCallback(callback, l, subscriberID));
     
     // bailout if there is an exclusive listener of the same event name on the component
-    if (exclusiveListener && !exclusiveListener.replaceExclusive) {
+    if (exclusiveListener && !listenerOptions.replaceExclusive || exclusiveCallback && !listenerOptions.callbacks.replaceExclusive) {
       if (this.options.debug.all && this.options.debug.addListener || listenerOptions.trace) {
-        console.info(`[em-async-events]-376: ABORTING (exclusive listener exists) ${listenerOptions.once ? this.options.onceEvent : this.options.onEvent}(addListener) eventName: %o Listener Origin: %o`, eventName, _.get(listenerOrigin, '$options.name', '???'));
+        console.info(`[em-async-events]-593: ABORTING (exclusive ${(exclusiveCallback ? 'callback' : 'listener')} exists) ${listenerOptions.once ? this.options.onceEvent : this.options.onEvent}(addListener) eventName: %o Listener Origin: %o`, eventName, _.get(listenerOrigin, '$options.name', '???'));
       }
       // todo we should throw here
       return;
     }
+    
     
     // todo we can add level to add listener options for non-vue usage
     const level = listenerOrigin ? this.__getOriginLevel(listenerOrigin) : 0;
@@ -604,24 +608,28 @@ class AsyncEvents {
     // todo test and doc debounce callback using lodash debounce if debounce is specified in options. debounce: {wait,leading,trailing, maxWait}
     if (_.isObject(listenerOptions.callbacks.debounce)) {
       const de = listenerOptions.callbacks.debounce;
-      callback = _.debounce(callback, de.wait, { leading: de.leading, trailing: de.trailing, maxWait: de.maxWait });
+      callback = _.debounce(exclusiveCallback || callback, de.wait, {
+        leading:  de.leading,
+        trailing: de.trailing,
+        maxWait:  de.maxWait,
+      });
     } else if (_.isObject(listenerOptions.callbacks.throttle)) {
       // todo test and doc throttle callback using lodash throttle if throttle is specified in options. throttle: {wait,leading,trailing}
       const th = listenerOptions.callbacks.throttle;
-      callback = _.throttle(callback, th.wait, { leading: th.leading, trailing: th.trailing });
+      callback = _.throttle(exclusiveCallback || callback, th.wait, { leading: th.leading, trailing: th.trailing });
     }
     
     // create listener object
     const listener = {
       eventName,
-      callback,
+      callback: exclusiveCallback || callback,
       listenerOptions,
       subscriberID,
       listenerOrigin,
       listenerPromise,
-      id:    this.__genUniqID(),
+      id:       this.__genUniqID(),
       level,
-      calls: [],
+      calls:    [],
     };
     
     if (this.options.debug.all && this.options.debug.addListener || listenerOptions.trace) {
@@ -650,6 +658,40 @@ class AsyncEvents {
     
     // console.debug(`[index]-622: __addListener() - listener subscriberID: %o, outcome: %o, settlement: %o`, listener.listenerOptions.subscriberID, listener.listenerPromise.outcome, listener.listenerPromise.settlement);
     return listener.listenerPromise.promise;
+  }
+  
+  /**
+   * check if listener is exclusive
+   * @param listener
+   * @param subscriberID
+   * @return {*|boolean|boolean}
+   * @private
+   */
+  __isExclusiveListener (listener, subscriberID) {
+    return listener.listenerOptions.isGloballyExclusive || listener.listenerOptions.isLocallyExclusive && listener.subscriberID === subscriberID;
+  }
+  
+  /**
+   * check if listener callback is exclusive
+   * @param listener
+   * @param subscriberID
+   * @return {false|*|boolean|boolean}
+   * @private
+   */
+  __isExclusiveListenerCallback (listener, subscriberID) {
+    return listener.listenerOptions.callbacks.isGloballyExclusive || listener.listenerOptions.callbacks.isLocallyExclusive && listener.subscriberID === subscriberID;
+  }
+  
+  /**
+   * check if this is an exclusive callback
+   * @param callback
+   * @param listener
+   * @param subscriberID
+   * @return {false|*|boolean}
+   * @private
+   */
+  __isExclusiveCallback (callback, listener, subscriberID) {
+    return callback === listener.callback && this.__isExclusiveListenerCallback(listener, subscriberID);
   }
   
   /**
@@ -1297,6 +1339,20 @@ class AsyncEvents {
   }
   
   /**
+   * find given callback in listenersStore
+   * @param {function} callback
+   * @param {string} eventName
+   * @param {string} [subscriberID]
+   * @return {function|undefined}
+   * @private
+   */
+  __findCallback (callback, eventName, subscriberID) {
+    return this.listenersStore[eventName].find(function (l) {
+      return (!l.subscriberID || l.subscriberID === subscriberID) && l.callback === callback;
+    });
+  }
+  
+  /**
    * find the index of the given callback in listenersStore
    * @param {function} callback
    * @param {string} eventName
@@ -1305,8 +1361,8 @@ class AsyncEvents {
    * @private
    */
   __findIndexOfCallback (callback, eventName, subscriberID) {
-    return this.listenersStore[eventName].findIndex(function (el) {
-      return (!el.subscriberID || el.subscriberID === subscriberID) && el.callback === callback;
+    return this.listenersStore[eventName].findIndex(function (l) {
+      return (!l.subscriberID || l.subscriberID === subscriberID) && l.callback === callback;
     });
   }
   
