@@ -1,7 +1,6 @@
 'use strict';
 
 const _ = require('lodash');
-const Promise = require('bluebird');
 const isPromise = require('ispromise');
 
 const NAMES = {
@@ -592,8 +591,7 @@ class AsyncEvents {
       if (this.options.debug.all && this.options.debug.addListener || listenerOptions.trace) {
         console.warn(`[em-async-events]-593: ABORTING (exclusive ${(isExclusiveCallbackListener ? 'callback' : 'listener')} exists) ${listenerOptions.once ? this.options.onceEvent : this.options.onEvent}(addListener) eventName: %o Exclusive Listener Origin: %o, Requesting Origin: %o`, eventName, _.get(exclusiveListener.listenerOrigin, '$options.name', '???'), _.get(listenerOrigin, '$options.name', '???'));
       }
-      // todo we should throw here
-      return;
+      throw new Error(`[index]-595: __addListener() - ABORTING (exclusive ${(isExclusiveCallbackListener ? 'callback' : 'listener')} exists)`);
     }
     
     // todo we can add level to add listener options for non-vue usage
@@ -655,7 +653,7 @@ class AsyncEvents {
       }
     }
     
-    // console.debug(`[index]-622: __addListener() - listener subscriberID: %o, outcome: %o, settlement: %o`, listener.listenerOptions.subscriberID, listener.listenerPromise.outcome, listener.listenerPromise.settlement);
+    // console.debug(`[index]-622: __addListener() - listener subscriberID: %o, outcome: %o, settlement: %o`, listener.subscriberID, listener.listenerPromise.outcome, listener.listenerPromise.settlement);
     return listener.listenerPromise.promise;
   }
   
@@ -738,6 +736,7 @@ class AsyncEvents {
           console.warn(`[em-async-events]-660: - eventName: %o wasn't consumed! Check the event name correctness, or adjust its "linger" time or the listeners' "catchUp" time to bust event race conditions.`, eventName);
         }
         
+        // todo use createPromise promise.resolve()/reject() then return the promise object for all returned promises to maintain a uniform response. make a __resolvePromise, __rejectPromise private method that handles these
         if (eventOptions.rejectUnconsumed) return Promise.reject(`Event "${eventName}" NOT consumed!`);
         else return Promise.resolve();
       } else {
@@ -1047,7 +1046,7 @@ class AsyncEvents {
    * @param listener
    */
   __invokeLingeredEventsAtAddListener ({ eventName, listener }) {
-    // console.debug(`[index]-908: __invokeLingeredEventsAtAddListener() - listener subscriberID: %o, hasLingeringEvent? %o, catchUp? %o`, listener.listenerOptions.subscriberID, this.hasLingeringEvents(eventName), !!listener.listenerOptions.catchUp);
+    // console.debug(`[index]-908: __invokeLingeredEventsAtAddListener() - listener subscriberID: %o, hasLingeringEvent? %o, catchUp? %o`, listener.subscriberID, this.hasLingeringEvents(eventName), !!listener.listenerOptions.catchUp);
     // check if listener has an events lingering for it, if so then trigger these events on listener to handle
     if (!!listener.listenerOptions.catchUp && this.hasLingeringEvents(eventName)) {
       for (let ei in this.lingeringEventsStore[eventName]) {
@@ -1463,14 +1462,15 @@ class AsyncEvents {
       _REJECT = reject;
     });
     
-    return {
+    // we can use this in userland to figure out if promise is settled etc
+    return _.merge(promise, {
       id:         this.__genUniqID(),
       promise,
       resolve:    _RESOLVE,
       reject:     _REJECT,
       settlement: PENDING,
       outcome:    undefined,
-    };
+    });
   }
 }
 

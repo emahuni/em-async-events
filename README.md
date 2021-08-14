@@ -12,8 +12,8 @@ listeners, and a customizable atomic API. Has a Vue plugin.
 - **automated event management:**
     - auto-removal of listeners on destruction.
     - expirable listeners that listen for a specified time before they are removed.
-- **async events** that get responses from listeners. Returns Bluebird 3 promise.
-- **async listeners** that can wait for callback(s) to fire the first time before proceeding. Returns Bluebird 3
+- **async events** that get responses from listeners. Returns  promise.
+- **async listeners** that can wait for callback(s) to fire the first time before proceeding. Returns
   promise.
 - **lingering events;** these are events that are fired and used by current listeners, but wait for newer listeners
   until a specified time before being discarded or wait until its listener is added (bait mode).
