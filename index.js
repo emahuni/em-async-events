@@ -628,6 +628,12 @@ class AsyncEvents {
     if (exclusiveListener && (!isExclusiveCallbackListener && !listenerOptions.replaceExclusive || isExclusiveCallbackListener && !listenerOptions.callbacks.replaceExclusive)) {
       if (this.options.debug.all && this.options.debug.addListener || listenerOptions.trace) {
         console.warn(`[em-async-events]-593: ABORTING (exclusive ${(isExclusiveCallbackListener ? 'callback' : 'listener')} exists) ${listenerOptions.once ? this.options.onceEvent : this.options.onEvent}(addListener) eventName: %o Exclusive Listener Origin: %o, Requesting Origin: %o`, eventName, _.get(exclusiveListener.listenerOrigin, '$options.name', '???'), _.get(listenerOrigin, '$options.name', '???'));
+        if (listenerOptions.verbose) {
+          console.groupCollapsed('exclusive Listener verbose:');
+          console.info('Exclusive Listener:');
+          console.table(exclusiveListener);
+          console.groupEnd();
+        }
       }
       throw new Error(`[index]-595: __addListener() - ABORTING (exclusive ${(isExclusiveCallbackListener ? 'callback' : 'listener')} exists)`);
     }
@@ -668,7 +674,13 @@ class AsyncEvents {
     };
     
     if (this.options.debug.all && this.options.debug.addListener || listenerOptions.trace) {
-      console.info(`[em-async-events]-394: ${listenerOptions.once ? this.options.onceEvent : this.options.onEvent}(addListener) eventName: %o Listener Origin: %o \nListener: %o`, eventName, _.get(listenerOrigin, '$options.name', '???'), listener);
+      console.warn(`[em-async-events]-394: ${listenerOptions.once ? this.options.onceEvent : this.options.onEvent}(addListener) eventName: %o Listener Origin: %o`, eventName, _.get(listenerOrigin, '$options.name', '???'));
+      if (listenerOptions.verbose) {
+        console.groupCollapsed('addListener verbose:');
+        console.info('Listener:');
+        console.table(listener);
+        console.groupEnd();
+      }
     }
     
     // results that happen here will be sent thru the listener promise chain.
@@ -682,8 +694,15 @@ class AsyncEvents {
         setTimeout(() => {
           if (!!listenerOptions.expiryCallback) listenerOptions.expiryCallback(listener);
           else {
-            if (this.options.debug.all && this.options.debug.addListener || listenerOptions.trace)
+            if (this.options.debug.all && this.options.debug.addListener || listenerOptions.trace) {
               console.info(`[em-async-events]-627: ${listenerOptions.once ? this.options.onceEvent : this.options.onEvent}(addListener) eventName: %o has no expiryCallback...`, eventName);
+              if (listenerOptions.verbose) {
+                console.groupCollapsed('addListener verbose:');
+                console.info('Listener:');
+                console.table(listener);
+                console.groupEnd();
+              }
+            }
           }
           // noinspection JSCheckFunctionSignatures
           this.__removeListeners({ ...listener });
@@ -756,7 +775,13 @@ class AsyncEvents {
     });
     
     if (this.options.debug.all && this.options.debug.emitEvent || eventOptions.trace) {
-      console.info(`[em-async-events]-152: ${this.options.emitEvent} eventName: %o payload: %o\n origin: %o eventMeta: %o`, eventName, _.cloneDeep(payload), _.get(eventOrigin, '$options.name', '???'), eventMeta);
+      console.warn(`[em-async-events]-152: ${this.options.emitEvent} eventName: %o payload: %o\n origin: %o`, eventName, _.cloneDeep(payload), _.get(eventOrigin, '$options.name', '???'));
+      if (eventOptions.verbose) {
+        console.groupCollapsed('__runEvent_linger verbose:');
+        console.info('eventMeta:');
+        console.table(eventMeta);
+        console.groupEnd();
+      }
     }
     
     payload = this.__runListeners({
@@ -772,6 +797,12 @@ class AsyncEvents {
       if (!eventMeta.wasConsumed) {
         if (this.options.debug.all && this.options.debug.emitEvent || eventOptions.trace) {
           console.warn(`[em-async-events]-660: - eventName: %o wasn't consumed! Check the event name correctness, or adjust its "linger" time or the listeners' "catchUp" time to bust event race conditions.`, eventName);
+          if (eventOptions.verbose) {
+            console.groupCollapsed('event verbose:');
+            console.info('eventMeta:');
+            console.table(eventMeta);
+            console.groupEnd();
+          }
         }
         
         // todo use createPromise promise.resolve()/reject() then return the promise object for all returned promises to maintain a uniform response. make a __resolvePromise, __rejectPromise private method that handles these
@@ -836,9 +867,15 @@ class AsyncEvents {
           if (stop || listener.listenerOptions.stopHere) stopHere = true;
           
           if (this.options.debug.all && this.options.debug.invokeListener || eventOptions.trace || listener.listenerOptions.trace) {
-            let trace = console.info;
-            if (eventOptions.verbose || listener.listenerOptions.verbose) trace = console.trace;
-            trace(`[em-async-events]-380: Invoke Listener - eventName: %o, payload: %o, \n origin: %o, eventOrigin: %o, Listener: %o\neventMeta: %o\nresponse: %o, \nstoppingHere: %o`, eventName, _.cloneDeep(payload), _.get(listener.listenerOrigin, '$options.name', '???'), _.get(eventOrigin, '$options.name', '???'), listener, eventMeta, finalOutcome, stopHere);
+            console.warn(`[em-async-events]-380: Invoke Listener - eventName: %o, payload: %o, \n listener origin: %o, eventOrigin: %o,\nresponse: %o, \nstoppingHere: %o`, eventName, _.cloneDeep(payload), _.get(listener.listenerOrigin, '$options.name', '???'), _.get(eventOrigin, '$options.name', '???'), finalOutcome, stopHere);
+            if (eventOptions.verbose || listener.listenerOptions.verbose) {
+              console.groupCollapsed('Listener verbose:');
+              console.info('Listener:');
+              console.table(listener);
+              console.info('eventMeta:');
+              console.table(eventMeta);
+              console.groupEnd();
+            }
           }
           
           const callbackPromise = this.__createPromise();
@@ -988,9 +1025,13 @@ class AsyncEvents {
       // bailout if exclusive lingered event is set to be kept (meaning don't replace with fresh event)
       if (exclusiveLingeredEvent && !exclusiveLingeredEvent.replaceExclusive) {
         if (this.options.debug.all && this.options.debug.lingerEvent || eventOptions.trace) {
-          let trace = console.info;
-          if (eventOptions.verbose) trace = console.trace;
-          trace(`[em-async-events]-587: ABORTING lingerEvent - for exclusive lingered eventName: %o \n%o`, eventName, eventMeta);
+          console.warn(`[em-async-events]-587: ABORTING lingerEvent - for exclusive lingered eventName: %o`, eventName);
+          if (eventOptions.verbose) {
+            console.groupCollapsed('ABORTING lingerEvent verbose:');
+            console.info('eventMeta:');
+            console.table(eventMeta);
+            console.groupEnd();
+          }
         }
         
         return exclusiveLingeredEvent.lingeringEventPromise.resolve(payload);
@@ -999,16 +1040,26 @@ class AsyncEvents {
       // bailout if baited but consumed event
       if (eventMeta.wasConsumed && eventOptions.bait) {
         if (this.options.debug.all && this.options.debug.lingerEvent || eventOptions.trace) {
-          let trace = console.info;
-          if (eventOptions.verbose) trace = console.trace;
-          trace(`[em-async-events]-827: ABORTING lingerEvent - baited but consumed eventName: %o eventMeta: %o`, eventName, eventMeta);
+          console.warn(`[em-async-events]-827: ABORTING lingerEvent - baited but consumed eventName: %o`, eventName);
+          if (eventOptions.verbose) {
+            console.groupCollapsed('ABORTING lingerEvent verbose:');
+            console.info('eventMeta:');
+            console.table(eventMeta);
+            console.groupEnd();
+          }
         }
         
         return Promise.resolve(payload);
       }
       
       if (this.options.debug.all && this.options.debug.lingerEvent || eventOptions.trace) {
-        console.info(`[em-async-events]-597: lingerEvent - eventName: %o eventMeta: %o`, eventName, eventMeta);
+        console.warn(`[em-async-events]-597: lingerEvent - eventName: %o`, eventName);
+        if (eventOptions.verbose) {
+          console.groupCollapsed('lingerEvent verbose:');
+          console.info('eventMeta:');
+          console.table(eventMeta);
+          console.groupEnd();
+        }
       }
       
       
@@ -1043,17 +1094,33 @@ class AsyncEvents {
     
     setTimeout((e) => {
       const consumers = this.pendingEventConsumers(ev);
-      console.table(consumers);
       if (consumers.length) {
         if (this.options.debug.all && this.options.debug.lingerEvent || eventOptions.trace) {
           console.warn(`[em-async-events]-1005: - eventName: %o "linger" time has run out whilst it's still being consumed. It is removed, but its promise will be settled once the consumers finish.`, eventName);
-          console.table(consumers);
+          if (eventOptions.verbose) {
+            console.groupCollapsed('Consumers verbose:');
+            console.info('Consumers:');
+            console.table(consumers);
+            console.info('eventMeta:');
+            console.table(ev.eventMeta);
+            console.groupEnd();
+          }
         }
         
         Promise.all(consumers.map(c => c.listenerPromise.promise)).then((vows) => {
-          console.debug(`[index]-1011: () - vows: %o`, vows);
+          // console.debug(`[index]-1011: () - vows: %o`, vows);
           this.__settleLingeredEvent(ev, eventOptions, eventName);
-          if (consumers.length && this.options.debug.all && this.options.debug.lingerEvent || eventOptions.trace) console.warn(`[em-async-events]-1016: - eventName: %o "linger" consumers have finished.`, eventName);
+          if (consumers.length && this.options.debug.all && this.options.debug.lingerEvent || eventOptions.trace) {
+            console.warn(`[em-async-events]-1016: - eventName: %o "linger" consumers have finished.`, eventName);
+            if (eventOptions.verbose) {
+              console.groupCollapsed('"linger" consumers verbose:');
+              console.info('Consumers:');
+              console.table(consumers);
+              console.info('eventMeta:');
+              console.table(ev.eventMeta);
+              console.groupEnd();
+            }
+          }
         });
       } else {
         this.__settleLingeredEvent(ev, eventOptions, eventName);
@@ -1075,7 +1142,7 @@ class AsyncEvents {
   }
   
   __eventConsumers (ev) {
-    if(!_.isArray(ev)) ev = [ev];
+    if (!_.isArray(ev)) ev = [ev];
     return _.flatten(ev.map(l => l.eventMeta.consumers));
   }
   
@@ -1161,6 +1228,12 @@ class AsyncEvents {
         } else {
           if (this.options.debug.all && this.options.debug.addListener || listener.listenerOptions.trace) {
             console.warn(`[em-async-events]-948: ${listener.listenerOptions.once ? this.options.onceEvent : this.options.onEvent} couldn't "catchUp" to a currently lingering lingeringEvent "%o". Please adjust listener options catchUp time from: %o to something greater than %o if this is desired.`, eventName, listener.listenerOptions.catchUp, elapsed);
+            if (listener.listenerOptions.verbose) {
+              console.groupCollapsed('catchUp verbose:');
+              console.info('Listener:');
+              console.table(listener);
+              console.groupEnd();
+            }
           }
         }
       }
@@ -1404,8 +1477,14 @@ class AsyncEvents {
       if (this.listenersStore[eventName][li].subscriberID === subscriberID && (!id || id === this.listenersStore[eventName][li].id)) {
         if (this.options.debug.all && this.options.debug.removeListener || this.listenersStore[eventName][li].listenerOptions.trace) {
           const listener = this.listenersStore[eventName][li];
-          const { listenerOrigin } = listener;
-          console.info(`[em-async-events]-694: ${this.options.fallSilent || '$fallSilent(removeListener)'} eventName: %o origin: %o \nListener: %o`, eventName, _.get(listenerOrigin, '$options.name', '???'), listener);
+          const { listenerOrigin, listenerOptions } = listener;
+          console.warn(`[em-async-events]-694: ${this.options.fallSilent || '$fallSilent(removeListener)'} eventName: %o origin: %o `, eventName, _.get(listenerOrigin, '$options.name', '???'));
+          if (listenerOptions.verbose) {
+            console.groupCollapsed('removeListener verbose:');
+            console.info('Listener:');
+            console.table(listener);
+            console.groupEnd();
+          }
         }
         
         this.listenersStore[eventName].splice(li, 1);
@@ -1456,8 +1535,14 @@ class AsyncEvents {
     if (~indexOfSubscriber) {
       if (this.options.debug.all && this.options.debug.removeListener || this.listenersStore[eventName][indexOfSubscriber].listenerOptions.trace) {
         const listener = this.listenersStore[eventName][indexOfSubscriber];
-        const { listenerOrigin } = listener;
-        console.info(`[em-async-events]-721: ${this.options.fallSilent || '$fallSilent(this.__removeCallbacks)'} eventName: %o origin: %o \nListener: %o`, eventName, _.get(listenerOrigin, '$options.name', '???'), listener);
+        const { listenerOrigin, listenerOptions } = listener;
+        console.warn(`[em-async-events]-721: ${this.options.fallSilent || '$fallSilent(this.__removeCallbacks)'} eventName: %o origin: %o `, eventName, _.get(listenerOrigin, '$options.name', '???'));
+        if (listenerOptions.verbose) {
+          console.groupCollapsed('__removeCallbacks verbose:');
+          console.info('Listener:');
+          console.table(listener);
+          console.groupEnd();
+        }
       }
       
       this.listenersStore[eventName].splice(indexOfSubscriber, 1);
@@ -1474,8 +1559,14 @@ class AsyncEvents {
   __removeAllListeners ({ eventName }) {
     for (let event in this.listenersStore) {
       if (event === eventName) {
-        if (this.options.debug.all && this.options.debug.eraseEvent) {
-          console.info(`[em-async-events]-737: ${this.options.eraseEvent} eventName: %o \nListener: %o`, eventName, this.listenersStore[eventName]);
+        if (this.options.debug.all && this.options.debug.eraseEvent || event.eventMeta.eventOptions.trace) {
+          console.warn(`[em-async-events]-737: ${this.options.eraseEvent} eventName: %o`, eventName);
+          if (event.eventMeta.eventOptions.verbose) {
+            console.groupCollapsed('__removeAllListeners verbose:');
+            console.info('Listeners:');
+            console.table(this.listenersStore[eventName]);
+            console.groupEnd();
+          }
         }
         delete this.listenersStore[eventName];
       }
