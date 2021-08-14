@@ -300,21 +300,61 @@ describe(`# em-async-events`, function () {
     let accum = 0, vows = [];
     const serialSpy = sinon.spy((payl) => new Promise(r => setTimeout(() => r(accum += payl), payl)));
     
-    test(`serial listener callback invocation`, async function () {
+    test(`serial listener callback invocation. runs 3 events in series, with gaps between them that should take at least 650ms.`, async function () {
       ae.onEvent('serial-event', serialSpy, { serialCallbacks: true });
+      
       const startTime = Date.now();
       {
         vows.push(ae.emitEvent('serial-event', 200));
-        await new Promise(resolve => setTimeout(() => resolve(vows.push(ae.emitEvent('serial-event', 150))), 50));
-        await new Promise(resolve => setTimeout(() => resolve(vows.push(ae.emitEvent('serial-event', 100))), 50));
+        // just wait a few ms before emitting another event
+        await new Promise(resolve => setTimeout(() => {
+          resolve(vows.push(ae.emitEvent('serial-event', 150)));
+        }, 50));
+        // just wait a few ms before emitting another event
+        await new Promise(resolve => setTimeout(() => {
+          resolve(vows.push(ae.emitEvent('serial-event', 100)));
+        }, 150));
+        // now finally wait for all 3 to resolve
         await Promise.all(vows);
       }
       const stopTime = Date.now();
       
-      expect(serialSpy).to.have.been.calledThrice;
-      expect(stopTime - startTime).to.be.at.least(550); // this shows that the callback waited for all the given timeouts + the gaps between
-      expect(accum).to.be.equal(450); // just checking we got all arguments correctly
+      // this shows that the callback waited for all the given timeouts + the gaps in between. extra processing time makes this go above 650
+      expect(stopTime - startTime).to.be.at.least(650);
     });
+    
+    test(`"serialSpy" was called 3 times, once for each event emitted.`, async function () {
+      expect(serialSpy).to.have.been.calledThrice;
+    });
+    
+    describe(`# events were passed the correct arguments (it wasn't a race condition)`, function () {
+      test(`accumulated result has correct value (accumulated from each call)`, async function () {
+        expect(accum).to.be.equal(450); // just checking we got all arguments correctly
+      });
+      
+      test(`first event promise`, async function () {
+        expect(serialSpy.firstCall.firstArg).to.be.equal(200);
+      });
+      test(`second event promise`, async function () {
+        expect(serialSpy.secondCall.firstArg).to.be.equal(150);
+      });
+      test(`third event promise`, async function () {
+        expect(serialSpy.thirdCall.firstArg).to.be.equal(100);
+      });
+    });
+    
+    describe(`# each event promise resolved to correct result`, function () {
+      test(`first event promise`, async function () {
+        expect(await vows[0]).to.be.equal(200);
+      });
+      test(`second event promise`, async function () {
+        expect(await vows[1]).to.be.equal(350);
+      });
+      test(`third event promise`, async function () {
+        expect(await vows[2]).to.be.equal(450);
+      });
+    });
+    
   });
   
 });
