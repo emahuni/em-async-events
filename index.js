@@ -908,6 +908,16 @@ class AsyncEvents {
    */
   __runCallbackPromise (listener, callbackPromise, payload, eventMeta) {
     listener.calls.push(callbackPromise);
+    
+    eventMeta.wasConsumed = true;
+    
+    // todo should we replace exclusive listeners?
+    // const exclusiveListener = this.__getExclusiveListener(listener.eventName, this.listenersStore); // todo ???
+    
+    // keep track of lingering event listeners where we can track them in userland. todo clean all resolved listeners when we reach maxCacheCount (rename maxCachedPayloads to this and reuse everywhere we need cache things (Infinite events can gobble memory if uncleared)) todo create userland utils to check events and listeners promise statuses.
+    eventMeta.consumers.push(listener);
+    
+    
     /** do the actual call of the callback */
     let finalOutcome = listener.callback(payload, {
       extra:        listener.listenerOptions.extra,
@@ -951,14 +961,6 @@ class AsyncEvents {
     
     eventMeta.payloads.push(outcome);
     if (eventMeta.payloads.length >= this.options.maxCachedPayloads) eventMeta.payloads.shift();
-    
-    eventMeta.wasConsumed = true;
-    
-    // todo should we replace exclusive listeners?
-    // const exclusiveListener = this.__getExclusiveListener(listener.eventName, this.listenersStore); // todo ???
-    
-    // keep track of lingering event listeners where we can track them in userland. todo clean all resolved listeners when we reach maxCacheCount (rename maxCachedPayloads to this and reuse everywhere we need cache things (Infinite events can gobble memory if uncleared)) todo create userland utils to check events and listeners promise statuses.
-    eventMeta.consumers.push(listener);
     
     listener.calls.splice(_.findIndex(listener.calls, c => c.id === callbackPromise.id), 1);
     return outcome;
@@ -1021,7 +1023,7 @@ class AsyncEvents {
       
       this.__stashListenerOrEvent(ev, eventName, this.lingeringEventsStore, exclusiveLingeredEvent);
       
-      this.__decayLingeredEvent(ev);
+      this.__decayLingeredEvent(ev, eventName, eventOptions, eventMeta);
       
       return ev.lingeringEventPromise.promise;
     }
@@ -1033,37 +1035,36 @@ class AsyncEvents {
   }
   
   
-  __decayLingeredEvent (ev) {
-    const { eventMeta: { eventOptions, eventName } } = ev;
-    
+  __decayLingeredEvent (ev, eventName, eventOptions) {
     // order the splice after linger ms later
     let timeout = eventOptions.linger;
     if (timeout >= Infinity) timeout = 2147483647; // set to maximum allowed so that we don't have an immediate bailout
     
     setTimeout((e) => {
-      const { eventMeta: { eventOptions, eventName, consumers } } = e;
-      
-      console.debug(`[index]-1002: () - eventName: %o event options and consumers:`, eventName);
-      console.table(eventOptions);
+      const consumers = this.pendingEventConsumers(ev);
       console.table(consumers);
-      
-      const l = (consumers || []).filter(l => l.listenerPromise.settlement === PENDING);
-      if (l.length && this.options.debug.all && this.options.debug.lingerEvent || eventOptions.trace) {
-        console.warn(`[em-async-events]-1005: - eventName: %o "linger" time has run out whilst it's still being consumed. It is removed, but its promise will be settled once the consumers finish.`, eventName);
+      console.warn(`[index]-1007: () - consumers: %o`, consumers);
+      if (consumers.length) {
+        if (this.options.debug.all && this.options.debug.lingerEvent || eventOptions.trace) {
+          console.warn(`[em-async-events]-1005: - eventName: %o "linger" time has run out whilst it's still being consumed. It is removed, but its promise will be settled once the consumers finish.`, eventName);
+          console.table(consumers);
+        }
+        
+        Promise.all(consumers.map(c => c.listenerPromise.promise)).then((vows) => {
+          console.debug(`[index]-1011: () - vows: %o`, vows);
+          this.__settleLingeredEvent(ev, eventOptions, eventName);
+          if (consumers.length && this.options.debug.all && this.options.debug.lingerEvent || eventOptions.trace) console.warn(`[em-async-events]-1016: - eventName: %o "linger" consumers have finished.`, eventName);
+        });
+      } else {
+        this.__settleLingeredEvent(ev, eventOptions, eventName);
       }
-      Promise.all(l).then(() => {
-        this.__settleLingeredEvent(e);
-        if (l.length && this.options.debug.all && this.options.debug.lingerEvent || eventOptions.trace) console.warn(`[em-async-events]-1016: - eventName: %o "linger" consumers have finished.`, eventName);
-      });
       
-      const i = this.lingeringEventsStore[eventName].findIndex(le => le.id === e.id);
-      this.__removeLingeringEventAtIndex(eventName, i, eventOptions, e.eventMeta);
+      const i = this.lingeringEventsStore[eventName].findIndex(le => le.id === ev.id);
+      this.__removeLingeringEventAtIndex(eventName, i, eventOptions, ev.eventMeta);
     }, timeout, ev);
   }
   
-  __settleLingeredEvent (ev) {
-    const { eventMeta: { eventOptions, eventName } } = ev;
-    
+  __settleLingeredEvent (ev, eventOptions, eventName) {
     // finally resolve/reject lingering event promise
     if (ev.eventMeta.wasConsumed) {
       ev.lingeringEventPromise.resolve(ev.payload);
