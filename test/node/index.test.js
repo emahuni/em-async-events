@@ -12,7 +12,7 @@ const onceEventSpy = sinon.spy((p, m) => {
 });
 const onceEventSpy2Response = 'once-event-spy-2-response';
 const onceEventSpy2 = sinon.spy((p, m) => {
-  return new Promise((resolve) => setTimeout(resolve, 200, onceEventSpy2Response));
+  return new Promise((resolve) => setTimeout(resolve, 1500, onceEventSpy2Response));
 });
 
 
@@ -166,53 +166,89 @@ describe(`# em-async-events`, function () {
           expect(ae.hasListener('once-event')).to.be.false;
         });
         
-        test(`new listener "hears" lingering event without callback, and is not curated.`, async function () {
-          vowOnceEvent1 = ae.onceEvent('once-event', undefined, undefined, 111);
-          expect(ae.hasListener('once-event')).to.be.false;
+        
+        
+        describe(`# new "once-event" listener "hears" lingering event without callback`, function () {
+          test(`lingered event "once-event" has 1 consumer.`, async function () {
+            const consumers = ae.eventConsumers(ae.lingeringEvents('once-event'));
+            expect(consumers).to.have.lengthOf(1);
+          });
+          
+          test(`listener "vowOnceEvent1" is a promise after listening to "once-event" lingering event.`, async function () {
+            vowOnceEvent1 = ae.onceEvent('once-event', undefined, undefined, 111);
+            expect(isPromise(vowOnceEvent1)).to.be.true;
+          });
+          
+          test(`listener was not stashed.`, async function () {
+            expect(ae.hasListener('once-event')).to.be.false;
+          });
+          
+          test(`"vowOnceEvent1" resolves to "onceEventSpy" response.`, async function () {
+            expect(await vowOnceEvent1).to.be(onceEventSpyResponse);
+          });
+          
+          test(`lingered event "once-event" has 2 consumers, even though this listener wasn't stashed.`, async function () {
+            const consumers = ae.eventConsumers(ae.lingeringEvents('once-event'));
+            expect(consumers).to.have.lengthOf(2);
+          });
         });
         
-        test(`"vowOnceEvent1" resolves to "onceEventSpy" response.`, async function () {
-          expect(isPromise(vowOnceEvent1)).to.be.true;
-          expect(await vowOnceEvent1).to.be(onceEventSpyResponse);
+        
+        
+        describe(`# new "once-event" listener "hears" lingering event with callback`, function () {
+          test(`listener "vowOnceEvent2" is a promise after listening to "once-event" lingering event.`, async function () {
+            vowOnceEvent2 = ae.onceEvent('once-event', onceEventSpy2, undefined, 222);
+            expect(isPromise(vowOnceEvent2)).to.be.true;
+          });
+          
+          test(`listener was stashed since "onceEventSpy2" is a promise that takes 1500ms to resolve.`, async function () {
+            expect(ae.hasLingeringEvent('once-event')).to.be.true;
+            expect(ae.hasListener('once-event')).to.be.true;
+          });
+          
+          test(`lingered event "once-event" now has 3 consumers.`, async function () {
+            const consumers = ae.eventConsumers(ae.lingeringEvents('once-event'));
+            expect(consumers).to.have.lengthOf(3);
+          });
+          
+          test(`lingered event "once-event" has only 1 PENDING consumer after 500ms.`, async function () {
+            await new Promise(r => setTimeout(r, 500));
+            const consumers = ae.pendingEventConsumers(ae.lingeringEvents('once-event'));
+            expect(consumers).to.have.lengthOf(1);
+          });
+          
+          test(`lingered event "once-event" decays after at least 1000ms ("vowEmit_onceEvent" promise does NOT resolve).`, async function () {
+            // const clock = sinon.useFakeTimers({ now: new Date(), shouldAdvanceTime: true });
+            // await clock.tickAsync(1200);
+            await new Promise(r => setTimeout(r, 500));
+            // console.timeEnd('once-event');
+            expect(ae.hasLingeringEvent('once-event')).to.be.false;
+          });
+          
+          test(`long promised "once-event" listener is still running...`, async function () {
+            expect(ae.hasListener('once-event')).to.be.true;
+          });
+          
+          test(`wait for the listener "vowOnceEvent2" to resolve to "onceEventSpy2" response.`, async function () {
+            expect(await vowOnceEvent2).to.be(onceEventSpy2Response);
+            console.timeEnd('once-event');
+          });
+          
+          test(`"onceEventSpy2" to have been called once and returned the appropriate response`, async function () {
+            expect(onceEventSpy2).to.have.been.calledOnce;
+            expect(onceEventSpy2).to.have.returned(sinon.match.instanceOf(Promise));
+            return expect(onceEventSpy2.returnValues[0]).to.eventually.become(onceEventSpy2Response);
+          });
+          
+          test(`long promised "once-event" listener no longer running...`, async function () {
+            expect(ae.hasListener('once-event')).to.be.false;
+          });
+          
+          test(`"vowEmit_onceEvent" promise resolves with result of last callback "onceEventSpy2" and wasn't rejected`, async function () {
+            expect(await vowEmit_onceEvent).to.be.equal(onceEventSpy2Response);
+          });
         });
         
-        test(`new listener "hears" lingering event with callback, and is curated since onceEventSpy2 is a promise that takes time to resolve.`, async function () {
-          expect(ae.hasLingeringEvent('once-event')).to.be.true;
-          vowOnceEvent2 = ae.onceEvent('once-event', onceEventSpy2);
-          // since it is still resolving its promise, it should take a while; about 200ms
-          expect(ae.hasListener('once-event')).to.be.true;
-        });
-        
-        test(`lingered event "once-event" has correct number of consumers.`, async function () {
-          const consumers = ae.eventConsumers(ae.lingeringEvents('once-event'));
-          expect(consumers).to.have.lengthOf(2);
-        });
-        
-        test(`lingered event "once-event" has only 1 is PENDING consumer.`, async function () {
-          const consumers = ae.pendingEventConsumers(ae.lingeringEvents('once-event'));
-          expect(consumers).to.have.lengthOf(2);
-        });
-        
-        /*
-        test(`"vowEmit_onceEvent" promise resolves with result of last callback "onceEventSpy2" and wasn't rejected`, async function () {
-          const clock = sinon.useFakeTimers({ now: new Date(), shouldAdvanceTime: true });
-          expect(await vowEmit_onceEvent).to.be.equal(onceEventSpy2Response);
-        });
-        */
-        test(`"vowOnceEvent2" resolves to "onceEventSpy2" response.`, async function () {
-          expect(isPromise(vowOnceEvent2)).to.be.true;
-          expect(await vowOnceEvent2).to.be(onceEventSpy2Response);
-        });
-        
-        test(`"onceEventSpy2" to have been called once and returned the appropriate response`, async function () {
-          expect(onceEventSpy2).to.have.been.calledOnce;
-          expect(onceEventSpy2).to.have.returned(sinon.match.instanceOf(Promise));
-          return expect(onceEventSpy2.returnValues[0]).to.eventually.become(onceEventSpy2Response);
-        });
-        
-        test(`"vowEmit_onceEvent" promise resolves with result of last callback "onceEventSpy2" and wasn't rejected`, async function () {
-          expect(await vowEmit_onceEvent).to.be.equal(onceEventSpy2Response);
-        });
         
         
         test(`"once-event" lingering event and listeners are clear from stores`, async function () {
