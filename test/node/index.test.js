@@ -12,7 +12,7 @@ const onceEventSpy = sinon.spy((p, m) => {
 });
 const onceEventSpy2Response = 'once-event-spy-2-response';
 const onceEventSpy2 = sinon.spy((p, m) => {
-  return onceEventSpy2Response;
+  return new Promise((resolve) => setTimeout(resolve, 200, onceEventSpy2Response));
 });
 
 
@@ -56,7 +56,7 @@ const defaultOptionsMatcher = {
     chain:               _.isBoolean,
     islocallyExclusive:  _.isBoolean,
     isGloballyExclusive: _.isBoolean,
-    replaceExclusive:       _.isBoolean,
+    replaceExclusive:    _.isBoolean,
     trace:               _.isBoolean,
     verbose:             _.isBoolean,
     rejectUnconsumed:    _.isBoolean,
@@ -97,6 +97,7 @@ describe(`# em-async-events`, function () {
     });
     
     it(`emitted events "once-event" and "on-event" separately, and returned unresolved promises.`, async function () {
+      console.time('once-event');
       vowEmit_onceEvent = ae.emitEvent('once-event', payload_onceEvent);
       // increase linger time coz we are going to wait for once-event to stop lingering, which eats about 500ms
       vowEmit_onEvent = ae.emitEvent('on-event', payload_onEvent, { linger: 1000, rejectUnconsumed: true });
@@ -166,40 +167,41 @@ describe(`# em-async-events`, function () {
         });
         
         test(`new listener "hears" lingering event without callback, and is not curated.`, async function () {
-          vowOnceEvent1 = ae.onceEvent('once-event', undefined, undefined,  111 );
+          vowOnceEvent1 = ae.onceEvent('once-event', undefined, undefined, 111);
           expect(ae.hasListener('once-event')).to.be.false;
         });
         
         test(`"vowOnceEvent1" resolves to "onceEventSpy" response.`, async function () {
           expect(isPromise(vowOnceEvent1)).to.be.true;
-          return expect(vowOnceEvent1).to.become(onceEventSpyResponse);
+          expect(await vowOnceEvent1).to.be(onceEventSpyResponse);
         });
         
-        test(`new listener "hears" lingering event with callback, and is not curated.`, async function () {
+        test(`new listener "hears" lingering event with callback, and is curated since onceEventSpy2 is a promise that takes time to resolve.`, async function () {
           expect(ae.hasLingeringEvent('once-event')).to.be.true;
           vowOnceEvent2 = ae.onceEvent('once-event', onceEventSpy2);
-          
-          expect(ae.hasListener('once-event')).to.be.false;
+          // since it is still resolving its promise, it should take a while; about 200ms
+          expect(ae.hasListener('once-event')).to.be.true;
         });
         
         test(`"vowOnceEvent2" resolves to "onceEventSpy2" response.`, async function () {
           expect(isPromise(vowOnceEvent2)).to.be.true;
-          return expect(vowOnceEvent2).to.become(onceEventSpy2Response);
+          expect(await vowOnceEvent2).to.be(onceEventSpy2Response);
         });
         
         test(`"onceEventSpy2" to have been called once and returned the appropriate response`, async function () {
           expect(onceEventSpy2).to.have.been.calledOnce;
-          expect(onceEventSpy2).to.have.returned(onceEventSpy2Response);
+          expect(onceEventSpy2).to.have.returned(sinon.match.instanceOf(Promise));
+          return expect(onceEventSpy2.returnValues[0]).to.eventually.become(onceEventSpy2Response);
         });
         
         test(`"vowEmit_onceEvent" promise resolves with result of last callback "onceEventSpy2" and wasn't rejected`, async function () {
-          const outcome = await vowEmit_onceEvent;
-          expect(outcome).to.be.equal(onceEventSpy2Response);
+          expect(await vowEmit_onceEvent).to.be.equal(onceEventSpy2Response);
         });
         
         test(`"once-event" lingering event and listeners are clear from stores`, async function () {
-          expect(ae.hasListener('once-event')).to.be.false;
+          //console.timeEnd('once-event');
           expect(ae.hasLingeringEvent('once-event')).to.be.false;
+          expect(ae.hasListener('once-event')).to.be.false;
         });
         
         describe(`# lingering disabled`, function () {
@@ -229,10 +231,8 @@ describe(`# em-async-events`, function () {
       
       describe(`# "on-event" lingering`, function () {
         test(`"vowEmit_onEvent" and "vowEmit_onEvent2" resolve to the event's last callback payload.`, async function () {
-          const outcome2 = await vowEmit_onEvent;
-          const outcome3 = await vowEmit_onEvent2;
-          expect(outcome2).to.be.equal(payload_onEvent);
-          expect(outcome3).to.be.equal(payload_onEvent2);
+          expect(await vowEmit_onEvent).to.be.equal(payload_onEvent);
+          expect(await vowEmit_onEvent2).to.be.equal(payload_onEvent2);
         });
       });
     });

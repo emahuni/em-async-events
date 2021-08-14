@@ -634,7 +634,7 @@ class AsyncEvents {
     }
     
     // results that happen here will be sent thru the listener promise chain.
-    this.__invokeLingeredEventsAtAddListener({ ...arguments[0], listener });
+    this.__invokeLingeredEventsAtAddListener({ eventName, listener });
     
     // only add to listeners if the it's not once or isn't settled yet.
     if (!listenerOptions.once || listener.listenerPromise.settlement === PENDING) {
@@ -840,7 +840,7 @@ class AsyncEvents {
             });
           }
           
-          
+          // todo use break label instead to control loops on for and do-while loops
           if (stopHere) {
             eventMeta.stopNow = true;
             break;
@@ -883,7 +883,10 @@ class AsyncEvents {
     if (isPromise(finalOutcome)) {
       // todo check error handling of promise here
       // noinspection BadExpressionStatementJS
-      return finalOutcome.then((outcome) => this.__settleCallbackPromise(listener, callbackPromise, outcome, eventMeta));
+      return finalOutcome.then((outcome) => {
+        if (listener.listenerOptions.once) this.__removeListeners({ ...listener });
+        return this.__settleCallbackPromise(listener, callbackPromise, outcome, eventMeta);
+      });
     } else {
       return this.__settleCallbackPromise(listener, callbackPromise, finalOutcome, eventMeta);
     }
@@ -1071,6 +1074,8 @@ class AsyncEvents {
           if (eventMeta.wasConsumed) {
             // lingeringEvent.eventMeta.listeners[listener.eventName].push(listener);
             // const exclusiveEvent = this.__getExclusiveEvent(listener.eventName, this.lingeringEventsStore);
+            
+            // keep track of lingering event listeners where we can track them in userland. todo clean all resolved listeners when we reach maxCacheCount (rename maxCachedPayloads to this and reuse everywhere we need cache things (Infinite events can gobble memory if uncleared)) todo create userland utils to check events and listeners promise statuses.
             this.__stashListenerOrEvent(listener, listener.eventName, lingeringEvent.eventMeta.listeners);
             
             lingeringEvent.payload = payload;
