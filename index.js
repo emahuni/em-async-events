@@ -1081,7 +1081,7 @@ class AsyncEvents {
   __eventConsumersAtState (ev, state) {
     const consumers = this.__eventConsumers(ev);
     if (_.isNil(state)) return consumers;
-    return consumers.map(c => c.listenerPromise.settlement === state);
+    return consumers.filter(c => c.listenerPromise.settlement === state);
   }
   
   /**
