@@ -183,6 +183,22 @@ describe(`# em-async-events`, function () {
           expect(ae.hasListener('once-event')).to.be.true;
         });
         
+        test(`lingered event "once-event" has correct number of consumers.`, async function () {
+          const consumers = ae.eventConsumers(ae.lingeringEvents('once-event'));
+          expect(consumers).to.have.lengthOf(2);
+        });
+        
+        test(`lingered event "once-event" has only 1 is PENDING consumer.`, async function () {
+          const consumers = ae.pendingEventConsumers(ae.lingeringEvents('once-event'));
+          expect(consumers).to.have.lengthOf(2);
+        });
+        
+        /*
+        test(`"vowEmit_onceEvent" promise resolves with result of last callback "onceEventSpy2" and wasn't rejected`, async function () {
+          const clock = sinon.useFakeTimers({ now: new Date(), shouldAdvanceTime: true });
+          expect(await vowEmit_onceEvent).to.be.equal(onceEventSpy2Response);
+        });
+        */
         test(`"vowOnceEvent2" resolves to "onceEventSpy2" response.`, async function () {
           expect(isPromise(vowOnceEvent2)).to.be.true;
           expect(await vowOnceEvent2).to.be(onceEventSpy2Response);
@@ -198,11 +214,15 @@ describe(`# em-async-events`, function () {
           expect(await vowEmit_onceEvent).to.be.equal(onceEventSpy2Response);
         });
         
+        
         test(`"once-event" lingering event and listeners are clear from stores`, async function () {
           //console.timeEnd('once-event');
           expect(ae.hasLingeringEvent('once-event')).to.be.false;
           expect(ae.hasListener('once-event')).to.be.false;
         });
+        
+        
+        
         
         describe(`# lingering disabled`, function () {
           let onceEventR, emitOnceEventR, payload = 'simple-payload';

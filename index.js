@@ -359,6 +359,31 @@ class AsyncEvents {
     return this.__storeHas(store, eventIDs);
   }
   
+  listeners (eventIDs) {
+    return _.flatten(_.values(this.__storeGet(this.listenersStore, eventIDs)));
+  }
+  
+  lingeringEvents (eventIDs) {
+    return _.flatten(_.values(this.__storeGet(this.lingeringEventsStore, eventIDs)));
+  }
+  
+  eventConsumers (event) {
+    return this.__eventConsumersAtState(event);
+  }
+  
+  pendingEventConsumers (event) {
+    return this.__eventConsumersAtState(event, PENDING);
+  }
+  
+  resolvedEventConsumers (event) {
+    return this.__eventConsumersAtState(event, RESOLVED);
+  }
+  
+  rejectedEventConsumers (event) {
+    return this.__eventConsumersAtState(event, REJECTED);
+  }
+  
+  
   /**
    * check if given store has the given subjects and that they are not empty
    * @param {object} store - the store to check
@@ -370,6 +395,19 @@ class AsyncEvents {
     if (!subjects) return !_.isEmpty(store);
     if (!_.isArray(subjects)) subjects = [subjects];
     return subjects.some(eid => !_.isEmpty(_.get(store, eid)));
+  }
+  
+  /**
+   * get store subjects
+   * @param {object} store - the store to check
+   * @param {string|array<string>} [subjects] - subjects to check. Just eventIDs. If undefined or empty then it checks if store is empty.
+   * @return {array}
+   * @private
+   */
+  __storeGet (store, subjects) {
+    if (!subjects) return [];
+    if (!_.isArray(subjects)) subjects = [subjects];
+    return _.pick(store, subjects);
   }
   
   
@@ -825,7 +863,7 @@ class AsyncEvents {
             if (listener.listenerPromise.settlement === PENDING) {
               listener.listenerPromise.settlement = REJECTED;
               // rejects with previous finalOutcome.
-              listener.listenerPromise.reject(finalOutcome);
+              listener.listenerPromise.reject(e);
               listener.listenerPromise.outcome = finalOutcome;
             }
           }
@@ -1033,6 +1071,17 @@ class AsyncEvents {
       if (eventOptions.rejectUnconsumed) ev.lingeringEventPromise.reject(`Lingered Event "${eventName}" NOT consumed!`);
       else ev.lingeringEventPromise.resolve();
     }
+  }
+  
+  __eventConsumers (ev) {
+    if(!_.isArray(ev)) ev = [ev];
+    return _.flatten(ev.map(l => l.eventMeta.consumers));
+  }
+  
+  __eventConsumersAtState (ev, state) {
+    const consumers = this.__eventConsumers(ev);
+    if (_.isNil(state)) return consumers;
+    return consumers.map(c => c.listenerPromise.settlement === state);
   }
   
   /**
