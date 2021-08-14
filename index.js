@@ -709,7 +709,7 @@ class AsyncEvents {
     _.merge(eventMeta, {
       id:             this.__genUniqID(),
       eventName,
-      listeners:      this.listenersStore,
+      consumers:      [],
       payloads:       [],
       eventTimestamp: Date.now(),
       eventOptions:   _.cloneDeep(eventOptions),
@@ -808,7 +808,6 @@ class AsyncEvents {
             if (_.isFunction(listener.callback)) {
               //  check if calls has anything
               if (listener.calls.length && listener.listenerOptions.callbacks.serialExecution) {
-                // todo check if finalOutcome will get the return of __runCallbackPromise in then not Promise.all?
                 finalOutcome = Promise.all(listener.calls.map(c => c.promise))
                                       .then((outcome) => {
                                         return this.__runCallbackPromise(listener, callbackPromise, payload, eventMeta);
@@ -917,6 +916,12 @@ class AsyncEvents {
     
     eventMeta.wasConsumed = true;
     
+    // todo should we replace exclusive listeners?
+    // const exclusiveListener = this.__getExclusiveListener(listener.eventName, this.listenersStore); // todo ???
+    
+    // keep track of lingering event listeners where we can track them in userland. todo clean all resolved listeners when we reach maxCacheCount (rename maxCachedPayloads to this and reuse everywhere we need cache things (Infinite events can gobble memory if uncleared)) todo create userland utils to check events and listeners promise statuses.
+    eventMeta.consumers.push(listener);
+    
     listener.calls.splice(_.findIndex(listener.calls, c => c.id === callbackPromise.id), 1);
     return outcome;
   }
@@ -969,18 +974,18 @@ class AsyncEvents {
       // to be resolved by run callbacks, see this.__invokeLingeredEventsAtAddListener
       const lingeringEventPromise = this.__createPromise();
       eventMeta.isLingered = true;
-      const event = {
+      const ev = {
         id: eventMeta.id,
         lingeringEventPromise,
         payload,
         eventMeta,
       };
       
-      this.__stashListenerOrEvent(event, eventName, this.lingeringEventsStore, exclusiveLingeredEvent);
+      this.__stashListenerOrEvent(ev, eventName, this.lingeringEventsStore, exclusiveLingeredEvent);
       
-      this.__decayLingeredEvent(event);
+      this.__decayLingeredEvent(ev);
       
-      return event.lingeringEventPromise.promise;
+      return ev.lingeringEventPromise.promise;
     }
     
     if (eventMeta.wasConsumed) return Promise.resolve(payload);
@@ -990,31 +995,43 @@ class AsyncEvents {
   }
   
   
-  __decayLingeredEvent (event) {
-    const { eventMeta: { eventOptions, eventName } } = event;
+  __decayLingeredEvent (ev) {
+    const { eventMeta: { eventOptions, eventName } } = ev;
     
     // order the splice after linger ms later
     let timeout = eventOptions.linger;
     if (timeout >= Infinity) timeout = 2147483647; // set to maximum allowed so that we don't have an immediate bailout
     
     setTimeout((e) => {
-      this.__settleLingeredEvent(e);
+      const { eventMeta: { eventOptions, eventName, consumers } } = e;
       
-      const { eventMeta: { eventOptions, eventName } } = e;
+      console.debug(`[index]-1002: () - eventName: %o event options and consumers:`, eventName);
+      console.table(eventOptions);
+      console.table(consumers);
+      
+      const l = (consumers || []).filter(l => l.listenerPromise.settlement === PENDING);
+      if (l.length && this.options.debug.all && this.options.debug.lingerEvent || eventOptions.trace) {
+        console.warn(`[em-async-events]-1005: - eventName: %o "linger" time has run out whilst it's still being consumed. It is removed, but its promise will be settled once the consumers finish.`, eventName);
+      }
+      Promise.all(l).then(() => {
+        this.__settleLingeredEvent(e);
+        if (l.length && this.options.debug.all && this.options.debug.lingerEvent || eventOptions.trace) console.warn(`[em-async-events]-1016: - eventName: %o "linger" consumers have finished.`, eventName);
+      });
+      
       const i = this.lingeringEventsStore[eventName].findIndex(le => le.id === e.id);
       this.__removeLingeringEventAtIndex(eventName, i, eventOptions, e.eventMeta);
-    }, timeout, event);
+    }, timeout, ev);
   }
   
-  __settleLingeredEvent (event) {
-    const { eventMeta: { eventOptions, eventName } } = event;
+  __settleLingeredEvent (ev) {
+    const { eventMeta: { eventOptions, eventName } } = ev;
     
     // finally resolve/reject lingering event promise
-    if (event.eventMeta.wasConsumed) {
-      event.lingeringEventPromise.resolve(event.payload);
+    if (ev.eventMeta.wasConsumed) {
+      ev.lingeringEventPromise.resolve(ev.payload);
     } else {
-      if (eventOptions.rejectUnconsumed) event.lingeringEventPromise.reject(`Lingered Event "${eventName}" NOT consumed!`);
-      else event.lingeringEventPromise.resolve();
+      if (eventOptions.rejectUnconsumed) ev.lingeringEventPromise.reject(`Lingered Event "${eventName}" NOT consumed!`);
+      else ev.lingeringEventPromise.resolve();
     }
   }
   
@@ -1081,12 +1098,6 @@ class AsyncEvents {
           });
           
           if (eventMeta.wasConsumed) {
-            // lingeringEvent.eventMeta.listeners[listener.eventName].push(listener);
-            // const exclusiveEvent = this.__getExclusiveEvent(listener.eventName, this.lingeringEventsStore);
-            
-            // keep track of lingering event listeners where we can track them in userland. todo clean all resolved listeners when we reach maxCacheCount (rename maxCachedPayloads to this and reuse everywhere we need cache things (Infinite events can gobble memory if uncleared)) todo create userland utils to check events and listeners promise statuses.
-            this.__stashListenerOrEvent(listener, listener.eventName, lingeringEvent.eventMeta.listeners);
-            
             lingeringEvent.payload = payload;
             
             // todo bait logic should be done only when all listeners have taken the bait, since we can add multiple listeners per onEvent/onceEvent
