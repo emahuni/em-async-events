@@ -978,7 +978,7 @@ class AsyncEvents {
       
       this.__stashListenerOrEvent(event, eventName, this.lingeringEventsStore, exclusiveLingeredEvent);
       
-      this.__decayLingeredEvent(eventName, event, eventOptions);
+      this.__decayLingeredEvent(event);
       
       return event.lingeringEventPromise.promise;
     }
@@ -990,23 +990,32 @@ class AsyncEvents {
   }
   
   
-  __decayLingeredEvent (eventName, event, eventOptions) {
+  __decayLingeredEvent (event) {
+    const { eventMeta: { eventOptions, eventName } } = event;
+    
     // order the splice after linger ms later
     let timeout = eventOptions.linger;
     if (timeout >= Infinity) timeout = 2147483647; // set to maximum allowed so that we don't have an immediate bailout
     
     setTimeout((e) => {
-      // finally resolve/reject lingering event promise
-      if (e.eventMeta.wasConsumed) {
-        e.lingeringEventPromise.resolve(e.payload);
-      } else {
-        if (eventOptions.rejectUnconsumed) e.lingeringEventPromise.reject(`Lingered Event "${eventName}" NOT consumed!`);
-        else e.lingeringEventPromise.resolve();
-      }
+      this.__settleLingeredEvent(e);
       
+      const { eventMeta: { eventOptions, eventName } } = e;
       const i = this.lingeringEventsStore[eventName].findIndex(le => le.id === e.id);
       this.__removeLingeringEventAtIndex(eventName, i, eventOptions, e.eventMeta);
     }, timeout, event);
+  }
+  
+  __settleLingeredEvent (event) {
+    const { eventMeta: { eventOptions, eventName } } = event;
+    
+    // finally resolve/reject lingering event promise
+    if (event.eventMeta.wasConsumed) {
+      event.lingeringEventPromise.resolve(event.payload);
+    } else {
+      if (eventOptions.rejectUnconsumed) event.lingeringEventPromise.reject(`Lingered Event "${eventName}" NOT consumed!`);
+      else event.lingeringEventPromise.resolve();
+    }
   }
   
   /**
