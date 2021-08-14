@@ -844,10 +844,11 @@ class AsyncEvents {
           const callbackPromise = this.__createPromise();
           try {
             if (_.isFunction(listener.callback)) {
-              //  check if calls has anything
+              //  check if calls has anything and if we should be doing serial execution
               if (listener.calls.length && listener.listenerOptions.callbacks.serialExecution) {
                 finalOutcome = Promise.all(listener.calls.map(c => c.promise))
                                       .then((outcome) => {
+                                        // todo how should we use outcome here?
                                         return this.__runCallbackPromise(listener, callbackPromise, payload, eventMeta);
                                       });
               } else {
@@ -1043,7 +1044,6 @@ class AsyncEvents {
     setTimeout((e) => {
       const consumers = this.pendingEventConsumers(ev);
       console.table(consumers);
-      console.warn(`[index]-1007: () - consumers: %o`, consumers);
       if (consumers.length) {
         if (this.options.debug.all && this.options.debug.lingerEvent || eventOptions.trace) {
           console.warn(`[em-async-events]-1005: - eventName: %o "linger" time has run out whilst it's still being consumed. It is removed, but its promise will be settled once the consumers finish.`, eventName);

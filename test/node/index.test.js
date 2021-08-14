@@ -212,8 +212,9 @@ describe(`# em-async-events`, function () {
           });
           
           test(`lingered event "once-event" has only 1 PENDING consumer after 500ms.`, async function () {
+            const le = ae.lingeringEvents('once-event');
             await new Promise(r => setTimeout(r, 500));
-            const consumers = ae.pendingEventConsumers(ae.lingeringEvents('once-event'));
+            const consumers = ae.pendingEventConsumers(le);
             expect(consumers).to.have.lengthOf(1);
           });
           
