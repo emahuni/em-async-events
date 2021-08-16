@@ -262,12 +262,12 @@ class AsyncEvents {
   
   /**
    * unsubscribe from subscriptions
-   * @param eventName {string|Array<string>|undefined} - event name of events/listeners to unsubscribe
-   * @param callback {Function|Array<Function>|undefined} the callback/Array of callbacks that should be unsubscribed
-   * @param subscriberID
+   * @param {number|string|undefined} [subscriberID]
+   * @param {string} [eventName] {string|Array<string>|undefined} - event name of events/listeners to unsubscribe
+   * @param {function} [callback] {Function|Array<Function>|undefined} the callback/Array of callbacks that should be unsubscribed
    */
-  fallSilent (eventName, callback, subscriberID) {
-    // console.debug(`[em-async-events]-205: fallSilentProp () compo: %o, eventName: %o, callback: %o`, this, eventName, callback);
+  fallSilent (subscriberID, eventName, callback) {
+    // console.debug(`[em-async-events]-205: fallSilentProp () subscriberID: %o, eventName: %o, callback: %o`, subscriberID, eventName, callback);
     
     if (!_.isEmpty(this.listenersStore)) {
       // Unsubscribe component from specific event
@@ -311,7 +311,7 @@ class AsyncEvents {
       
       // remove all events in component, since no eventName or callback specified; done automatically
       if (!eventName && !callback) {
-        // console.debug(`[em-async-events]-249: fallSilentProp() - remove all events in component, since no eventName or callback specified; done automatically: %o`, this);
+        // console.debug(`[em-async-events]-249: fallSilentProp() - remove all events in component: %o, since no eventName or callback specified; done automatically.`, subscriberID);
         for (let eventName in this.listenersStore) {
           this.__removeListeners({ eventName, subscriberID });
         }
@@ -444,13 +444,13 @@ class AsyncEvents {
     Vue.mixin({
       data () {
         return {
-          $toFallSilent: true,
+          toFallSilent$: true,
         };
       },
       
-      beforeDestroy: function vueHookedAsyncEventsBeforeDestroy () {
+      beforeDestroy: function asyncEventsBeforeDestroy () {
         // noinspection JSUnresolvedVariable
-        if (this.$toFallSilent) this[fallSilentProp]();
+        if (this.toFallSilent$) this[fallSilentProp]();
       },
     });
     
@@ -553,7 +553,7 @@ class AsyncEvents {
      * @param callback {Function|Array<Function>|undefined} the callback/Array of callbacks that should be unsubscribed
      */
     Vue.prototype[fallSilentProp] = function (eventName, callback) {
-      return AE_this.fallSilent(eventName, callback, this._uid);
+      return AE_this.fallSilent(this._uid, eventName, callback);
     };
     
     /**
@@ -1472,6 +1472,7 @@ class AsyncEvents {
    */
   __removeListeners ({ eventName, subscriberID, id }) {
     if (!this.listenersStore[eventName]) return;
+    // console.debug(`[index]-1475: __removeListeners() eventName: %o, subscriberID: %o, id: %o`, eventName, subscriberID, id);
     
     for (let li = 0; li < this.listenersStore[eventName].length; li++) {
       if (this.listenersStore[eventName][li].subscriberID === subscriberID && (!id || id === this.listenersStore[eventName][li].id)) {
