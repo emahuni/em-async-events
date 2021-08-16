@@ -1250,7 +1250,7 @@ class AsyncEvents {
     }
     
     this.lingeringEventsStore[eventName].splice(index, 1);
-    if (_.isEmpty(this.lingeringEventsStore[eventName])) delete this.lingeringEventsStore[eventName];
+    this.__cleanUpStore(this.lingeringEventsStore, eventName);
   }
   
   
@@ -1491,6 +1491,24 @@ class AsyncEvents {
         this.listenersStore[eventName].splice(li, 1);
       }
     }
+    
+    this.__cleanUpStore(this.listenersStore, eventName);
+  }
+  
+  /**
+   * cleanup the given store by removing empty lists
+   * @param {object} store - the store to cleanup
+   * @param {string} [eventID] - the event id to target. If not given then cleansup entire store
+   * @private
+   */
+  __cleanUpStore (store, eventID) {
+    const checkDel = (evID) => _.isEmpty(store[evID]) && delete store[evID];
+    
+    if (_.isEmpty(eventID)) {
+      for (const eID in store) checkDel(eID);
+    } else {
+      checkDel(eventID);
+    }
   }
   
   /**
@@ -1549,7 +1567,7 @@ class AsyncEvents {
       this.listenersStore[eventName].splice(indexOfSubscriber, 1);
     }
     
-    if (_.isEmpty(this.listenersStore[eventName])) delete this.listenersStore[eventName];
+    this.__cleanUpStore(this.listenersStore, eventName);
   }
   
   
