@@ -767,7 +767,7 @@ class AsyncEvents {
       id:             this.__genUniqID(),
       eventName,
       consumers:      [],
-      payloads:       [],
+      payloads:       [payload],
       eventTimestamp: Date.now(),
       eventOptions:   _.cloneDeep(eventOptions),
       level,
@@ -792,7 +792,9 @@ class AsyncEvents {
     
     /** linger */
     if (!eventMeta.stopNow) {
-      return this.__lingerEvent({ eventName, payload, eventOptions, eventMeta });
+      return this.__lingerEvent({
+        eventName, payload: _.last(eventMeta.payloads), eventOptions, eventMeta,
+      });
     } else {
       if (!eventMeta.wasConsumed) {
         if (this.options.debug.all && this.options.debug.emitEvent || eventOptions.trace) {
@@ -930,8 +932,6 @@ class AsyncEvents {
         i++;
         // todo cater for linger and expire changes from listener
       } while (upListener || downListener || closestListener);
-    } else {
-      finalOutcome = payload
     }
     
     return finalOutcome;
