@@ -663,12 +663,12 @@ class AsyncEvents {
     // create listener object
     const listener = {
       eventName,
-      callback: _.get(exclusiveListener, 'callback', callback),
+      callback:  _.get(exclusiveListener, 'callback', callback),
       listenerOptions,
       subscriberID,
       listenerOrigin,
       listenerPromise,
-      id:       this.__genUniqID(),
+      id:        this.__genUniqID(),
       level,
       calls:    [],
     };
@@ -930,6 +930,8 @@ class AsyncEvents {
         i++;
         // todo cater for linger and expire changes from listener
       } while (upListener || downListener || closestListener);
+    } else {
+      finalOutcome = payload
     }
     
     return finalOutcome;
