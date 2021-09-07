@@ -300,21 +300,25 @@ eg: Linger for 5000ms for new listeners of the event.
 
 To adjust how long a listener can catch up to an event use `catchUp` time defined in listener options.
 
-- the max value is the value of default options `eventsOptions.linger`. Change the default option if needed; see below
 - the event doesn't have to be a lingered event coz every event is lingered by default.
 - if `catchUp` is falsy, then the listener won't catch up to any lingering event at all.
+- if `catchUp` is `true`, then the listener will catch up to any lingering event regardless of when it was emitted.
 
 For example to catch up an event that happened not more than 100 milliseconds ago (without using `linger` option when
 emitting the event):
 
 ```js
   this.$onEvent('some-event', (payload) => {/*...*/}, { catchUp: 100 });
+// or catch up no matter what
+  this.$onEvent('some-event', (payload) => {/*...*/}, { catchUp: true });
  ``` 
 
 For example to NOT catch up an event at all (if we missed the event don't use the lingered one):
 
 ```js
   this.$onEvent('some-event', (payload) => {/*...*/}, { catchUp: 0 });
+// or
+  this.$onEvent('some-event', (payload) => {/*...*/}, { catchUp: false });
  ```
 
 ##### Exclusive events

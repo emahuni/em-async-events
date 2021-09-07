@@ -49,7 +49,7 @@ class AsyncEvents {
         stopHere:            false,
         expire:              0,
         expiryCallback:      undefined,
-        catchUp:             100,
+        catchUp:             100, // a value of true will catup whatever lingering event is there.
         once:                false,
         isLocallyExclusive:  false,
         isGloballyExclusive: false,
@@ -1204,7 +1204,7 @@ class AsyncEvents {
         
         // is listener catchUp within range?
         const elapsed = Date.now() - eventMeta.eventTimestamp;
-        if (listener.listenerOptions.catchUp >= elapsed) {
+        if (listener.listenerOptions.catchUp === true || listener.listenerOptions.catchUp >= elapsed) {
           const { eventOptions, eventOrigin } = eventMeta;
           // the reason here is that we need it to pass thru the levels logic too
           payload = this.__runListeners({
