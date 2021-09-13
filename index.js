@@ -233,7 +233,7 @@ class AsyncEvents {
    */
   chainCallbackPayload (payload, newPayload) {
     if (this.options.debug.all && this.options.debug.chainListenerCallbacks) {
-      console.info(`[em-async-events]-169: ${this.options.chainCallbackPayload} payload: %o \nnewPayload: %o`, _.cloneDeep(payload), _.cloneDeep(newPayload));
+      console.info(`[em-async-events]-169: ${this.options.chainCallbackPayload} payload: %o \nnewPayload: %o`, payload, newPayload);
     }
     
     // see if there is any callback that already prepared the results chain if not create it
@@ -670,7 +670,8 @@ class AsyncEvents {
       listenerPromise,
       id:        this.__genUniqID(),
       level,
-      calls:    [],
+      timestamp: Date.now(),
+      calls:     [],
     };
     
     if (this.options.debug.all && this.options.debug.addListener || listenerOptions.trace) {
@@ -775,7 +776,7 @@ class AsyncEvents {
     });
     
     if (this.options.debug.all && this.options.debug.emitEvent || eventOptions.trace) {
-      console.warn(`[em-async-events]-152: ${this.options.emitEvent} eventName: %o payload: %o\n origin: %o`, eventName, _.cloneDeep(payload), _.get(eventOrigin, '$options.name', '???'));
+      console.warn(`[em-async-events]-152: ${this.options.emitEvent} eventName: %o payload: %o\n origin: %o`, eventName, payload, _.get(eventOrigin, '$options.name', '???'));
       if (eventOptions.verbose) {
         console.groupCollapsed('__runEvent_linger verbose:');
         console.info('eventMeta:');
@@ -861,15 +862,30 @@ class AsyncEvents {
         
         // console.debug(`[em-async-events]-423: this.__runListeners() - upListener: %o, downListener: %o`, upListener, downListener);
         
-        const upClosestDownListeners = [closestListener, upListener, downListener].filter(l => !_.isNil(l));
+        let upClosestDownListeners = [closestListener, upListener, downListener].filter(l => !_.isNil(l));
         // console.debug(`[em-async-events]-426: this.__runListeners() - upClosestDownListeners: %o`, upClosestDownListeners);
+        
+        // sort them out according to age specs if there.
+        if (!!(eventOptions.range || '').match(/oldest|youngest/i)) {
+          upClosestDownListeners = _.sortBy(upClosestDownListeners, ['timestamp']);  // sort ascending order from oldest to newest
+          if (!!eventOptions.range.match(/youngest/i)) upClosestDownListeners = _.reverse(upClosestDownListeners);
+          
+          if (!eventOptions.range.match(/from/i)) {
+            let ls = [];
+            if (!!eventOptions.range.match(/youngest/i)) {
+              ls.push(_.first(upClosestDownListeners));
+              if (!!eventOptions.range.match(/oldest/i)) ls.push(_.last(upClosestDownListeners));
+            } else ls.push(_.first(upClosestDownListeners));
+            upClosestDownListeners = ls;
+          }
+        }
         
         // run both up and down listeners (which ever is available)
         for (let listener of upClosestDownListeners) {
           if (stop || listener.listenerOptions.stopHere) stopHere = true;
           
           if (this.options.debug.all && this.options.debug.invokeListener || eventOptions.trace || listener.listenerOptions.trace) {
-            console.warn(`[em-async-events]-380: Invoke Listener - eventName: %o, payload: %o, \n listener origin: %o, eventOrigin: %o,\nresponse: %o, \nstoppingHere: %o`, eventName, _.cloneDeep(payload), _.get(listener.listenerOrigin, '$options.name', '???'), _.get(eventOrigin, '$options.name', '???'), finalOutcome, stopHere);
+            console.warn(`[em-async-events]-380: Invoke Listener - eventName: %o, payload: %o, \n listener origin: %o, eventOrigin: %o,\nresponse: %o, \nstoppingHere: %o`, eventName, payload, _.get(listener.listenerOrigin, '$options.name', '???'), _.get(eventOrigin, '$options.name', '???'), finalOutcome, stopHere);
             if (eventOptions.verbose || listener.listenerOptions.verbose) {
               console.groupCollapsed('Listener verbose:');
               console.info('Listener:');
@@ -1344,6 +1360,12 @@ class AsyncEvents {
               stop = true;
               // prevent a issue because of expectations up AND down should not all be null
               if (tokens.length === 1) up = 1;
+              break;
+            
+            case'from':
+            case'oldest':
+            case'youngest':
+              // just here to stop throwing as it is used later
               break;
             
             default:
