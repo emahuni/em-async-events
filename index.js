@@ -1298,99 +1298,159 @@ class AsyncEvents {
          * @type {boolean}
          */
         stop = null,
-        selfOnly = false;
+        /**
+         * serve listeners in the same component as emitter ONLY
+         * @type {boolean}
+         */
+        selfOnly = null,
+        /**
+         * serve listeners in the same component as emitter AS WELL
+         * @type {boolean}
+         */
+        self = null,
+        /**
+         * serve listeners on the same component as emitter ONLY
+         * @type {boolean}
+         */
+        siblings = null;
     
-    const lr = eventOptions.range;
+    const lr = eventOptions.range || 'broadcast';
     
-    if (lr) {
-      if (lr.includes('self')) {
-        up = 0;
-        down = 0;
-        selfOnly = true;
-      } else {
-        let tokens = lr.split('-');
-        for (let token of tokens) {
-          switch (token) {
-            case'child':
-            case'children':
-              down = 1;
-              break;
-            case'descendent':
-            case'descendant':
-              stop = true;
-            case'descendents':
-            case'descendants':
-              down = Infinity;
-              break;
-            
-            
-            case'parent':
-              stop = true;
-            case'parents':
-              up = 1;
-              break;
-            case'ancestor':
-            case'ancestors':
-              up = Infinity;
-              break;
-            
-            
-            case'sibling':
-              stop = true;
-            case'siblings':
-              up = 0;
-              down = 0;
-              break;
-            case'kin':
-            case'family':
-              stop = true;
-            case'kins':
-            case'families':
-              up = 1;
-              down = 1;
-              break;
-            case'broadcast':
-              up = Infinity;
-              down = Infinity;
-              break;
-            
-            
-            case'first':
-            case'1st':
-              stop = true;
-              // prevent a issue because of expectations up AND down should not all be null
-              if (tokens.length === 1) up = 1;
-              break;
-            
-            case'from':
-            case'oldest':
-            case'youngest':
-              // just here to stop throwing as it is used later
-              break;
-            
-            default:
-              throw new Error(`[em-async-events] ERROR-562: unknown token: ${token} for range: ${lr} for event: ${eventName}`);
-          }
+    if (lr.includes('self_only') || lr === 'self') {
+      selfOnly = true;
+    } else {
+      let tokens = lr.split('-');
+      for (let token of tokens) {
+        switch (token) {
+          case'self':
+            self = true;
+            break;
+          
+          case'child':
+            stop = true;
+          case'children':
+            down = 1;
+            break;
+          
+          
+          case'descendent':
+          case'descendant':
+            stop = true;
+          case'descendents':
+          case'descendants':
+            down = Infinity;
+            break;
+          
+          
+          case'parent':
+            stop = true;
+          case'parents':
+            up = 1;
+            break;
+          case'ancestor':
+            stop = true;
+          case'ancestors':
+            up = Infinity;
+            break;
+          
+          
+          case'sibling':
+            stop = true;
+          case'siblings':
+            siblings = true;
+            break;
+          
+          case'kin':
+          case'family':
+            stop = false;
+            up = 1;
+            down = 1;
+            siblings = true;
+            break;
+          
+          case'broadcast':
+            up = Infinity;
+            down = Infinity;
+            self = true;
+            siblings = true;
+            break;
+          
+          
+          case'first':
+          case'1st':
+            stop = true;
+            // prevent a issue because of expectations up AND down should not all be null
+            if (tokens.length === 1) throw new Error(`[em-async-events] ERROR-1385: token: ${token} cannot be used alone. For event: ${eventName}`);
+            break;
+          
+          case'from':
+          case'oldest':
+          case'youngest':
+            // just here to stop throwing as it is used later
+            break;
+          
+          default:
+            throw new Error(`[em-async-events] ERROR-1395: unknown token: ${token} for range: ${lr} for event: ${eventName}`);
         }
       }
-    } else {
-      // just invoke the first parent or sibling
-      up = 1;
-      down = -1;
-      stop = true;
     }
     
     // because of the above conditions, both up AND down should never be === null at this point
     // set default values for any null vars
-    up = _.isNil(up) ? -1 : up;
-    down = _.isNil(down) ? -1 : down;
+    up = _.isNil(up) ? false : up;
+    down = _.isNil(down) ? false : down;
+    siblings = _.isNil(siblings) ? false : siblings;
+    self = _.isNil(self) ? false : self;
+    selfOnly = _.isNil(selfOnly) ? false : selfOnly;
     stop = _.isNil(stop) ? false : stop;
     
-    let ranged = this.__listenersInRange({ listeners, eventLevel, up, down, selfOnly, eventOrigin, eventMeta });
+    let ranged = this.__listenersInRange({
+      listeners,
+      eventLevel,
+      up,
+      down,
+      selfOnly,
+      self,
+      siblings,
+      eventOrigin,
+      eventMeta,
+    });
     
-    return { stop, selfOnly, ...ranged };
+    return { stop, ...ranged };
   }
   
+  /**
+   * pick listeners based on direction and scope
+   * @param {array} listeners - array of listeners that we are picking from
+   * @param {number} eventIndex - index of event level in listeners array
+   * @param {string<"up","down","sides">} dir - the direction to gather listeners towards
+   * @param {boolean} isInfinite - is the pick scope infinite or just a single level up or down
+   * @param {number} [eventLevel] - the event level
+   * @return {*[]} - array of gathered/picked listeners
+   * @private
+   */
+  __pickListeners ({ listeners, eventIndex, dir, isInfinite, eventLevel }) {
+    let tmp, gathered = [];
+    if (dir === 'sides') {
+      gathered = listeners.filter(l => l.level === eventLevel);
+    } else {
+      if (eventIndex > 0) eventIndex -= 1;
+      let firstLevel;
+      while (!!(tmp = listeners[eventIndex])) {
+        eventIndex = dir === 'up' ? --eventIndex : ++eventIndex;
+        
+        if (tmp.level === eventLevel) continue; // skip this if on the same level as event (sibling)
+        
+        if (_.isNil(firstLevel)) firstLevel = tmp.level; // get the 1st listener's level so we get same level listeners if finite
+        if (!isInfinite && tmp.level !== firstLevel) break; // stop gathering if we are not on first level if finite
+        
+        gathered.push(tmp);
+        
+      }
+    }
+    
+    return gathered;
+  }
   
   /**
    * get all listeners that are in range of the given bounds
@@ -1399,88 +1459,73 @@ class AsyncEvents {
    * @param up
    * @param down
    * @param selfOnly
+   * @param self
+   * @param siblings
    * @param eventOrigin
    * @param eventMeta
    * @return {*}
    */
-  __listenersInRange ({ listeners, eventLevel, up, down, selfOnly, eventOrigin, eventMeta }) {
+  __listenersInRange ({ listeners, eventLevel, up, down, selfOnly, self, siblings, eventOrigin, eventMeta }) {
     // console.debug(`[em-async-events]-603: this.__listenersInRange() - arguments: %o`, arguments[0]);
     
-    let closest, upListeners = [], closestListeners = [], downListeners = [];
+    let upListeners = [], closestListeners = [], downListeners = [];
     
     if (selfOnly) {
-      closestListeners = [listeners.find(l => l.subscriberID === eventMeta.emitterID)].filter(l => !_.isNil(l));
+      closestListeners = listeners.filter(l => l.subscriberID === eventMeta.emitterID);
     } else {
-      let i = 0;
-      let minDiff = 1000;
-      
       // sort listeners by level
-      listeners.sort((a, b) => a.level - b.level);
-      for (i in listeners) {
-        /**
-         * get the diff btw event level and current listener level
-         * @type {number}
-         */
-        const levelDiff = Math.abs(eventLevel - listeners[i].level);
-        
-        /**
-         * pick up, closest and down listeners (mutates i)
-         */
-        const pickCls = () => {
-          let tmp, ii;
-          
-          minDiff = levelDiff;
-          closest = listeners[i];
-          
-          /** up **/
-          if (up > 0) {
-            ii = i;
-            tmp = listeners[--ii];
-            if (!!tmp) {
-              upListeners = [tmp];
-              // get all listeners on the same level as current upListeners level or if infinity, to the top
-              while ((tmp = listeners[--ii]) &&
-              (up === Infinity || up === 1 && tmp.level === upListeners[0].level)) {
-                upListeners.push(tmp);
-              }
-            } else {
-              upListeners = [];
-            }
-          }
-          
-          /** closest **/
-          // keep the closest listeners on the same level
-          closestListeners = [closest];
-          // find all listeners that're on the same level as closest and keep em
-          while ((tmp = listeners[++i]) && tmp.level === closest.level) closestListeners.push(tmp);
-          
-          /** down **/
-          if (!!tmp && down > 0) {
-            ii = i;
-            downListeners = [tmp];
-            // get all listeners on the same level as current downListeners level or if infinity, to the bottom
-            while ((tmp = listeners[++ii]) &&
-            (down === Infinity || down === 1 && tmp.level === downListeners[0].level)) {
-              downListeners.push(tmp);
-            }
-          } else {
-            downListeners = [];
-          }
-        };
-        
-        // check if current listener level is closer to level
-        if (levelDiff < minDiff) {
-          /** only pick the closest if it's within range limits **/
-          // pick if we expect if to be above and is above level
-          if (up > 0 && listeners[i].level <= eventLevel) pickCls();
-          // pick if we expect if to be below and is below level
-          else if (down > 0 && listeners[i].level >= eventLevel) pickCls();
-          // pick if we expect if to be on the same level and is on the same level
-          else if ((up === 0 || down === 0) && listeners[i].level === eventLevel) pickCls();
-          // pick if expect infinity and ...
-          else if (up === Infinity && listeners[i].level <= eventLevel) pickCls();
-          else if (down === Infinity && listeners[i].level >= eventLevel) pickCls();
-        }
+      listeners = _.sortBy(listeners, 'level');
+      // index of event level in listeners array
+      let eventIndex = _.sortedLastIndexBy(listeners, { level: eventLevel }, 'level');
+      
+      if (up === Infinity) {
+        upListeners = upListeners.concat(this.__pickListeners({
+          isInfinite: true,
+          listeners,
+          eventIndex,
+          dir:        'up',
+          eventLevel,
+        }));
+      } else if (up === 1) {
+        upListeners = upListeners.concat(this.__pickListeners({
+          isInfinite: false,
+          listeners,
+          eventIndex,
+          dir:        'up',
+          eventLevel,
+        }));
+      }
+      
+      if (siblings) {
+        closestListeners = closestListeners.concat(this.__pickListeners({
+          isInfinite: false,
+          listeners,
+          eventIndex,
+          dir:        'sides',
+          eventLevel,
+        }));
+      }
+      
+      if (self) {
+        closestListeners = closestListeners.concat(listeners.filter(l => l.subscriberID === eventMeta.emitterID));
+      }
+      
+      if (down === 1) {
+        downListeners = downListeners.concat(this.__pickListeners({
+          isInfinite: false,
+          listeners,
+          eventIndex,
+          dir:        'down',
+          eventLevel,
+        }));
+      } else if (down === Infinity) {
+        downListeners = downListeners.concat(this.__pickListeners({
+          isInfinite: true,
+          listeners,
+          eventIndex,
+          dir:        'down',
+          eventLevel,
+        }));
       }
     }
     
