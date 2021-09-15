@@ -1297,7 +1297,7 @@ class AsyncEvents {
     if (lr.includes('self_only') || lr === 'self') {
       selfOnly = true;
     } else {
-      let tokens = lr.split('-');
+      let tokens = lr.split(/[- ,;]/);
       for (let token of tokens) {
         switch (token) {
           case'self':
