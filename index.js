@@ -1404,13 +1404,15 @@ class AsyncEvents {
    * @param {string<"up","down","sides">} dir - the direction to gather listeners towards
    * @param {boolean} isInfinite - is the pick scope infinite or just a single level up or down
    * @param {number} [eventLevel] - the event level
+   * @param eventMeta
    * @return {*[]} - array of gathered/picked listeners
    * @private
    */
-  __pickListeners ({ listeners, eventIndex, dir, isInfinite, eventLevel }) {
+  __pickListeners ({ listeners, eventIndex, dir, isInfinite, eventLevel, eventMeta }) {
     let tmp, gathered = [];
     if (dir === 'sides') {
-      gathered = listeners.filter(l => l.level === eventLevel);
+      // only cater for listeners on the same level, but not the component (self does that)
+      gathered = listeners.filter(l => l.level === eventLevel && l.subscriberID !== eventMeta.emitterID);
     } else {
       if (eventIndex > 0) eventIndex -= 1;
       let firstLevel;
@@ -1463,6 +1465,7 @@ class AsyncEvents {
           eventIndex,
           dir:        'up',
           eventLevel,
+          eventMeta,
         }));
       } else if (up === 1) {
         upListeners = upListeners.concat(this.__pickListeners({
@@ -1471,6 +1474,7 @@ class AsyncEvents {
           eventIndex,
           dir:        'up',
           eventLevel,
+          eventMeta,
         }));
       }
       
@@ -1481,6 +1485,7 @@ class AsyncEvents {
           eventIndex,
           dir:        'sides',
           eventLevel,
+          eventMeta,
         }));
       }
       
@@ -1495,6 +1500,7 @@ class AsyncEvents {
           eventIndex,
           dir:        'down',
           eventLevel,
+          eventMeta,
         }));
       } else if (down === Infinity) {
         downListeners = downListeners.concat(this.__pickListeners({
@@ -1503,6 +1509,7 @@ class AsyncEvents {
           eventIndex,
           dir:        'down',
           eventLevel,
+          eventMeta,
         }));
       }
     }
