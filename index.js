@@ -842,112 +842,90 @@ class AsyncEvents {
     // console.debug(`[em-async-events] index-564: - eventName: %o, \neventOrigin: %o, \n_listeners: %o\neventMeta: %o`, eventName, eventOrigin, listeners, eventMeta);
     
     if (listenersTally) {
-      let upListeners, closestListeners, downListeners, stop;
+      let stop;
       
       if (!!eventOrigin) {
-        ({ upListeners, closestListeners, downListeners, stop } = this.__getBroadcastListenerRange({
+        ({ listeners, stop } = this.__getListenersInRange({
           ...arguments[0],
           eventLevel: eventMeta.level,
         }));
-      } else {
-        closestListeners = listeners;
       }
       
-      let i = 0, stopHere = false;
-      let upListener, closestListener, downListener;
-      do {
-        upListener = upListeners && upListeners[i];
-        closestListener = closestListeners && closestListeners[i];
-        downListener = downListeners && downListeners[i];
+      let stopHere = false;
+      
+      // sort them out according to age specs if there.
+      if (!!(eventOptions.range || '').match(/oldest|youngest/i)) {
+        listeners = _.sortBy(listeners, ['timestamp']);  // sort ascending order from oldest to newest
+        if (!!eventOptions.range.match(/youngest/i)) listeners = _.reverse(listeners);
         
-        // console.debug(`[em-async-events]-423: this.__runListeners() - upListener: %o, downListener: %o`, upListener, downListener);
+        if (!eventOptions.range.match(/from/i)) {
+          let ls = [];
+          if (!!eventOptions.range.match(/youngest/i)) {
+            ls.push(_.first(listeners));
+            if (!!eventOptions.range.match(/oldest/i)) ls.push(_.last(listeners));
+          } else ls.push(_.first(listeners));
+          listeners = ls;
+        }
+      }
+      
+      // run both up and down listeners (which ever is available)
+      for (let listener of listeners) {
+        if (stop || listener.listenerOptions.stopHere) stopHere = true;
         
-        let upClosestDownListeners = [closestListener, upListener, downListener].filter(l => !_.isNil(l));
-        // console.debug(`[em-async-events]-426: this.__runListeners() - upClosestDownListeners: %o`, upClosestDownListeners);
-        
-        // sort them out according to age specs if there.
-        if (!!(eventOptions.range || '').match(/oldest|youngest/i)) {
-          upClosestDownListeners = _.sortBy(upClosestDownListeners, ['timestamp']);  // sort ascending order from oldest to newest
-          if (!!eventOptions.range.match(/youngest/i)) upClosestDownListeners = _.reverse(upClosestDownListeners);
-          
-          if (!eventOptions.range.match(/from/i)) {
-            let ls = [];
-            if (!!eventOptions.range.match(/youngest/i)) {
-              ls.push(_.first(upClosestDownListeners));
-              if (!!eventOptions.range.match(/oldest/i)) ls.push(_.last(upClosestDownListeners));
-            } else ls.push(_.first(upClosestDownListeners));
-            upClosestDownListeners = ls;
+        if (this.options.debug.all && this.options.debug.invokeListener || eventOptions.trace || listener.listenerOptions.trace) {
+          console.warn(`[em-async-events]-380: Invoke Listener - eventName: %o, payload: %o, \n listener origin: %o, eventOrigin: %o,\nresponse: %o, \nstoppingHere: %o`, eventName, payload, _.get(listener.listenerOrigin, '$options.name', '???'), _.get(eventOrigin, '$options.name', '???'), finalOutcome, stopHere);
+          if (eventOptions.verbose || listener.listenerOptions.verbose) {
+            console.groupCollapsed('Listener verbose:');
+            console.info('Listener:');
+            console.table(listener);
+            console.info('eventMeta:');
+            console.table(eventMeta);
+            console.groupEnd();
           }
         }
         
-        // run both up and down listeners (which ever is available)
-        for (let listener of upClosestDownListeners) {
-          if (stop || listener.listenerOptions.stopHere) stopHere = true;
-          
-          if (this.options.debug.all && this.options.debug.invokeListener || eventOptions.trace || listener.listenerOptions.trace) {
-            console.warn(`[em-async-events]-380: Invoke Listener - eventName: %o, payload: %o, \n listener origin: %o, eventOrigin: %o,\nresponse: %o, \nstoppingHere: %o`, eventName, payload, _.get(listener.listenerOrigin, '$options.name', '???'), _.get(eventOrigin, '$options.name', '???'), finalOutcome, stopHere);
-            if (eventOptions.verbose || listener.listenerOptions.verbose) {
-              console.groupCollapsed('Listener verbose:');
-              console.info('Listener:');
-              console.table(listener);
-              console.info('eventMeta:');
-              console.table(eventMeta);
-              console.groupEnd();
+        const callbackPromise = this.__createPromise();
+        try {
+          if (_.isFunction(listener.callback)) {
+            //  check if calls has anything and if we should be doing serial execution
+            if (listener.calls.length && listener.listenerOptions.callbacks.serialExecution) {
+              finalOutcome = Promise.all(listener.calls.map(c => c.promise))
+                                    .then((outcome) => {
+                                      // todo how should we use outcome here?
+                                      return this.__runCallbackPromise(listener, callbackPromise, payload, eventMeta);
+                                    });
+            } else {
+              finalOutcome = this.__runCallbackPromise(listener, callbackPromise, payload, eventMeta);
             }
+            
+            if (eventMeta.chain) payload = finalOutcome;
           }
-          
-          const callbackPromise = this.__createPromise();
-          try {
-            if (_.isFunction(listener.callback)) {
-              //  check if calls has anything and if we should be doing serial execution
-              if (listener.calls.length && listener.listenerOptions.callbacks.serialExecution) {
-                finalOutcome = Promise.all(listener.calls.map(c => c.promise))
-                                      .then((outcome) => {
-                                        // todo how should we use outcome here?
-                                        return this.__runCallbackPromise(listener, callbackPromise, payload, eventMeta);
-                                      });
-              } else {
-                finalOutcome = this.__runCallbackPromise(listener, callbackPromise, payload, eventMeta);
-              }
-              
-              if (eventMeta.chain) payload = finalOutcome;
-            }
-          } catch (e) {
-            // todo error handling ?
-            callbackPromise.settlement = REJECTED;
-            callbackPromise.outcome = finalOutcome;
-            if (listener.listenerPromise.settlement === PENDING) {
-              listener.listenerPromise.settlement = REJECTED;
-              // rejects with previous finalOutcome.
-              listener.listenerPromise.reject(e);
-              listener.listenerPromise.outcome = finalOutcome;
-            }
+        } catch (e) {
+          // todo error handling ?
+          callbackPromise.settlement = REJECTED;
+          callbackPromise.outcome = finalOutcome;
+          if (listener.listenerPromise.settlement === PENDING) {
+            listener.listenerPromise.settlement = REJECTED;
+            // rejects with previous finalOutcome.
+            listener.listenerPromise.reject(e);
+            listener.listenerPromise.outcome = finalOutcome;
           }
-          
-          
-          if (listener.listenerOptions.once && listener.listenerPromise.settlement !== PENDING) {
-            this.__removeCallbacks({
-              eventName,
-              subscriberID: listener.subscriberID,
-              callback:     listener.callback,
-            });
-          }
-          
-          // todo use break label instead to control loops on for and do-while loops
-          if (stopHere) {
-            eventMeta.stopNow = true;
-            break;
-          }
+        }
+        
+        
+        if (listener.listenerOptions.once && listener.listenerPromise.settlement !== PENDING) {
+          this.__removeCallbacks({
+            eventName,
+            subscriberID: listener.subscriberID,
+            callback:     listener.callback,
+          });
         }
         
         if (stopHere) {
           eventMeta.stopNow = true;
           break;
         }
-        
-        i++;
-        // todo cater for linger and expire changes from listener
-      } while (upListener || downListener || closestListener);
+      }
     }
     
     return finalOutcome;
@@ -1273,7 +1251,7 @@ class AsyncEvents {
   
   
   /**
-   * get event broadcast components level range
+   * get event components listeners in range based on event and listeners levels
    * @param eventName
    * @param eventMeta
    * @param eventOptions
@@ -1281,7 +1259,7 @@ class AsyncEvents {
    * @param listeners
    * @param eventLevel
    */
-  __getBroadcastListenerRange ({ eventName, eventMeta, eventOptions, eventOrigin, listeners, eventLevel }) {
+  __getListenersInRange ({ eventName, eventMeta, eventOptions, eventOrigin, listeners, eventLevel }) {
     let
         /**
          * use listeners going up
@@ -1404,7 +1382,7 @@ class AsyncEvents {
     selfOnly = _.isNil(selfOnly) ? false : selfOnly;
     stop = _.isNil(stop) ? false : stop;
     
-    let ranged = this.__listenersInRange({
+    listeners = this.__listenersInRange({
       listeners,
       eventLevel,
       up,
@@ -1416,7 +1394,7 @@ class AsyncEvents {
       eventMeta,
     });
     
-    return { stop, ...ranged };
+    return { stop, listeners };
   }
   
   /**
@@ -1529,7 +1507,7 @@ class AsyncEvents {
       }
     }
     
-    return { upListeners, closestListeners, downListeners };
+    return _.uniqBy([].concat(upListeners, closestListeners, downListeners), 'id');
   }
   
   
