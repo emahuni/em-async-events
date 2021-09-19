@@ -44,7 +44,7 @@ class AsyncEvents {
           throttle:            null,
           isLocallyExclusive:  false,
           isGloballyExclusive: false,
-          replaceExclusive:    false,
+          replace:             false,
         },
         stopHere:            false,
         expire:              0,
@@ -53,7 +53,7 @@ class AsyncEvents {
         once:                false,
         isLocallyExclusive:  false,
         isGloballyExclusive: false,
-        replaceExclusive:    false,
+        replace:             false,
         trace:               false,
         verbose:             false,
       },
@@ -63,7 +63,7 @@ class AsyncEvents {
         bait:                false,
         isLocallyExclusive:  false,
         isGloballyExclusive: false,
-        replaceExclusive:    false,
+        replace:             false,
         range:               'first-parent',
         trace:               false,
         verbose:             false,
@@ -183,11 +183,13 @@ class AsyncEvents {
     
     if (eventOptions.isAsync) this.__showDeprecationWarning('isAsync', 'All events and listeners are now async.');
     
-    if (eventOptions.linger === true) {
-      eventOptions.linger = Infinity;
-    } else if (eventOptions.bait /*&& !eventOptions.linger*/) {
+    if (eventOptions.bait) {
       eventOptions.linger = Infinity;
       // eventOptions.isGloballyExclusive = true;
+    }
+    
+    if (eventOptions.linger === true) {
+      eventOptions.linger = Infinity;
     }
     
     const eventMeta = {
@@ -627,7 +629,7 @@ class AsyncEvents {
     const exclusiveListener = (this.listenersStore[eventName] || []).find(l => this.__isExclusiveListener(l, subscriberID) || this.__isExclusiveCallback(callback, l, subscriberID) && (isExclusiveCallbackListener = true));
     
     // bailout if there is an exclusive listener of the same event name on the component
-    if (exclusiveListener && (!isExclusiveCallbackListener && !listenerOptions.replaceExclusive || isExclusiveCallbackListener && !listenerOptions.callbacks.replaceExclusive)) {
+    if (exclusiveListener && (!isExclusiveCallbackListener && !listenerOptions.replace || isExclusiveCallbackListener && !listenerOptions.callbacks.replace)) {
       if (this.options.debug.all && this.options.debug.addListener || listenerOptions.trace) {
         console.warn(`[em-async-events]-593: ABORTING (exclusive ${(isExclusiveCallbackListener ? 'callback' : 'listener')} exists) ${listenerOptions.once ? this.options.onceEvent : this.options.onEvent}(addListener) eventName: %o Exclusive Listener Origin: %o, Requesting Origin: %o`, eventName, _.get(exclusiveListener.listenerOrigin, '$options.name', '???'), _.get(listenerOrigin, '$options.name', '???'));
         if (listenerOptions.verbose) {
@@ -1023,7 +1025,7 @@ class AsyncEvents {
       
       // bailout if exclusive lingered event is set to be kept (meaning don't replace with fresh event)
       if (exclusiveLingeredEvent) {
-        if (!eventOptions.replaceExclusive) {
+        if (!eventOptions.replace) {
           if (this.options.debug.all && this.options.debug.lingerEvent || eventOptions.trace) {
             console.warn(`[em-async-events]-1028: ABORTING lingerEvent - for exclusive lingered eventName: %o`, eventName);
             if (eventOptions.verbose) {

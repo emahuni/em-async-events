@@ -160,7 +160,7 @@ Only allow this listener for this event on this component (any subsequent listen
 ```js
   this.$onEvent('some-event', eventCallback1, { isLocallyExclusive: true });
 // or just replace any existing exclusive listener 
-this.$onEvent('some-event', eventCallback1, { isLocallyExclusive: true, replaceExclusive: true });
+this.$onEvent('some-event', eventCallback1, { isLocallyExclusive: true, replace: true });
 ```
 
 ###### globally
@@ -172,7 +172,7 @@ Only allow this listener for this event globally (any subsequent listeners are i
 ```js
   this.$onEvent('some-event', eventCallback1, { isGloballyExclusive: true });
 // or just replace any existing exclusive listener 
-this.$onEvent('some-event', eventCallback1, { isGloballyExclusive: true, replaceExclusive: true });
+this.$onEvent('some-event', eventCallback1, { isGloballyExclusive: true, replace: true });
 ```
 
 ##### Async listener registration
@@ -324,7 +324,7 @@ For example to NOT catch up an event at all (if we missed the event don't use th
 ##### Exclusive events
 
 When an event is lingered and `isGloballyExclusive: true`, newer events will will be ignored until the lingered event
-expires, unless `replaceExclusive: true`, which will replace the exclusive event with a fresh one. eg:
+expires, unless `replace: true`, which will replace the exclusive event with a fresh one. eg:
 exclusively linger this event; no other events of the same event name ('some-event5') will be lingered until after
 5000ms
 
@@ -569,7 +569,7 @@ defaultOptions === {
       throttle:            null, // lodash throttle opts; {wait, leading, trailing}
       isLocallyExclusive:  false,
       isGloballyExclusive: false,
-      replaceExclusive:    false,
+      replace:    false,
     },
     stopHere:            false,
     expire:              0,
@@ -578,7 +578,7 @@ defaultOptions === {
     once:                false,
     isLocallyExclusive:  false,
     isGloballyExclusive: false,
-    replaceExclusive:    false,
+    replace:    false,
     trace:               false,
     verbose:             false,
   },
@@ -588,7 +588,7 @@ defaultOptions === {
     bait:                false,
     isLocallyExclusive:  false,
     isGloballyExclusive: false,
-    replaceExclusive:    false,
+    replace:    false,
     range:               'first-parent',
     trace:               false,
     verbose:             false,
