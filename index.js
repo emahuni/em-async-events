@@ -1022,18 +1022,28 @@ class AsyncEvents {
       let exclusiveLingeredEvent = this.__getExclusiveEvent(eventMeta, this.lingeringEventsStore);
       
       // bailout if exclusive lingered event is set to be kept (meaning don't replace with fresh event)
-      if (exclusiveLingeredEvent && !exclusiveLingeredEvent.replaceExclusive) {
-        if (this.options.debug.all && this.options.debug.lingerEvent || eventOptions.trace) {
-          console.warn(`[em-async-events]-587: ABORTING lingerEvent - for exclusive lingered eventName: %o`, eventName);
+      if (exclusiveLingeredEvent) {
+        if (!eventOptions.replaceExclusive) {
+          if (this.options.debug.all && this.options.debug.lingerEvent || eventOptions.trace) {
+            console.warn(`[em-async-events]-1028: ABORTING lingerEvent - for exclusive lingered eventName: %o`, eventName);
+            if (eventOptions.verbose) {
+              console.groupCollapsed('ABORTING lingerEvent verbose:');
+              console.info('eventMeta:');
+              console.table(eventMeta);
+              console.groupEnd();
+            }
+          }
+          
+          return exclusiveLingeredEvent.lingeringEventPromise.resolve(payload);
+        } else if (this.options.debug.all && this.options.debug.lingerEvent || eventOptions.trace) {
+          console.warn(`[em-async-events]-1039: lingerEvent - exclusive lingered eventName: %o, wil be replaced.`, eventName);
           if (eventOptions.verbose) {
-            console.groupCollapsed('ABORTING lingerEvent verbose:');
+            console.groupCollapsed('lingerEvent verbose:');
             console.info('eventMeta:');
             console.table(eventMeta);
             console.groupEnd();
           }
         }
-        
-        return exclusiveLingeredEvent.lingeringEventPromise.resolve(payload);
       }
       
       // bailout if baited but consumed event
