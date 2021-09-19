@@ -183,7 +183,9 @@ class AsyncEvents {
     
     if (eventOptions.isAsync) this.__showDeprecationWarning('isAsync', 'All events and listeners are now async.');
     
-    if (eventOptions.bait /*&& !eventOptions.linger*/) {
+    if (eventOptions.linger === true) {
+      eventOptions.linger = Infinity;
+    } else if (eventOptions.bait /*&& !eventOptions.linger*/) {
       eventOptions.linger = Infinity;
       // eventOptions.isGloballyExclusive = true;
     }
@@ -868,6 +870,7 @@ class AsyncEvents {
         }
       }
       
+      // todo run listeners using eventIndex, starting closest, up and down... this is why the while loop was there.
       // run both up and down listeners (which ever is available)
       for (let listener of listeners) {
         if (stop || listener.listenerOptions.stopHere) stopHere = true;
@@ -1049,7 +1052,7 @@ class AsyncEvents {
       }
       
       if (this.options.debug.all && this.options.debug.lingerEvent || eventOptions.trace) {
-        console.warn(`[em-async-events]-597: lingerEvent - eventName: %o`, eventName);
+        console.warn(`[em-async-events]-597: lingerEvent - eventName: %o for %o (ms)`, eventName, eventOptions.linger);
         if (eventOptions.verbose) {
           console.groupCollapsed('lingerEvent verbose:');
           console.info('eventMeta:');
