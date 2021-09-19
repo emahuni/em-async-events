@@ -49,12 +49,13 @@ class AsyncEvents {
         stopHere:            false,
         expire:              0,
         expiryCallback:      undefined,
-        catchUp:             100, // a value of true will catup whatever lingering event is there.
+        catchUp:             100, // a value of true will catch-up whatever lingering event is there.
         once:                false,
         isLocallyExclusive:  false,
         isGloballyExclusive: false,
         replace:             false,
         trace:               false,
+        traceThru:           false,
         verbose:             false,
       },
       eventsOptions:    {
@@ -66,6 +67,7 @@ class AsyncEvents {
         replace:             false,
         range:               'first-parent',
         trace:               false,
+        traceThru:           false,
         verbose:             false,
         rejectUnconsumed:    false,
       },
@@ -186,9 +188,7 @@ class AsyncEvents {
     if (eventOptions.bait) {
       eventOptions.linger = Infinity;
       // eventOptions.isGloballyExclusive = true;
-    }
-    
-    if (eventOptions.linger === true) {
+    } else if (eventOptions.linger === true) {
       eventOptions.linger = Infinity;
     }
     
@@ -209,16 +209,10 @@ class AsyncEvents {
     
     let vows = [];
     
-    /*if (eventOptions.volatile) {
-      return this.__runEvent(args);
-    } else {*/
     if (_.isArray(eventName)) {
-      for (let ei = 0, _len2 = eventName.length; ei < _len2; ei++) {
-        vows.push(this.__runEvent_linger({
-          ...args,
-          eventName: eventName[ei],
-          payload,
-        }));
+      for (let evName of eventName) {
+        const params = { ...args, eventName: evName, payload };
+        vows.push(this.__runEvent_linger(params));
       }
       
       return vows;
@@ -877,7 +871,7 @@ class AsyncEvents {
       for (let listener of listeners) {
         if (stop || listener.listenerOptions.stopHere) stopHere = true;
         
-        if (this.options.debug.all && this.options.debug.invokeListener || eventOptions.trace || listener.listenerOptions.trace) {
+        if (this.options.debug.all && this.options.debug.invokeListener || eventOptions.trace || listener.listenerOptions.trace || eventOptions.traceThru || listener.listenerOptions.traceThru) {
           console.warn(`[em-async-events]-380: Invoke Listener - eventName: %o, payload: %o, \n listener origin: %o, eventOrigin: %o,\nresponse: %o, \nstoppingHere: %o`, eventName, payload, _.get(listener.listenerOrigin, '$options.name', '???'), _.get(eventOrigin, '$options.name', '???'), finalOutcome, stopHere);
           if (eventOptions.verbose || listener.listenerOptions.verbose) {
             console.groupCollapsed('Listener verbose:');
@@ -953,10 +947,10 @@ class AsyncEvents {
     // todo should we replace exclusive listeners?
     // const exclusiveListener = this.__getExclusiveListener(listener.eventName, this.listenersStore); // todo ???
     
-    // keep track of lingering event listeners where we can track them in userland. todo clean all resolved listeners when we reach maxCacheCount (rename maxCachedPayloads to this and reuse everywhere we need cache things (Infinite events can gobble memory if uncleared)) todo create userland utils to check events and listeners promise statuses.
+    // keep track of lingering event listeners where we can track them in userland. todo clean all resolved listeners when we reach maxCacheCount (rename maxCachedPayloads to this and reuse everywhere we need cache things (Infinite events can gobble memory if uncleared))
+    //  todo create userland utils to check events and listeners promise statuses.
     eventMeta.consumers.push(listener);
-    
-    
+  
     /** do the actual call of the callback */
     let finalOutcome = listener.callback(payload, {
       extra:        listener.listenerOptions.extra,
@@ -1215,6 +1209,20 @@ class AsyncEvents {
         const elapsed = Date.now() - eventMeta.eventTimestamp;
         if (listener.listenerOptions.catchUp === true || listener.listenerOptions.catchUp >= elapsed) {
           const { eventOptions, eventOrigin } = eventMeta;
+          
+          if (this.options.debug.all && this.options.debug.addListener || listener.listenerOptions.trace || eventOptions.traceThru) {
+            console.warn(`[em-async-events]-1222: ${listener.listenerOptions.once ? this.options.onceEvent : this.options.onEvent} "catching up" to a currently lingering lingeringEvent "%o" that has been lingering for %o/%o.`, eventName, elapsed, eventOptions.linger);
+            
+            if (listener.listenerOptions.verbose) {
+              console.groupCollapsed('catchUp verbose:');
+              console.info('Listener:');
+              console.table(listener);
+              console.info('lingeringEvent:');
+              console.table(lingeringEvent);
+              console.groupEnd();
+            }
+          }
+          
           // the reason here is that we need it to pass thru the levels logic too
           payload = this.__runListeners({
             payload,
@@ -1238,7 +1246,7 @@ class AsyncEvents {
           }
         } else {
           if (this.options.debug.all && this.options.debug.addListener || listener.listenerOptions.trace) {
-            console.warn(`[em-async-events]-948: ${listener.listenerOptions.once ? this.options.onceEvent : this.options.onEvent} couldn't "catchUp" to a currently lingering lingeringEvent "%o". Please adjust listener options catchUp time from: %o to something greater than %o if this is desired.`, eventName, listener.listenerOptions.catchUp, elapsed);
+            console.warn(`[em-async-events]-1254: ${listener.listenerOptions.once ? this.options.onceEvent : this.options.onEvent} couldn't "catchUp" to a currently lingering lingeringEvent "%o". Please adjust listener options catchUp time from: %o to something greater than %o if this is desired.`, eventName, listener.listenerOptions.catchUp, elapsed);
             if (listener.listenerOptions.verbose) {
               console.groupCollapsed('catchUp verbose:');
               console.info('Listener:');
