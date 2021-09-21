@@ -446,6 +446,32 @@ class AsyncEvents {
         };
       },
       
+      computed: {
+        // todo document the following 2 getters and traceThru option
+        /**
+         * get component local listeners
+         * @return {{}}
+         */
+        $localListeners () {
+          return _.reduce(AE_this.listenersStore, (acc, lis, k) => {
+            const lolis = lis.filter(lol => lol.subscriberID === this._uid);
+            if (lolis.length) acc[k] = lolis;
+            return acc;
+          }, {});
+        },
+        /**
+         * get component local Lingered Events
+         * @return {{}}
+         */
+        $localLingeredEvents () {
+          return _.reduce(AE_this.lingeringEventsStore, (acc, ev, k) => {
+            const loev = ev.filter(loe => loe.eventMeta.emitterID === this._uid);
+            if (loev.length) acc[k] = loev;
+            return acc;
+          }, {});
+        },
+      },
+      
       beforeDestroy: function asyncEventsBeforeDestroy () {
         // noinspection JSUnresolvedVariable
         if (this.toFallSilent$) this[fallSilentProp]();
@@ -456,9 +482,11 @@ class AsyncEvents {
      * plugin local state
      */
     Vue.prototype[asyncEventsProp] = {
-      listeners:       this.listenersStore,
-      lingeringEvents: this.lingeringEventsStore,
-      options:         this.options,
+      listeners:            this.listenersStore,
+      localListeners:       this.$localListeners,
+      lingeringEvents:      this.lingeringEventsStore,
+      localLingeringEvents: this.$localLingeringEvents,
+      options:              this.options,
       
       /**
        * check if Async Events has any listeners for the given eventID
@@ -950,7 +978,7 @@ class AsyncEvents {
     // keep track of lingering event listeners where we can track them in userland. todo clean all resolved listeners when we reach maxCacheCount (rename maxCachedPayloads to this and reuse everywhere we need cache things (Infinite events can gobble memory if uncleared))
     //  todo create userland utils to check events and listeners promise statuses.
     eventMeta.consumers.push(listener);
-  
+    
     /** do the actual call of the callback */
     let finalOutcome = listener.callback(payload, {
       extra:        listener.listenerOptions.extra,
