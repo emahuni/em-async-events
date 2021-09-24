@@ -266,7 +266,7 @@ class AsyncEvents {
    */
   fallSilent (subscriberID, eventName, callback) {
     // console.debug(`[em-async-events]-205: fallSilentProp () subscriberID: %o, eventName: %o, callback: %o`, subscriberID, eventName, callback);
-    
+    // todo add lingering events fallSilent. if event was declared with a fallSilent option, then we could also destroy it here
     if (!_.isEmpty(this.listenersStore)) {
       // Unsubscribe component from specific event
       if (!callback && typeof eventName === 'string' && eventName in this.listenersStore) {
@@ -1159,8 +1159,10 @@ class AsyncEvents {
         this.__settleLingeredEvent(ev, eventOptions, eventName);
       }
       
-      const i = this.lingeringEventsStore[eventName].findIndex(le => le.id === ev.id);
-      this.__removeLingeringEventAtIndex(eventName, i, eventOptions, ev.eventMeta);
+      if (Array.isArray(this.lingeringEventsStore[eventName])) {
+        const i = this.lingeringEventsStore[eventName].findIndex(le => le.id === ev.id);
+        this.__removeLingeringEventAtIndex(eventName, i, eventOptions, ev.eventMeta);
+      }
     }, timeout, ev);
   }
   
