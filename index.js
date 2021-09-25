@@ -55,7 +55,6 @@ class AsyncEvents {
         isGloballyExclusive: false,
         replace:             false,
         trace:               false,
-        traceThru:           false,
         verbose:             false,
       },
       eventsOptions:    {
@@ -67,7 +66,6 @@ class AsyncEvents {
         replace:             false,
         range:               'first-parent',
         trace:               false,
-        traceThru:           false,
         verbose:             false,
         rejectUnconsumed:    false,
       },
@@ -447,7 +445,7 @@ class AsyncEvents {
       },
       
       computed: {
-        // todo document the following 2 getters and traceThru option
+        // todo document the following 2 getters
         /**
          * get component local listeners
          * @return {{}}
@@ -899,7 +897,7 @@ class AsyncEvents {
       for (let listener of listeners) {
         if (stop || listener.listenerOptions.stopHere) stopHere = true;
         
-        if (this.options.debug.all && this.options.debug.invokeListener || eventOptions.trace || listener.listenerOptions.trace || eventOptions.traceThru || listener.listenerOptions.traceThru) {
+        if (this.options.debug.all && this.options.debug.invokeListener || eventOptions.trace || listener.listenerOptions.trace || eventOptions.verbose || listener.listenerOptions.verbose) {
           console.warn(`[em-async-events]-380: Invoke Listener - eventName: %o, payload: %o, \n listener origin: %o, eventOrigin: %o,\nresponse: %o, \nstoppingHere: %o`, eventName, payload, _.get(listener.listenerOrigin, '$options.name', '???'), _.get(eventOrigin, '$options.name', '???'), finalOutcome, stopHere);
           if (eventOptions.verbose || listener.listenerOptions.verbose) {
             console.groupCollapsed('Listener verbose:');
@@ -1240,7 +1238,7 @@ class AsyncEvents {
         if (listener.listenerOptions.catchUp === true || listener.listenerOptions.catchUp >= elapsed) {
           const { eventOptions, eventOrigin } = eventMeta;
           
-          if (this.options.debug.all && this.options.debug.addListener || listener.listenerOptions.trace || eventOptions.traceThru) {
+          if (this.options.debug.all && this.options.debug.addListener || listener.listenerOptions.trace || eventOptions.verbose) {
             console.warn(`[em-async-events]-1222: ${listener.listenerOptions.once ? this.options.onceEvent : this.options.onEvent} "catching up" to a currently lingering lingeringEvent "%o" that has been lingering for %o/%o.`, eventName, elapsed, eventOptions.linger);
             
             if (listener.listenerOptions.verbose) {

@@ -69,7 +69,7 @@ are at play, read on.
 
 This package aims to address the above features and avoid some thorny issues that other event buses have. It was once
 called `vue-hooked-em-async-events` because it mainly focused on **Vue**, but it was so good at solving many common
-event problems that the author decided to make it work without Vue and created `em-async-events`.
+event problems that the author decided to make it work without Vue and created `em-async-events`. You can trace events using the `trace` and `verbose` options.
 
 ## Methods
 
@@ -83,6 +83,7 @@ Listening to event or events:
 
 - most options can be mixed to get the desired behaviour
 - callback arguments: `payload` and listener `options` (used to add the listener)
+- `$localListeners` are listeners in the current scope (listeners in Vue Component). This is meant for Vue and you can see these in devtools (computed). 
 
 #### onEvent() and onceEvent()
 
@@ -281,7 +282,7 @@ this.$emitEvent('some-event', { test: 'one' });
 #### Use lingered events
 
 Why use linger? bust race conditions. it doesn't matter how your order your events and listeners when using this it will
-make sure that events can fire and wait for listeners to pop in within a certain timespan.
+make sure that events can fire and wait for listeners to pop in within a certain timespan. 
 
 - Each event is actually lingered `500`ms by default. See `eventsOptions.linger` in options below.
 - To Disable lingering on a specific event, set `linger: false` on event options when emitting. Figures < 0 or falsy
@@ -289,6 +290,8 @@ make sure that events can fire and wait for listeners to pop in within a certain
   altogether.
 - You can regulate each listener's linger catching up using `catchUp` time on listeners' options.
 - ~~globalLinger~~ - was deprecated in favour of using the default options' `eventsOptions.linger` option.
+- `$localLingeredEvents` are lingering events in the current scope (in Vue Component). This is meant for Vue and you can see these in devtools (computed). 
+
 
 eg: Linger for 5000ms for new listeners of the event.
 
@@ -591,7 +594,7 @@ defaultOptions === {
     replace:    false,
     range:               'first-parent',
     trace:               false,
-    verbose:             false,
+    verbose:             false, // turning this to TRUE in emitEvent..., on will cause target listerners to trace also
     rejectUnconsumed:    false,
   },
   
