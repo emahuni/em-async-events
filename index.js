@@ -659,7 +659,7 @@ class AsyncEvents {
           console.groupEnd();
         }
       }
-      throw new Error(`[index]-595: __addListener() - ABORTING (exclusive ${(isExclusiveCallbackListener ? 'callback' : 'listener')} exists)`);
+      throw new Error(`[index]-595: __addListener() - ABORTING (exclusive ${(isExclusiveCallbackListener ? 'callback' : 'listener')} exists in "${exclusiveListener.listenerOrigin.$options.name}")`);
     }
     
     // todo we can add level to add listener options for non-vue usage
