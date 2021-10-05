@@ -190,11 +190,14 @@ class AsyncEvents {
       eventOptions.linger = Infinity;
     }
     
+    if(!Array.isArray(eventOptions.extras)) eventOptions.extras = [];
+    
     const eventMeta = {
       eventOrigin,
       emitterID,
       stopNow:     false,
       wasConsumed: false,
+      extras:      eventOptions.extras,
     };
     
     const args = {
@@ -992,6 +995,10 @@ class AsyncEvents {
       call_id:      callbackPromise.id,
     });
     
+    if(!_.isUndefined(listener.listenerOptions.extra)) {
+      eventMeta.extras.push(listener.listenerOptions.extra);
+    }
+    
     
     if (isPromise(finalOutcome)) {
       // todo check error handling of promise here
@@ -1241,7 +1248,7 @@ class AsyncEvents {
         if (listener.listenerOptions.catchUp === true || listener.listenerOptions.catchUp >= elapsed) {
           const { eventOptions, eventOrigin } = eventMeta;
           
-          if (this.options.debug.all && this.options.debug.addListener || listener.listenerOptions.trace  || listener.listenerOptions.verbose || eventOptions.verbose) {
+          if (this.options.debug.all && this.options.debug.addListener || listener.listenerOptions.trace || listener.listenerOptions.verbose || eventOptions.verbose) {
             console.warn(`[em-async-events]-1222: ${listener.listenerOptions.once ? this.options.onceEvent : this.options.onEvent} "catching up" to a currently lingering lingeringEvent "%o" that has been lingering for %o/%o.`, eventName, elapsed, eventOptions.linger);
             
             if (listener.listenerOptions.verbose) {
@@ -1292,7 +1299,8 @@ class AsyncEvents {
   
   __removeLingeringEventAtIndex (eventName, index, eventOptions, eventMeta) {
     if (this.options.debug.all && this.options.debug.lingerEvent || eventOptions.trace || eventOptions.verbose) {
-      /*if(eventOptions.verbose) */console.warn(`[em-async-events]-911: remove lingerEvent - eventName: %o on index: %o`, eventName, index);
+      /*if(eventOptions.verbose) */
+      console.warn(`[em-async-events]-911: remove lingerEvent - eventName: %o on index: %o`, eventName, index);
       
       if (!eventMeta.wasConsumed) {
         console.warn(`[em-async-events]-924: - Lingered eventName: %o wasn't consumed! Check the event name correctness, or adjust its "linger" time or the listeners' "catchUp" time to bust event race conditions.`, eventName);

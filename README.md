@@ -566,7 +566,7 @@ Default options that you don't have to set all the time or that control certain 
 ```js
 defaultOptions === {
   listenersOptions: {
-    extra:               undefined, // pass information to emitters or other callbacks using this. Get it in second param (metadata)
+    extra:               undefined, // pass extra information to emitters or other callbacks using this. Get it in listeners from the second param (metadata). Get it from events through eventOptions.extras array; so define an options obj you can access.
     callbacks:           {
       serialExecution:     false, // don't execute callbacks at once; queue them up.
       debounce:            null, // lodash debounce opts; {wait, leading, trailing, maxWait}
