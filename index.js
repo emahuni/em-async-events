@@ -687,15 +687,16 @@ class AsyncEvents {
     // create listener object
     const listener = {
       eventName,
-      callback:  _.get(exclusiveListener, 'callback', callback),
+      callback:      _.get(exclusiveListener, 'callback', callback),
       listenerOptions,
       subscriberID,
       listenerOrigin,
       listenerPromise,
-      id:        this.__genUniqID(),
+      id:            this.__genUniqID(),
       level,
-      timestamp: Date.now(),
-      calls:     [],
+      timestamp:     Date.now(),
+      expiryTimeout: null,
+      calls:         [],
     };
     
     if (this.options.debug.all && this.options.debug.addListener || listenerOptions.trace) {
@@ -716,19 +717,23 @@ class AsyncEvents {
       this.__stashListenerOrEvent(listener, eventName, this.listenersStore, exclusiveListener);
       
       if (listenerOptions.expire) {
-        setTimeout(() => {
-          if (!!listenerOptions.expiryCallback) listenerOptions.expiryCallback(listener);
-          else {
-            if (this.options.debug.all && this.options.debug.addListener || listenerOptions.trace) {
-              console.info(`[em-async-events]-627: ${listenerOptions.once ? this.options.onceEvent : this.options.onEvent}(addListener) eventName: %o has no expiryCallback...`, eventName);
-              if (listenerOptions.verbose) {
-                console.groupCollapsed('addListener verbose:');
-                console.info('Listener:');
-                console.table(listener);
-                console.groupEnd();
-              }
+        listener.expiryTimeout = setTimeout(() => {
+          let hasCB = false;
+          if (_.isFunction(listenerOptions.expiryCallback)) {
+            hasCB = true;
+            listenerOptions.expiryCallback(listener);
+          }
+          
+          if (this.options.debug.all && this.options.debug.addListener || listenerOptions.trace) {
+            console.info(`[em-async-events]-627: ${listenerOptions.once ? this.options.onceEvent : this.options.onEvent}(addListener) eventName: %o EXPIRED ${hasCB ? 'called CB' : 'with no expiryCallback'}...`, eventName);
+            if (listenerOptions.verbose) {
+              console.groupCollapsed('addListener verbose:');
+              console.info('Listener:');
+              console.table(listener);
+              console.groupEnd();
             }
           }
+          
           // noinspection JSCheckFunctionSignatures
           this.__removeListeners({ ...listener });
         }, listenerOptions.expire);
@@ -908,6 +913,8 @@ class AsyncEvents {
             console.groupEnd();
           }
         }
+        
+        clearTimeout(listener.expiryTimeout);
         
         const callbackPromise = this.__createPromise();
         try {
