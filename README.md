@@ -22,7 +22,7 @@ listeners, and a customizable atomic API. Has a Vue plugin.
     - register these using atomic statements.
 - **you can use it *without* of Vue!**
 - **excellent debugging and logging support**: trace and debug everything to quickly see what's going on. Tip: it's so
-  useful to turn on `debug.all` option during development.
+  useful to turn on `debug.all` option during development, then turn on `trace/verbose` on each event/listener. It helps a lot if you can't figure out what's going on.
 
 ## Installation
 
@@ -583,8 +583,8 @@ defaultOptions === {
     isLocallyExclusive:  false, // make this the only listener for this event in local scope (eg: Vue component)
     isGloballyExclusive: false, // make this the only listener for this event everywhere
     replace:             false, // replace/hijack any existing global or local listeners defined earlier.
-    trace:               false, // show debug info about event or listener, we use warning messages as they show callstack.
-    verbose:             false, // show more information
+    trace:               false, // show debug info about event or listener.
+    verbose:             false, // show more information (including emitter info), uses warning messages as they show callstack.
   },
   
   eventsOptions:    {
@@ -595,8 +595,8 @@ defaultOptions === {
     isGloballyExclusive: false, // make this the only lingering event with this name everywhere
     replace:             false, // replace/hijack any existing global or local lingering events defined earlier.
     range:               'first-parent', // how to propergate the event and where it will reach
-    trace:               false, // show debug info about event, we use warning messages as they show the callstack.
-    verbose:             false, // show extra info, turning this to TRUE in emitEvent causes target listerners to trace also
+    trace:               false, // show debug info about event.
+    verbose:             false, // show extra info, turning this to TRUE in causes target listerners to trace also
     rejectUnconsumed:    false, // throw an error in the lingering event promise when the event is never consumed.
   },
   
