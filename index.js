@@ -725,7 +725,7 @@ class AsyncEvents {
           }
           
           if (this.options.debug.all && this.options.debug.addListener || listenerOptions.trace) {
-            console.info(`[em-async-events]-627: ${listenerOptions.once ? this.options.onceEvent : this.options.onEvent}(addListener) eventName: %o EXPIRED ${hasCB ? 'called CB' : 'with no expiryCallback'}...`, eventName);
+            console.info(`[em-async-events]-627: ${listenerOptions.once ? 'one-time' : 'regular'} eventName: %o EXPIRED ${hasCB ? 'called CB' : 'with no expiryCallback'}...`, eventName);
             if (listenerOptions.verbose) {
               console.groupCollapsed('addListener verbose:');
               console.info('Listener:');
@@ -1054,9 +1054,9 @@ class AsyncEvents {
       if (exclusiveLingeredEvent) {
         if (!eventOptions.replace) {
           if (this.options.debug.all && this.options.debug.lingerEvent || eventOptions.trace) {
-            console.warn(`[em-async-events]-1028: ABORTING lingerEvent - for exclusive lingered eventName: %o`, eventName);
+            console.warn(`[em-async-events]-1028: DISCARDING EXCLUSIVE lingered event - eventName: %o`, eventName);
             if (eventOptions.verbose) {
-              console.groupCollapsed('ABORTING lingerEvent verbose:');
+              console.groupCollapsed('DISCARDING lingered event verbose:');
               console.info('eventMeta:');
               console.table(eventMeta);
               console.groupEnd();
@@ -1065,7 +1065,7 @@ class AsyncEvents {
           
           return exclusiveLingeredEvent.lingeringEventPromise.resolve(payload);
         } else if (this.options.debug.all && this.options.debug.lingerEvent || eventOptions.trace) {
-          console.warn(`[em-async-events]-1039: lingerEvent - exclusive lingered eventName: %o, wil be replaced.`, eventName);
+          console.warn(`[em-async-events]-1039: REPLACING EXCLUSIVE lingered event - eventName: %o`, eventName);
           if (eventOptions.verbose) {
             console.groupCollapsed('lingerEvent verbose:');
             console.info('eventMeta:');
@@ -1078,9 +1078,9 @@ class AsyncEvents {
       // bailout if baited but consumed event
       if (eventMeta.wasConsumed && eventOptions.bait) {
         if (this.options.debug.all && this.options.debug.lingerEvent || eventOptions.trace) {
-          console.warn(`[em-async-events]-827: ABORTING lingerEvent - baited but consumed eventName: %o`, eventName);
+          console.warn(`[em-async-events]-827: ABORTING event lingering - event was BAITED, but consumed already - eventName: %o`, eventName);
           if (eventOptions.verbose) {
-            console.groupCollapsed('ABORTING lingerEvent verbose:');
+            console.groupCollapsed('ABORTING lingering event verbose:');
             console.info('eventMeta:');
             console.table(eventMeta);
             console.groupEnd();
@@ -1091,9 +1091,9 @@ class AsyncEvents {
       }
       
       if (this.options.debug.all && this.options.debug.lingerEvent || eventOptions.trace) {
-        console.warn(`[em-async-events]-597: lingerEvent - eventName: %o for %o (ms)`, eventName, eventOptions.linger);
+        console.warn(`[em-async-events]-597: Lingering event - eventName: %o for %o (ms)`, eventName, eventOptions.linger);
         if (eventOptions.verbose) {
-          console.groupCollapsed('lingerEvent verbose:');
+          console.groupCollapsed('Lingering event verbose:');
           console.info('eventMeta:');
           console.table(eventMeta);
           console.groupEnd();
@@ -1133,31 +1133,27 @@ class AsyncEvents {
     setTimeout((e) => {
       const consumers = this.pendingEventConsumers(ev);
       if (consumers.length) {
-        if (this.options.debug.all && this.options.debug.lingerEvent || eventOptions.trace) {
-          console.warn(`[em-async-events]-1005: - eventName: %o "linger" time has run out whilst it's still being consumed. It is removed, but its promise will be settled once the consumers finish.`, eventName);
-          if (eventOptions.verbose) {
-            console.groupCollapsed('Consumers verbose:');
-            console.info('Consumers:');
-            console.table(consumers);
-            console.info('eventMeta:');
-            console.table(ev.eventMeta);
-            console.groupEnd();
-          }
+        if (this.options.debug.all && this.options.debug.lingerEvent || eventOptions.verbose) {
+          console.warn(`[em-async-events]-1005: - eventName: %o "linger" time has run out whilst it's still being consumed. It's removed, but its promise will be settled once the consumers finish.`, eventName);
+          console.groupCollapsed('Consumers verbose:');
+          console.info('Consumers:');
+          console.table(consumers);
+          console.info('eventMeta:');
+          console.table(ev.eventMeta);
+          console.groupEnd();
         }
         
         Promise.all(consumers.map(c => c.listenerPromise.promise)).then((vows) => {
           // console.debug(`[index]-1011: () - vows: %o`, vows);
           this.__settleLingeredEvent(ev, eventOptions, eventName);
-          if (consumers.length && this.options.debug.all && this.options.debug.lingerEvent || eventOptions.trace) {
+          if (consumers.length && this.options.debug.all && this.options.debug.lingerEvent || eventOptions.verbose) {
             console.warn(`[em-async-events]-1016: - eventName: %o "linger" consumers have finished.`, eventName);
-            if (eventOptions.verbose) {
-              console.groupCollapsed('"linger" consumers verbose:');
-              console.info('Consumers:');
-              console.table(consumers);
-              console.info('eventMeta:');
-              console.table(ev.eventMeta);
-              console.groupEnd();
-            }
+            console.groupCollapsed('"linger" consumers verbose:');
+            console.info('Consumers:');
+            console.table(consumers);
+            console.info('eventMeta:');
+            console.table(ev.eventMeta);
+            console.groupEnd();
           }
         });
       } else {
@@ -1296,7 +1292,7 @@ class AsyncEvents {
   
   __removeLingeringEventAtIndex (eventName, index, eventOptions, eventMeta) {
     if (this.options.debug.all && this.options.debug.lingerEvent || eventOptions.trace) {
-      console.info(`[em-async-events]-911: remove lingerEvent - eventName: %o on index: %o`, eventName, index);
+      /*if(eventOptions.verbose) */console.warn(`[em-async-events]-911: remove lingerEvent - eventName: %o on index: %o`, eventName, index);
       
       if (!eventMeta.wasConsumed) {
         console.warn(`[em-async-events]-924: - Lingered eventName: %o wasn't consumed! Check the event name correctness, or adjust its "linger" time or the listeners' "catchUp" time to bust event race conditions.`, eventName);
