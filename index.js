@@ -190,7 +190,7 @@ class AsyncEvents {
       eventOptions.linger = Infinity;
     }
     
-    if(!Array.isArray(eventOptions.extras)) eventOptions.extras = [];
+    if (!Array.isArray(eventOptions.extras)) eventOptions.extras = [];
     
     const eventMeta = {
       eventOrigin,
@@ -808,7 +808,7 @@ class AsyncEvents {
     });
     
     if (this.options.debug.all && this.options.debug.emitEvent || eventOptions.trace || eventOptions.verbose) {
-      console.warn(`[em-async-events]-152: ${this.options.emitEvent} eventName: %o payload: %o\n origin: %o`, eventName, payload, _.get(eventOrigin, '$options.name', '???'));
+      console.warn(`[em-async-events]-152: ${this.options.emitEvent} eventName: %o, origin: %o, range: %o\npayload: %o`, eventName, _.get(eventOrigin, '$options.name', '???'), eventOptions.range, payload);
       if (eventOptions.verbose) {
         console.groupCollapsed('__runEvent_linger verbose:');
         console.info('eventMeta:');
@@ -995,7 +995,7 @@ class AsyncEvents {
       call_id:      callbackPromise.id,
     });
     
-    if(!_.isUndefined(listener.listenerOptions.extra)) {
+    if (!_.isUndefined(listener.listenerOptions.extra)) {
       eventMeta.extras.push(listener.listenerOptions.extra);
     }
     
