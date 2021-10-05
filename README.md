@@ -12,9 +12,8 @@ listeners, and a customizable atomic API. Has a Vue plugin.
 - **automated event management:**
     - auto-removal of listeners on destruction.
     - expirable listeners that listen for a specified time before they are removed.
-- **async events** that get responses from listeners. Returns  promise.
-- **async listeners** that can wait for callback(s) to fire the first time before proceeding. Returns
-  promise.
+- **async events** that get responses from listeners. Returns promise.
+- **async listeners** that can wait for callback(s) to fire the first time before proceeding. Returns promise.
 - **lingering events;** these are events that are fired and used by current listeners, but wait for newer listeners
   until a specified time before being discarded or wait until its listener is added (bait mode).
 - **multiple callbacks and events registrations:**
@@ -69,7 +68,8 @@ are at play, read on.
 
 This package aims to address the above features and avoid some thorny issues that other event buses have. It was once
 called `vue-hooked-em-async-events` because it mainly focused on **Vue**, but it was so good at solving many common
-event problems that the author decided to make it work without Vue and created `em-async-events`. You can trace events using the `trace` and `verbose` options.
+event problems that the author decided to make it work without Vue and created `em-async-events`. You can trace events
+using the `trace` and `verbose` options.
 
 ## Methods
 
@@ -83,7 +83,8 @@ Listening to event or events:
 
 - most options can be mixed to get the desired behaviour
 - callback arguments: `payload` and listener `options` (used to add the listener)
-- `$localListeners` are listeners in the current scope (listeners in Vue Component). This is meant for Vue and you can see these in devtools (computed). 
+- `$localListeners` are listeners in the current scope (listeners in Vue Component). This is meant for Vue and you can
+  see these in devtools (computed).
 
 #### onEvent() and onceEvent()
 
@@ -282,7 +283,7 @@ this.$emitEvent('some-event', { test: 'one' });
 #### Use lingered events
 
 Why use linger? bust race conditions. it doesn't matter how your order your events and listeners when using this it will
-make sure that events can fire and wait for listeners to pop in within a certain timespan. 
+make sure that events can fire and wait for listeners to pop in within a certain timespan.
 
 - Each event is actually lingered `500`ms by default. See `eventsOptions.linger` in options below.
 - To Disable lingering on a specific event, set `linger: false` on event options when emitting. Figures < 0 or falsy
@@ -290,8 +291,8 @@ make sure that events can fire and wait for listeners to pop in within a certain
   altogether.
 - You can regulate each listener's linger catching up using `catchUp` time on listeners' options.
 - ~~globalLinger~~ - was deprecated in favour of using the default options' `eventsOptions.linger` option.
-- `$localLingeredEvents` are lingering events in the current scope (in Vue Component). This is meant for Vue and you can see these in devtools (computed). 
-
+- `$localLingeredEvents` are lingering events in the current scope (in Vue Component). This is meant for Vue and you can
+  see these in devtools (computed).
 
 eg: Linger for 5000ms for new listeners of the event.
 
@@ -313,7 +314,7 @@ emitting the event):
 ```js
   this.$onEvent('some-event', (payload) => {/*...*/}, { catchUp: 100 });
 // or catch up no matter what
-  this.$onEvent('some-event', (payload) => {/*...*/}, { catchUp: true });
+this.$onEvent('some-event', (payload) => {/*...*/}, { catchUp: true });
  ``` 
 
 For example to NOT catch up an event at all (if we missed the event don't use the lingered one):
@@ -321,7 +322,7 @@ For example to NOT catch up an event at all (if we missed the event don't use th
 ```js
   this.$onEvent('some-event', (payload) => {/*...*/}, { catchUp: 0 });
 // or
-  this.$onEvent('some-event', (payload) => {/*...*/}, { catchUp: false });
+this.$onEvent('some-event', (payload) => {/*...*/}, { catchUp: false });
  ```
 
 ##### Exclusive events
@@ -560,46 +561,48 @@ export default {
 
 ### Default options
 
-Default options that you don't have to set all the time or that control certain things.
+Default options that you don't have to set all the time or that control certain things. Note that these are also options that you pass to individual listeners and events when creating them.
 
 ```js
 defaultOptions === {
   listenersOptions: {
-    extra:               undefined,
+    extra:               undefined, // pass information to emitters or other callbacks using this. Get it in second param (metadata)
     callbacks:           {
-      serialExecution:     false,
+      serialExecution:     false, // don't execute callbacks at once; queue them up.
       debounce:            null, // lodash debounce opts; {wait, leading, trailing, maxWait}
       throttle:            null, // lodash throttle opts; {wait, leading, trailing}
-      isLocallyExclusive:  false,
-      isGloballyExclusive: false,
-      replace:    false,
+      isLocallyExclusive:  false, // make this the only listener that runs THIS CALLBACK for this event in local scope (eg: Vue component)
+      isGloballyExclusive: false, // make this the only listener that runs THIS CALLBACK  for this event everywhere
+      replace:             false, // replace/hijack any existing global or local listeners defined earlier.
     },
-    stopHere:            false,
-    expire:              0,
-    expiryCallback:      undefined,
-    catchUp:             100,
-    once:                false,
-    isLocallyExclusive:  false,
-    isGloballyExclusive: false,
-    replace:    false,
-    trace:               false,
-    verbose:             false,
+    stopHere:            false, // stop invoking other callbacks when we hit this listener
+    expire:              0,     // stop listening for the event after this much time (ms)
+    expiryCallback:      undefined, // call this callback when we stop listening through expire time.
+    catchUp:             100, // catup time (ms) to consider events that occured earlier; false to disable
+    once:                false, // only listen for this event once
+    isLocallyExclusive:  false, // make this the only listener for this event in local scope (eg: Vue component)
+    isGloballyExclusive: false, // make this the only listener for this event everywhere
+    replace:             false, // replace/hijack any existing global or local listeners defined earlier.
+    trace:               false, // show debug info about event or listener, we use warning messages as they show callstack.
+    verbose:             false, // show more information
   },
+  
   eventsOptions:    {
-    chain:               false,
-    linger:              500,
-    bait:                false,
-    isLocallyExclusive:  false,
-    isGloballyExclusive: false,
-    replace:    false,
-    range:               'first-parent',
-    trace:               false,
-    verbose:             false, // turning this to TRUE in emitEvent..., on will cause target listerners to trace also
-    rejectUnconsumed:    false,
+    chain:               false, // cause listeners' callbacks to pass each other's outcome as payload; based on range, but not guaranteed
+    linger:              500,   // time (ms) to wait for other listeners that may want to catch up to this event.
+    bait:                false, // emit and linger this event forever, waiting for just 1 listener that may catch it. sort of a "once" for emitters.
+    isLocallyExclusive:  false, // make this the only lingering event with this name in local scope (eg: Vue component)
+    isGloballyExclusive: false, // make this the only lingering event with this name everywhere
+    replace:             false, // replace/hijack any existing global or local lingering events defined earlier.
+    range:               'first-parent', // how to propergate the event and where it will reach
+    trace:               false, // show debug info about event, we use warning messages as they show the callstack.
+    verbose:             false, // show extra info, turning this to TRUE in emitEvent causes target listerners to trace also
+    rejectUnconsumed:    false, // throw an error in the lingering event promise when the event is never consumed.
   },
   
   maxCachedPayloads: 5,
   
+  // fine tune which processes will log trace information
   debug: {
     all:                    true,
     addListener:            false,
