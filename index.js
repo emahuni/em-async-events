@@ -652,17 +652,27 @@ class AsyncEvents {
    */
   __addListener ({ eventName, callback, listenerOptions, subscriberID, listenerOrigin }) {
     let isExclusiveCallbackListener = false;
-    const exclusiveListener = (this.listenersStore[eventName] || []).find(l => this.__isExclusiveListener(l, subscriberID) || this.__isExclusiveCallback(callback, l, subscriberID) && (isExclusiveCallbackListener = true));
+    
+    // todo move this to a method and fix this to work correctly for callbacks...
+    const exclusiveListener = (this.listenersStore[eventName] || []).find(l => {
+      return this.__isExclusiveListener(l, subscriberID, listenerOptions) || this.__isExclusiveCallback(callback, l, subscriberID, listenerOptions) && (isExclusiveCallbackListener = true);
+    });
     
     // bailout if there is an exclusive listener of the same event name on the component
-    if (exclusiveListener && (!isExclusiveCallbackListener && !listenerOptions.replace || isExclusiveCallbackListener && !listenerOptions.callbacks.replace)) {
-      if (this.options.debug.all && this.options.debug.addListener || listenerOptions.trace || listenerOptions.verbose) {
-        console.groupCollapsed(`[em-async-events] %cABORTING (exclusive ${(isExclusiveCallbackListener ? 'callback' : 'listener')} exists) ${listenerOptions.once ? this.options.onceEvent : this.options.onEvent} %ceventName: %o Exclusive Listener Origin: %o, Requesting Origin: %o`, 'color:brown;', 'color: grey;', eventName, _.get(exclusiveListener.listenerOrigin, '$options.name', '???'), _.get(listenerOrigin, '$options.name', '???'));
-        // if (listenerOptions.verbose)
-        console.warn(`Exclusive Listener: %o, \n\tfilename: %o`, exclusiveListener, listenerOptions.filename);
+    if (exclusiveListener) {
+      if (!isExclusiveCallbackListener && !listenerOptions.replace || isExclusiveCallbackListener && !listenerOptions.callbacks.replace) {
+        if (this.options.debug.all && this.options.debug.addListener || listenerOptions.trace || listenerOptions.verbose) {
+          console.groupCollapsed(`[em-async-events] %cABORTING (exclusive ${(isExclusiveCallbackListener ? 'callback' : 'listener')} exists) ${listenerOptions.once ? this.options.onceEvent : this.options.onEvent} %ceventName: %o Exclusive Listener Origin: %o, Requesting Origin: %o`, 'color:brown;', 'color: grey;', eventName, _.get(exclusiveListener.listenerOrigin, '$options.name', '???'), _.get(listenerOrigin, '$options.name', '???'));
+          // if (listenerOptions.verbose)
+          console.warn(`Exclusive Listener: %o, \n\tfilename: %o`, exclusiveListener, listenerOptions.filename);
+          console.groupEnd();
+        }
+        throw new Error(`[index]-595: __addListener("${eventName}") - ABORTING (exclusive ${(isExclusiveCallbackListener ? 'callback' : 'listener')} exists in "${exclusiveListener.listenerOrigin.$options.name}")`);
+      } else {
+        console.groupCollapsed(`[em-async-events] %cREPLACING existing listener %c- eventName: %o because of exclusivity options...`, 'color: brown;', 'color: grey;', eventName);
+        console.warn(`listenerOptions: %o \n\tfilename: %o`, listenerOptions, listenerOptions.filename);
         console.groupEnd();
       }
-      throw new Error(`[index]-595: __addListener("${eventName}") - ABORTING (exclusive ${(isExclusiveCallbackListener ? 'callback' : 'listener')} exists in "${exclusiveListener.listenerOrigin.$options.name}")`);
     }
     
     // todo we can add level to add listener options for non-vue usage
@@ -743,22 +753,15 @@ class AsyncEvents {
    * check if listener is exclusive
    * @param listener
    * @param subscriberID
+   * @param listenerOptions
    * @return {*|boolean|boolean}
    * @private
    */
-  __isExclusiveListener (listener, subscriberID) {
-    return listener.listenerOptions.isGloballyExclusive || listener.listenerOptions.isLocallyExclusive && listener.subscriberID === subscriberID;
-  }
-  
-  /**
-   * check if listener callback is exclusive
-   * @param listener
-   * @param subscriberID
-   * @return {false|*|boolean|boolean}
-   * @private
-   */
-  __isExclusiveListenerCallback (listener, subscriberID) {
-    return listener.listenerOptions.callbacks.isGloballyExclusive || listener.listenerOptions.callbacks.isLocallyExclusive && listener.subscriberID === subscriberID;
+  __isExclusiveListener (listener, subscriberID, listenerOptions) {
+    // the one being added is the global exclusive listener so we have a hit
+    if (listener.listenerOptions.isGloballyExclusive || listenerOptions.isGloballyExclusive) return true;
+    
+    return (listener.listenerOptions.isLocallyExclusive || listenerOptions.isLocallyExclusive) && listener.subscriberID === subscriberID;
   }
   
   /**
@@ -766,11 +769,25 @@ class AsyncEvents {
    * @param callback
    * @param listener
    * @param subscriberID
+   * @param listenerOptions
    * @return {false|*|boolean}
    * @private
    */
-  __isExclusiveCallback (callback, listener, subscriberID) {
-    return callback === listener.callback && this.__isExclusiveListenerCallback(listener, subscriberID);
+  __isExclusiveCallback (callback, listener, subscriberID, listenerOptions) {
+    return callback === listener.callback && this.__isExclusiveListenerCallback(listener, subscriberID, listenerOptions);
+  }
+  
+  /**
+   * check if listener callback is exclusive
+   * @param listener
+   * @param subscriberID
+   * @param listenerOptions
+   * @return {false|*|boolean|boolean}
+   * @private
+   */
+  __isExclusiveListenerCallback (listener, subscriberID, listenerOptions) {
+    return (listener.listenerOptions.callbacks.isGloballyExclusive || listenerOptions.callbacks.isGloballyExclusive) ||
+        (listener.listenerOptions.callbacks.isLocallyExclusive || listenerOptions.callbacks.isLocallyExclusive) && listener.subscriberID === subscriberID;
   }
   
   /**
@@ -1043,6 +1060,7 @@ class AsyncEvents {
     }
     
     if (eventOptions.linger > 0) {
+      // todo make sure this work properly; it should consider existing events as well.
       // get existing exclusive lingered event
       let exclusiveLingeredEvent = this.__getExclusiveEvent(eventMeta, this.lingeringEventsStore);
       
