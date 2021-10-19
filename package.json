@@ -21,7 +21,6 @@
     "broadcast"
   ],
   "author": "Emmanuel Mahuni <emahuni@gmail.com>",
-  "attribution": "Artur Pipchenko <art.pipchenko@gmail.com>",
   "license": "ISC",
   "bugs": {
     "url": "https://github.com/emahuni/em-async-events/issues"
