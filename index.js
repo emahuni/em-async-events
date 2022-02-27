@@ -22,6 +22,7 @@ const PENDING = 0;
 const RESOLVED = 1;
 const REJECTED = -1;
 
+
 class AsyncEvents {
   // listeners;
   // lingeringEvents;
@@ -98,6 +99,7 @@ class AsyncEvents {
     this.options.hasLingeringEvents = this.__isCorrectCustomName('hasLingeringEvents', options) || NAMES.hasLingeringEvents;
   }
   
+  
   /**
    * add event listener
    * @param eventName
@@ -151,6 +153,7 @@ class AsyncEvents {
     }
   }
   
+  
   /**
    * add event listener that only listens for event once and removed once executed
    * @param eventName
@@ -182,7 +185,7 @@ class AsyncEvents {
     
     eventOptions = _.merge({}, this.options.eventsOptions, eventOptions);
     
-    eventOptions.originStack = _.pick(lineStack.skipByFilename('em-async-events'), ['filename','method']);
+    eventOptions.originStack = _.pick(lineStack.skipByFilename('em-async-events'), ['filename', 'method']);
     
     if (eventOptions.isAsync) this.__showDeprecationWarning('isAsync', 'All events and listeners are now async.');
     
@@ -322,6 +325,7 @@ class AsyncEvents {
     }
   }
   
+  
   /**
    * check to see if we have any listener for the given eventID
    * @param {string} [eventID] - event id to check
@@ -331,6 +335,7 @@ class AsyncEvents {
   hasListener (eventID, store = this.listenersStore) {
     return this.__storeHas(store, eventID);
   }
+  
   
   /**
    * check to see if we have any listener for any of the given eventID(s)
@@ -342,6 +347,7 @@ class AsyncEvents {
     return this.__storeHas(store, eventIDs);
   }
   
+  
   /**
    * check to see if we have any lingeringEvent for the given eventID
    * @param {string} [eventID] - event id to check
@@ -351,6 +357,7 @@ class AsyncEvents {
   hasLingeringEvent (eventID, store = this.lingeringEventsStore) {
     return this.__storeHas(store, eventID);
   }
+  
   
   /**
    * check to see if we have any lingering events for any of the given eventID(s)
@@ -362,25 +369,31 @@ class AsyncEvents {
     return this.__storeHas(store, eventIDs);
   }
   
+  
   listeners (eventIDs) {
     return _.flatten(_.values(this.__storeGet(this.listenersStore, eventIDs)));
   }
+  
   
   lingeringEvents (eventIDs) {
     return _.flatten(_.values(this.__storeGet(this.lingeringEventsStore, eventIDs)));
   }
   
+  
   eventConsumers (event) {
     return this.__eventConsumersAtState(event);
   }
+  
   
   pendingEventConsumers (event) {
     return this.__eventConsumersAtState(event, PENDING);
   }
   
+  
   resolvedEventConsumers (event) {
     return this.__eventConsumersAtState(event, RESOLVED);
   }
+  
   
   rejectedEventConsumers (event) {
     return this.__eventConsumersAtState(event, REJECTED);
@@ -399,6 +412,7 @@ class AsyncEvents {
     if (!_.isArray(subjects)) subjects = [subjects];
     return subjects.some(eid => !_.isEmpty(_.get(store, eid)));
   }
+  
   
   /**
    * get store subjects
@@ -587,6 +601,7 @@ class AsyncEvents {
       return AE_this.fallSilent(this._uid, eventName, callback);
     };
     
+    
     /**
      * check to see if the component has any listeners for any of the given eventID(s)
      * @param {Array<string>|string} eventIDs - event ids or just a single event id to check
@@ -602,6 +617,7 @@ class AsyncEvents {
       listeners = _.filter(listeners, (listener) => _.get(listener, `${origin}._uid`) === vm._uid);
       return !!listeners.length;
     }
+    
     
     /**
      * check to see if component has any listener for the given eventID
@@ -654,7 +670,7 @@ class AsyncEvents {
   __addListener ({ eventName, callback, listenerOptions, subscriberID, listenerOrigin }) {
     let isExclusiveCallbackListener = false;
     
-    listenerOptions.originStack = _.pick(lineStack.skipByFilename('em-async-events'), ['filename','method']);
+    listenerOptions.originStack = _.pick(lineStack.skipByFilename('em-async-events'), ['filename', 'method']);
     
     // todo move this to a method and fix this to work correctly for callbacks...
     const exclusiveListener = (this.listenersStore[eventName] || []).find(l => {
@@ -752,6 +768,7 @@ class AsyncEvents {
     return listener.listenerPromise.promise;
   }
   
+  
   /**
    * check if listener is exclusive
    * @param listener
@@ -767,6 +784,7 @@ class AsyncEvents {
     return (listener.listenerOptions.isLocallyExclusive || listenerOptions.isLocallyExclusive) && listener.subscriberID === subscriberID;
   }
   
+  
   /**
    * check if this is an exclusive callback
    * @param callback
@@ -780,6 +798,7 @@ class AsyncEvents {
     return callback === listener.callback && this.__isExclusiveListenerCallback(listener, subscriberID, listenerOptions);
   }
   
+  
   /**
    * check if listener callback is exclusive
    * @param listener
@@ -792,6 +811,7 @@ class AsyncEvents {
     return (listener.listenerOptions.callbacks.isGloballyExclusive || listenerOptions.callbacks.isGloballyExclusive) ||
         (listener.listenerOptions.callbacks.isLocallyExclusive || listenerOptions.callbacks.isLocallyExclusive) && listener.subscriberID === subscriberID;
   }
+  
   
   /**
    * Run event callbacks
@@ -852,6 +872,7 @@ class AsyncEvents {
       }
     }
   }
+  
   
   /**
    *
@@ -975,6 +996,7 @@ class AsyncEvents {
     return finalOutcome;
   }
   
+  
   /**
    * run listener callback promise
    * @param listener
@@ -1020,6 +1042,7 @@ class AsyncEvents {
       return this.__settleCallbackPromise(listener, callbackPromise, finalOutcome, eventMeta);
     }
   }
+  
   
   /**
    * Settle callback promise
@@ -1160,6 +1183,7 @@ class AsyncEvents {
     }, timeout, ev);
   }
   
+  
   __settleLingeredEvent (ev, eventOptions, eventName) {
     // finally resolve/reject lingering event promise
     if (ev.eventMeta.wasConsumed) {
@@ -1170,16 +1194,19 @@ class AsyncEvents {
     }
   }
   
+  
   __eventConsumers (ev) {
     if (!_.isArray(ev)) ev = [ev];
     return _.flatten(ev.map(l => l.eventMeta.consumers));
   }
+  
   
   __eventConsumersAtState (ev, state) {
     const consumers = this.__eventConsumers(ev);
     if (_.isNil(state)) return consumers;
     return consumers.filter(c => c.listenerPromise.settlement === state);
   }
+  
   
   /**
    * Stash the subject (listener or lingering event) into their respective stores.
@@ -1201,6 +1228,7 @@ class AsyncEvents {
       //  you need to somehow make sure payload isn't overwritten, it should merge it.
     }
   }
+  
   
   /**
    * Get the exclusive event for the given eventID
@@ -1273,6 +1301,7 @@ class AsyncEvents {
       }
     }
   }
+  
   
   __removeLingeringEventAtIndex (eventName, index, eventOptions, eventMeta) {
     if (this.options.debug.all && this.options.debug.lingerEvent || eventOptions.trace || eventOptions.verbose) {
@@ -1437,6 +1466,7 @@ class AsyncEvents {
     return { stop, listeners };
   }
   
+  
   /**
    * pick listeners based on direction and scope
    * @param {array} listeners - array of listeners that we are picking from
@@ -1471,6 +1501,7 @@ class AsyncEvents {
     
     return gathered;
   }
+  
   
   /**
    * get all listeners that are in range of the given bounds
@@ -1585,6 +1616,7 @@ class AsyncEvents {
     this.__cleanUpStore(this.listenersStore, eventName);
   }
   
+  
   /**
    * cleanup the given store by removing empty lists
    * @param {object} store - the store to cleanup
@@ -1601,6 +1633,7 @@ class AsyncEvents {
     }
   }
   
+  
   /**
    * find given callback in listenersStore
    * @param {function} callback
@@ -1615,6 +1648,7 @@ class AsyncEvents {
     });
   }
   
+  
   /**
    * find the index of the given callback in listenersStore
    * @param {function} callback
@@ -1628,6 +1662,7 @@ class AsyncEvents {
       return (!l.subscriberID || l.subscriberID === subscriberID) && l.callback === callback;
     });
   }
+  
   
   /**
    * remove event callbacks
@@ -1662,17 +1697,20 @@ class AsyncEvents {
    * @param eventName
    */
   __removeAllListeners ({ eventName }) {
-    for (let event in this.listenersStore) {
-      if (event === eventName) {
-        if (this.options.debug.all && this.options.debug.eraseEvent || event.eventMeta.eventOptions.trace || event.eventOptions.verbose) {
-          console.groupCollapsed(`[em-async-events] %c${this.options.eraseEvent} %ceventName: %o`, 'color: CadetBlue;', 'color: grey;', eventName);
-          console.warn(`Listeners: %o \n\toriginStack: %o`, this.listenersStore[eventName], event.eventOptions.originStack);
-          console.groupEnd();
+    for (let eventN in this.listenersStore) {
+      if (eventN === eventName) {
+        for (const event of this.listenersStore[eventN]) {
+          if (this.options.debug.all && this.options.debug.eraseEvent || event.listenerOptions.trace || event.listenerOptions.verbose) {
+            console.groupCollapsed(`[em-async-events] %c${this.options.eraseEvent} %ceventName: %o`, 'color: CadetBlue;', 'color: grey;', eventName);
+            console.warn(`Listeners: %o \n\toriginStack: %o`, this.listenersStore[eventName], event.listenerOptions.originStack);
+            console.groupEnd();
+          }
         }
         delete this.listenersStore[eventName];
       }
     }
   }
+  
   
   /**
    * assert if prop type is not reserved
@@ -1713,9 +1751,11 @@ class AsyncEvents {
     return _.uniqueId(Math.random().toString(36).substr(2, 9));
   }
   
+  
   __showDeprecationWarning (dep, extra) {
     console.warn(`${dep} was deprecated and no longer supported. ${extra || ''}`);
   }
+  
   
   /**
    * create a promise to keep track of what is going on
