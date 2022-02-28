@@ -753,7 +753,7 @@ class AsyncEvents {
           }
           
           if (this.options.debug.all && this.options.debug.addListener || listenerOptions.trace || listenerOptions.verbose) {
-            console.groupCollapsed(`[em-async-events] %c${listenerOptions.once ? 'one-time' : 'regular'} eventName: %o EXPIRED %c- ${hasCB ? 'called CB' : 'with no expiryCallback'}...`, 'color:brown;', 'color: grey;', eventName);
+            console.groupCollapsed(`[em-async-events] %c${listenerOptions.once ? 'one-time' : 'regular'} eventName: %o EXPIRED %c- ${hasCB ? 'called CB' : 'with no expiryCallback'}...`, 'color:brown;',  eventName);
             console.warn(`Listener: %o \n\toriginStack: %o`, listener, listenerOptions.originStack);
             console.groupEnd();
           }
@@ -1699,13 +1699,16 @@ class AsyncEvents {
   __removeAllListeners ({ eventName }) {
     for (let eventN in this.listenersStore) {
       if (eventN === eventName) {
-        for (const event of this.listenersStore[eventN]) {
-          if (this.options.debug.all && this.options.debug.eraseEvent || event.listenerOptions.trace || event.listenerOptions.verbose) {
+        for (const listener of this.listenersStore[eventN]) {
+          clearTimeout(listener.expiryTimeout);
+          
+          if (this.options.debug.all && this.options.debug.eraseEvent || listener.listenerOptions.trace || listener.listenerOptions.verbose) {
             console.groupCollapsed(`[em-async-events] %c${this.options.eraseEvent} %ceventName: %o`, 'color: CadetBlue;', 'color: grey;', eventName);
-            console.warn(`Listeners: %o \n\toriginStack: %o`, this.listenersStore[eventName], event.listenerOptions.originStack);
+            console.warn(`Listeners: %o \n\toriginStack: %o`, this.listenersStore[eventName], listener.listenerOptions.originStack);
             console.groupEnd();
           }
         }
+        
         delete this.listenersStore[eventName];
       }
     }
