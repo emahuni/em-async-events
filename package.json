@@ -1,6 +1,6 @@
 {
   "name": "em-async-events",
-  "version": "2.0.2",
+  "version": "2.0.3",
   "description": "Easier and more useful events system that has a Vue2.x plugin. Features include async events and listeners, expirable, lingering and catch-up async events and listeners (auto-removed), and a customizable atomic API.",
   "main": "index.js",
   "scripts": {
