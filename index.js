@@ -53,6 +53,8 @@ class AsyncEvents {
         expiryCallback:      undefined,
         catchUp:             100, // a value of true will catch-up whatever lingering event is there.
         once:                false,
+        race:                false,
+        predicate:           undefined,
         isLocallyExclusive:  false,
         isGloballyExclusive: false,
         replace:             false,
@@ -132,6 +134,13 @@ class AsyncEvents {
     };
     
     
+    let racingListeners;
+    if (listenerOptions.race) {
+      if (!_.isArray(eventName)) throw new Error(`[em-async-events/onEvent()]-139: cannot use race with a single event id.`);
+      if (!listenerOptions.once) throw new Error(`[em-async-events/onEvent()]-140: events racing is for "onceEvent" listeners only since it will unregister the other listeners on the first one that wins the race.`);
+      racingListeners = eventName;
+    }
+    
     if (_.isArray(eventName) || _.isArray(callback)) {
       if (!_.isArray(eventName)) eventName = [eventName];
       if (!_.isArray(callback)) callback = [callback];
@@ -143,6 +152,7 @@ class AsyncEvents {
             ...args,
             eventName: eventName[eventNameIndex],
             callback:  callback[callbackIndex],
+            racingListeners,
           }));
         }
       }
@@ -666,8 +676,9 @@ class AsyncEvents {
    * @param listenerOptions
    * @param subscriberID
    * @param listenerOrigin
+   * @param racingListeners
    */
-  __addListener ({ eventName, callback, listenerOptions, subscriberID, listenerOrigin }) {
+  __addListener ({ eventName, callback, listenerOptions, subscriberID, listenerOrigin, racingListeners }) {
     let isExclusiveCallbackListener = false;
     
     listenerOptions.originStack = _.pick(lineStack.skipByFilename('em-async-events'), ['filename', 'method']);
@@ -721,6 +732,7 @@ class AsyncEvents {
       eventName,
       callback:      _.get(exclusiveListener, 'callback', callback),
       listenerOptions,
+      racingListeners,
       subscriberID,
       listenerOrigin,
       listenerPromise,
@@ -753,7 +765,7 @@ class AsyncEvents {
           }
           
           if (this.options.debug.all && this.options.debug.addListener || listenerOptions.trace || listenerOptions.verbose) {
-            console.groupCollapsed(`[em-async-events] %c${listenerOptions.once ? 'one-time' : 'regular'} eventName: %o EXPIRED %c- ${hasCB ? 'called CB' : 'with no expiryCallback'}...`, 'color:brown;',  eventName);
+            console.groupCollapsed(`[em-async-events] %c${listenerOptions.once ? 'one-time' : 'regular'} eventName: %o EXPIRED %c- ${hasCB ? 'called CB' : 'with no expiryCallback'}...`, 'color:brown;', eventName);
             console.warn(`Listener: %o \n\toriginStack: %o`, listener, listenerOptions.originStack);
             console.groupEnd();
           }
@@ -930,6 +942,7 @@ class AsyncEvents {
         }
       }
       
+      
       // todo run listeners using eventIndex, starting closest, up and down... this is why the while loop was there.
       // run both up and down listeners (which ever is available)
       for (let listener of listeners) {
@@ -945,6 +958,23 @@ class AsyncEvents {
             }
           }
           console.groupEnd();
+        }
+        
+        if (_.isFunction(listener.listenerOptions.predicate)) {
+          if (!listener.listenerOptions.predicate(payload)) {
+            // todo log what just happened
+            continue;
+          }
+        }
+        
+        if (listener.listenerOptions.race) {
+          /**  __removeListeners for all racingListeners associated with this listener */
+          listener.racingListeners.forEach(rl => {
+            if (rl !== eventName) {
+              // todo log what just happened
+              this.fallSilent(listener.subscriberID, rl);
+            }
+          });
         }
         
         clearTimeout(listener.expiryTimeout);

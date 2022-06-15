@@ -130,7 +130,7 @@ Send extra info to a callback from emission side.
   this.$onEvent('some-event', eventCallbackExtra, { extra: { blah: 'bloh' } });
 
 async function eventCallbackExtra (payload, { extra }) {
-  // metadata can contain extra payload that comes from where listener was defined if specified, see above. Allows for a more cleaner and interesting API
+  // metadata can contain extra payload that comes from where listener was defined if specified, see above. Ensure there are no memory leaks by passing info down. Allows for a more cleaner and interesting API
   // - passed to every event callback of that listener
 }
 ```
@@ -578,6 +578,8 @@ defaultOptions === {
     stopHere:            false, // stop invoking other callbacks when we hit this listener
     expire:              0,     // stop listening for the event after this much time (ms)
     expiryCallback:      undefined, // call this callback when we stop listening through expire time.
+    race: false,              // does race checking for the provided listeners and will discard the other listeners for the first one that gets invoked in the group of listeners. This only work when listeners are registered with array notation and for "once" listeners only.
+    predicate:             undefined, // function used to check if the payload is what we want before firing the actual callback. Function should return boolean true to proceed firing the callback(s) or false, continue listening and just ignore the event for that listener.
     catchUp:             100, // catup time (ms) to consider events that occured earlier; false to disable
     once:                false, // only listen for this event once
     isLocallyExclusive:  false, // make this the only listener for this event in local scope (eg: Vue component)
