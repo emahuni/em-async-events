@@ -200,11 +200,11 @@ result = await this.$onceEvent('some-event');
 
 ```js
   // automatically stop listening after 5000 milliseconds
-this.$onEvent('some-event', eventCallback3, { expire: 5000 });
-// automatically run expiry callback function before unlistening after 10000 milliseconds 
+this.$onEvent('some-event', eventCallback3, { timeout: 5000 });
+// automatically run timeout callback function before unlistening after 10000 milliseconds 
 this.$onEvent('some-event', eventCallback3, {
-  expire: 10000, expiryCallback: async () => {
-    // do something when event listener expires
+  timeout: 10000, timeoutCallback: async () => {
+    // do something when event listener times out
   }
 });
 
@@ -328,7 +328,7 @@ this.$onEvent('some-event', (payload) => {/*...*/}, { catchUp: false });
 ##### Exclusive events
 
 When an event is lingered and `isGloballyExclusive: true`, newer events will will be ignored until the lingered event
-expires, unless `replace: true`, which will replace the exclusive event with a fresh one. eg:
+timeout, unless `replace: true`, which will replace the exclusive event with a fresh one. eg:
 exclusively linger this event; no other events of the same event name ('some-event5') will be lingered until after
 5000ms
 
@@ -344,10 +344,10 @@ exclusively linger this event; no other events of the same event name ('some-eve
 Setting the `bait: true` option will cause the event to linger forever until consumed by a listener.
 
 - A baited listener will not linger at all if consumed. Meaning, if there were listeners of that event when you try to
-  bait, it will just invoke associated callbacks and expire immediately.
+  bait, it will just invoke associated callbacks and timeout immediately.
 
 ```js
-// If no listeners were listening when this was requested then it lingers waiting for one to listen and expires as soon as it is listened to.
+// If no listeners were listening when this was requested then it lingers waiting for one to listen and timeout as soon as it is listened to.
 this.$emitEvent('some-event', { test: 'one' }, { bait: true });
 ```
 
@@ -576,8 +576,9 @@ defaultOptions === {
       replace:             false, // replace/hijack any existing global or local listeners defined earlier.
     },
     stopHere:            false, // stop invoking other callbacks when we hit this listener
-    expire:              0,     // stop listening for the event after this much time (ms)
-    expiryCallback:      undefined, // call this callback when we stop listening through expire time.
+    timeout:              0,     // [alias: expire] stop listening for the event after this much time (ms)
+    timeoutCallback:      undefined, // [alias: expiryCallback] call this callback when we stop listening through expire time.
+    throwOnTimeout:      false,  // throw an exception when the event times out. it will run the timeout callback before throwing exception.
     race: false,              // does race checking for the provided listeners and will discard the other listeners for the first one that gets invoked in the group of listeners. This only work when listeners are registered with array notation and for "once" listeners only.
     predicate:             undefined, // function used to check if the payload is what we want before firing the actual callback. Function should return boolean true to proceed firing the callback(s) or false, continue listening and just ignore the event for that listener.
     catchUp:             100, // catup time (ms) to consider events that occured earlier; false to disable

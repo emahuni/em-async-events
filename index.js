@@ -49,8 +49,9 @@ class AsyncEvents {
           replace:             false,
         },
         stopHere:            false,
-        expire:              0,
-        expiryCallback:      undefined,
+        timeout:             0,
+        timeoutCallback:     undefined,
+        throwOnTimeout:      false,
         catchUp:             100, // a value of true will catch-up whatever lingering event is there.
         once:                false,
         race:                false,
@@ -683,6 +684,10 @@ class AsyncEvents {
     
     listenerOptions.originStack = _.pick(lineStack.skipByFilename('em-async-events'), ['filename', 'method']);
     
+    /** backwards compatibility */
+    if (!!listenerOptions.expire && !listenerOptions.timeout) listenerOptions.timeout = listenerOptions.expire;
+    if (!!listenerOptions.expiryCallback && !listenerOptions.timeoutCallback) listenerOptions.timeoutCallback = listenerOptions.expiryCallback;
+    
     // todo move this to a method and fix this to work correctly for callbacks...
     const exclusiveListener = (this.listenersStore[eventName] || []).find(l => {
       return this.__isExclusiveListener(l, subscriberID, listenerOptions) || this.__isExclusiveCallback(callback, l, subscriberID, listenerOptions) && (isExclusiveCallbackListener = true);
@@ -730,17 +735,17 @@ class AsyncEvents {
     // create listener object
     const listener = {
       eventName,
-      callback:      _.get(exclusiveListener, 'callback', callback),
+      callback:       _.get(exclusiveListener, 'callback', callback),
       listenerOptions,
       racingListeners,
       subscriberID,
       listenerOrigin,
       listenerPromise,
-      id:            this.__genUniqID(),
+      id:             this.__genUniqID(),
       level,
-      timestamp:     Date.now(),
-      expiryTimeout: null,
-      calls:         [],
+      timestamp:      Date.now(),
+      timeoutTimeout: null,
+      calls:          [],
     };
     
     if (this.options.debug.all && this.options.debug.addListener || listenerOptions.trace || listenerOptions.verbose) {
@@ -756,23 +761,22 @@ class AsyncEvents {
     if (!listenerOptions.once || listener.listenerPromise.settlement === PENDING) {
       this.__stashListenerOrEvent(listener, eventName, this.listenersStore, exclusiveListener);
       
-      if (listenerOptions.expire) {
-        listener.expiryTimeout = setTimeout(() => {
-          let hasCB = false;
-          if (_.isFunction(listenerOptions.expiryCallback)) {
-            hasCB = true;
-            listenerOptions.expiryCallback(listener);
-          }
-          
+      if (listenerOptions.timeout) {
+        listener.timeoutTimeout = setTimeout(() => {
+          let hasCB = _.isFunction(listenerOptions.timeoutCallback)
           if (this.options.debug.all && this.options.debug.addListener || listenerOptions.trace || listenerOptions.verbose) {
-            console.groupCollapsed(`[em-async-events] %c${listenerOptions.once ? 'one-time' : 'regular'} eventName: %o EXPIRED %c- ${hasCB ? 'called CB' : 'with no expiryCallback'}...`, 'color:brown;', eventName);
+            console.groupCollapsed(`[em-async-events] %c${listenerOptions.once ? 'one-time' : 'regular'} eventName: %o TIMED OUT %c- ${hasCB ? 'called CB' : 'with no timeoutCallback'}...`, 'color:brown;', eventName);
             console.warn(`Listener: %o \n\toriginStack: %o`, listener, listenerOptions.originStack);
             console.groupEnd();
           }
           
+          if (hasCB) listenerOptions.timeoutCallback(listener);
+  
+          if (listenerOptions.throwOnTimeout) throw new Error(`Event "${eventName}" timed out!`);
+  
           // noinspection JSCheckFunctionSignatures
-          this.__removeListeners({ ...listener });
-        }, listenerOptions.expire);
+          if (listenerOptions.once) this.__removeListeners({ ...listener });
+        }, listenerOptions.timeout);
       }
     }
     
@@ -977,7 +981,7 @@ class AsyncEvents {
           });
         }
         
-        clearTimeout(listener.expiryTimeout);
+        clearTimeout(listener.timeoutTimeout);
         
         const callbackPromise = this.__createPromise();
         try {
@@ -1730,7 +1734,7 @@ class AsyncEvents {
     for (let eventN in this.listenersStore) {
       if (eventN === eventName) {
         for (const listener of this.listenersStore[eventN]) {
-          clearTimeout(listener.expiryTimeout);
+          clearTimeout(listener.timeoutTimeout);
           
           if (this.options.debug.all && this.options.debug.eraseEvent || listener.listenerOptions.trace || listener.listenerOptions.verbose) {
             console.groupCollapsed(`[em-async-events] %c${this.options.eraseEvent} %ceventName: %o`, 'color: CadetBlue;', 'color: grey;', eventName);
