@@ -1395,7 +1395,7 @@ class AsyncEvents {
          */
         siblings = null;
     
-    const lr = eventOptions.range || 'broadcast';
+    const lr = (eventOptions.range && eventOptions.range.replace(/(,) |(;) /g, '$1')) || 'broadcast';
     
     if (lr.includes('self_only') || lr === 'self') {
       selfOnly = true;
