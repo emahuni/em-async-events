@@ -162,7 +162,8 @@ class AsyncEvents {
         }
       }
       
-      return vows;
+      if(listenerOptions.race) return Promise.race(vows); // return a single promise that resolves when one of the promises is resolves todo use Promise.any when using typescript instead, coz race waits for the first reject or resolve read: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/any#description
+      return vows; // return array of promises
     } else {
       return this.__addListener(args);
     }
