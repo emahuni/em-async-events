@@ -139,7 +139,11 @@ class AsyncEvents {
     if (listenerOptions.race) {
       if (!_.isArray(eventName)) throw new Error(`[em-async-events/onEvent()]-139: cannot use race with a single event id.`);
       if (!listenerOptions.once) throw new Error(`[em-async-events/onEvent()]-140: events racing is for "onceEvent" listeners only since it will unregister the other listeners on the first one that wins the race.`);
-      racingListeners = eventName;
+      // remember this is an array of listener names. now turn that into a dictionary of listener names for each listener.
+      racingListeners = eventName.reduce((accum, l) => {
+        accum[l] = null;
+        return accum;
+      }, {});
     }
     
     if (_.isArray(eventName) || _.isArray(callback)) {
@@ -748,6 +752,8 @@ class AsyncEvents {
       calls:          [],
     };
     
+    if (!!racingListeners) racingListeners[eventName] = listener;
+    
     if (this.options.debug.all && this.options.debug.addListener || listenerOptions.trace || listenerOptions.verbose) {
       console.groupCollapsed(`[em-async-events] %c${listenerOptions.once ? this.options.onceEvent : this.options.onEvent} %c(addListener) - eventName: %o origin: %o - level: %o`, 'color: green', 'color: grey;', eventName, _.get(listenerOrigin, '$options.name', '???'), level);
       if (listenerOptions.verbose) console.warn(`Listener: %o \n\toriginStack: %o`, listener, listenerOptions.originStack);
@@ -763,7 +769,7 @@ class AsyncEvents {
       
       if (listenerOptions.timeout) {
         listener.timeoutTimeout = setTimeout(() => {
-          let hasCB = _.isFunction(listenerOptions.timeoutCallback)
+          let hasCB = _.isFunction(listenerOptions.timeoutCallback);
           if (this.options.debug.all && this.options.debug.addListener || listenerOptions.trace || listenerOptions.verbose) {
             console.groupCollapsed(`[em-async-events] %c${listenerOptions.once ? 'one-time' : 'regular'} eventName: %o TIMED OUT %c- ${hasCB ? 'called CB' : 'with no timeoutCallback'}...`, 'color:brown;', eventName);
             console.warn(`Listener: %o \n\toriginStack: %o`, listener, listenerOptions.originStack);
@@ -771,9 +777,9 @@ class AsyncEvents {
           }
           
           if (hasCB) listenerOptions.timeoutCallback(listener);
-  
+          
           if (listenerOptions.throwOnTimeout) throw new Error(`Event "${eventName}" timed out!`);
-  
+          
           // noinspection JSCheckFunctionSignatures
           if (listenerOptions.once) this.__removeListeners({ ...listener });
         }, listenerOptions.timeout);
@@ -973,10 +979,11 @@ class AsyncEvents {
         
         if (listener.listenerOptions.race) {
           /**  __removeListeners for all racingListeners associated with this listener */
-          listener.racingListeners.forEach(rl => {
-            if (rl !== eventName) {
+          _.forEach(listener.racingListeners, (l, k) => {
+            if (k !== eventName && !!l) {
               // todo log what just happened
-              this.fallSilent(listener.subscriberID, rl);
+              this.fallSilent(l.subscriberID, k);
+              clearTimeout(l.timeoutTimeout);
             }
           });
         }
