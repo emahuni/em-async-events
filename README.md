@@ -580,7 +580,7 @@ defaultOptions === {
     timeoutCallback:      undefined, // [alias: expiryCallback] call this callback when we stop listening through expire time.
     throwOnTimeout:      false,  // throw an exception when the event times out. it will run the timeout callback before throwing exception.
     race: false,              // does race checking for the provided listeners and will discard the other listeners for the first one that gets invoked in the group of listeners. This only work when listeners are registered with array notation and for "once" listeners only.
-    predicate:             undefined, // function used to check if the payload is what we want before firing the actual callback. Function should return boolean true to proceed firing the callback(s) or false, continue listening and just ignore the event for that listener.
+    predicate:             undefined, // function used to check if the payload is what we want before firing the actual callback. Gives chance to continue waiting and listening for event if some condition isn't met. Function should return boolean true to proceed firing the callback(s), or false to continue listening and just ignore the event as if nothing happened (for the affected listener(s)). It's invoked with exact same arguments as the callback. If this throws, the whole promise is rejected as if something went wrong; another way to cancel the listening.
     catchUp:             100, // catup time (ms) to consider events that occured earlier; false to disable
     once:                false, // only listen for this event once
     isLocallyExclusive:  false, // make this the only listener for this event in local scope (eg: Vue component)

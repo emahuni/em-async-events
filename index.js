@@ -162,7 +162,7 @@ class AsyncEvents {
         }
       }
       
-      if(listenerOptions.race) return Promise.race(vows); // return a single promise that resolves when one of the promises is resolves todo use Promise.any when using typescript instead, coz race waits for the first reject or resolve read: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/any#description
+      if (listenerOptions.race) return Promise.race(vows); // return a single promise that resolves when one of the promises is resolves todo use Promise.any when using typescript instead, coz race waits for the first reject or resolve read: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/any#description
       return vows; // return array of promises
     } else {
       return this.__addListener(args);
@@ -971,8 +971,10 @@ class AsyncEvents {
           console.groupEnd();
         }
         
+        const callbackPromise = this.__createPromise();
+        
         if (_.isFunction(listener.listenerOptions.predicate)) {
-          if (!listener.listenerOptions.predicate(payload)) {
+          if (!listener.listenerOptions.predicate(payload, this.__callbackMeta(listener, callbackPromise, eventMeta))) {
             // todo log what just happened
             continue;
           }
@@ -991,7 +993,6 @@ class AsyncEvents {
         
         clearTimeout(listener.timeoutTimeout);
         
-        const callbackPromise = this.__createPromise();
         try {
           if (_.isFunction(listener.callback)) {
             //  check if calls has anything and if we should be doing serial execution
@@ -1061,12 +1062,7 @@ class AsyncEvents {
     eventMeta.consumers.push(listener);
     
     /** do the actual call of the callback */
-    let finalOutcome = listener.callback(payload, {
-      extra:        listener.listenerOptions.extra,
-      eventMeta,
-      listenerMeta: listener,
-      call_id:      callbackPromise.id,
-    });
+    let finalOutcome = listener.callback(payload, this.__callbackMeta(listener, callbackPromise, eventMeta));
     
     if (!_.isUndefined(listener.listenerOptions.extra)) {
       eventMeta.extras.push(listener.listenerOptions.extra);
@@ -1083,6 +1079,24 @@ class AsyncEvents {
     } else {
       return this.__settleCallbackPromise(listener, callbackPromise, finalOutcome, eventMeta);
     }
+  }
+  
+  
+  /**
+   * get callback meta data that should be passed to callback functions
+   * @param listener
+   * @param callbackPromise
+   * @param eventMeta
+   * @returns {{eventMeta, extra: (string|Record<string, any>|*), listenerMeta, call_id}}
+   * @private
+   */
+  __callbackMeta (listener, callbackPromise, eventMeta) {
+    return {
+      extra:        listener.listenerOptions.extra,
+      eventMeta,
+      listenerMeta: listener,
+      call_id:      callbackPromise.id,
+    };
   }
   
   
@@ -1814,7 +1828,7 @@ class AsyncEvents {
       _REJECT = reject;
     });
     
-    // we can use this in userland to figure out if promise is settled etc
+    // we can use this in userland to figure out if promise is settled, it's outcome, or manually resolve or reject it...
     return _.merge(promise, {
       id:         this.__genUniqID(),
       promise,
