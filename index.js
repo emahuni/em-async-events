@@ -974,21 +974,32 @@ class AsyncEvents {
         const callbackPromise = this.__createPromise();
         
         if (_.isFunction(listener.listenerOptions.predicate)) {
-          if (!listener.listenerOptions.predicate(payload, this.__callbackMeta(listener, callbackPromise, eventMeta))) {
-            // todo log what just happened
-            continue;
+          try {
+            if (!listener.listenerOptions.predicate(payload, this.__callbackMeta(listener, callbackPromise, eventMeta))) {
+              // todo log what just happened
+              continue;
+            }
+          } catch (e) {
+            // console.debug(`{dim [index/__runListeners()]-983:} e: %o`, e);
+            this.rejectListener(listener, callbackPromise, finalOutcome, e);
+            return finalOutcome;
           }
         }
         
         if (listener.listenerOptions.race) {
           /**  __removeListeners for all racingListeners associated with this listener */
-          _.forEach(listener.racingListeners, (l, k) => {
-            if (k !== eventName && !!l) {
-              // todo log what just happened
-              this.fallSilent(l.subscriberID, k);
-              clearTimeout(l.timeoutTimeout);
-            }
-          });
+          _.forEach(listener.racingListeners,
+              /**
+               * @param l {object}
+               * @param k {string}
+               */ (l, k) => {
+                if (k !== eventName && !!l) {
+                  // todo log what just happened
+                  this.__removeCallbacks({ eventName: k, subscriberID: l.subscriberID, callback: listener.callback });
+                  clearTimeout(l.timeoutTimeout);
+                }
+              },
+          );
         }
         
         clearTimeout(listener.timeoutTimeout);
@@ -1008,26 +1019,16 @@ class AsyncEvents {
             
             if (eventMeta.chain) payload = finalOutcome;
           }
+          
+          
+          if (listener.listenerOptions.once && listener.listenerPromise.settlement !== PENDING) {
+            this.__removeCallbacks({ eventName, subscriberID: listener.subscriberID, callback: listener.callback });
+          }
         } catch (e) {
           // todo error handling ?
-          callbackPromise.settlement = REJECTED;
-          callbackPromise.outcome = finalOutcome;
-          if (listener.listenerPromise.settlement === PENDING) {
-            listener.listenerPromise.settlement = REJECTED;
-            // rejects with previous finalOutcome.
-            listener.listenerPromise.reject(e);
-            listener.listenerPromise.outcome = finalOutcome;
-          }
+          this.rejectListener(listener, callbackPromise, finalOutcome, e);
         }
         
-        
-        if (listener.listenerOptions.once && listener.listenerPromise.settlement !== PENDING) {
-          this.__removeCallbacks({
-            eventName,
-            subscriberID: listener.subscriberID,
-            callback:     listener.callback,
-          });
-        }
         
         if (stopHere) {
           eventMeta.stopNow = true;
@@ -1037,6 +1038,32 @@ class AsyncEvents {
     }
     
     return finalOutcome;
+  }
+  
+  
+  /**
+   *
+   * @param listener
+   * @param callbackPromise
+   * @param finalOutcome
+   * @param err
+   */
+  rejectListener (listener, callbackPromise, finalOutcome, err) {
+    callbackPromise.settlement = REJECTED;
+    callbackPromise.outcome = finalOutcome;
+    if (listener.listenerOptions.once) {
+      this.__removeCallbacks({
+        eventName:    listener.eventName,
+        subscriberID: listener.subscriberID,
+        callback:     listener.callback,
+      });
+    }
+    if (listener.listenerPromise.settlement === PENDING) {
+      listener.listenerPromise.settlement = REJECTED;
+      // rejects with previous finalOutcome.
+      listener.listenerPromise.outcome = finalOutcome;
+      listener.listenerPromise.reject(err);
+    }
   }
   
   
