@@ -93,6 +93,7 @@ run callback on event emission.
 ```js
   this.$onEvent('some-event', eventCallback);
 
+
 function eventCallback1 (payload, metadata) {
   return /* whatever response you want to return to the event; see below */
 }
@@ -115,7 +116,30 @@ metadata == {
     listenersTally:  6 // number of listeners for this event
   },
   listenerMeta: {
-    // ... todo document both when stable
+    extra,   // any data passed as extra data when listener was created,
+    eventMeta, // event meta information as above 
+    listenerMeta: {  // listener meta information
+      eventName:       "some-event",
+      callback, // the callback
+      listenerOptions: {/*opts passed to listener*/ },
+      racingListeners: [/** any listeners that are racing to grab the event */],
+      subscriberID, // a unique identifier for the subscriber
+      listenerOrigin, // where the lister is defined, works for Vue only
+      listenerPromise: { // a promise for the listener
+        id,       // promise unique identifier 
+        promise, // actual promise for the listener
+        resolve, // function to resolve the promise
+        reject, // function to reject the promise
+        settlement, // whether the promise was settled or not
+        outcome, // outcome of the promise settlement
+      },
+      id, // a unique identifier for the listener
+      level, // the level of the listener 
+      timestamp, // when the listener was created
+      timeoutTimeout, // listener timeout
+      calls // any calls that were made to the listener callback
+    },
+    call_id, // call id
   }
 };
 ```
@@ -129,6 +153,7 @@ Send extra info to a callback from emission side.
 ```js
   this.$onEvent('some-event', eventCallbackExtra, { extra: { blah: 'bloh' } });
 
+
 async function eventCallbackExtra (payload, { extra }) {
   // metadata can contain extra payload that comes from where listener was defined if specified, see above. Ensure there are no memory leaks by passing info down. Allows for a more cleaner and interesting API
   // - passed to every event callback of that listener
@@ -141,10 +166,12 @@ async function eventCallbackExtra (payload, { extra }) {
   this.$onceEvent('some-event', eventCallback2);
 this.$onEvent('some-event', eventCallback1, { once: true });
 
+
 async function eventCallback1 (payload) {
   // you can ignore metadata
   return /* whatever response you want to return to the event; see below */
 }
+
 
 async function eventCallback2 (payload, metadata) {
   return { blah: 'any new payload of any type for this callback to pass back' };
@@ -247,6 +274,7 @@ this.$onEvent('some-other-event', [eventCallback, eventCallback2, (payload) => {
 // (even for multiple events)
 this.$onEvent(['second-event', 'third-event', 'fourth-event'], [eventCallback1, eventCallback2]);
 
+
 function eventCallback (payload) {
   // payload is data given at initial event emission. If chain is true in eventOptions, then
   // payload is the data being passed by the event or from previous callback listener in the chain of callbacks
@@ -258,7 +286,9 @@ async function eventCallback1 (payload, metadata) {
   return /* whatever response you want to return to the event; see below */
 }
 
+
 const eventCallback2 = eventCallback1;
+
 
 function eventCallback3 (payload, metadata) {
   // you can also change how the event will behave by modifying the listenerOptions
@@ -561,7 +591,8 @@ export default {
 
 ### Default options
 
-Default options that you don't have to set all the time or that control certain things. Note that these are also options that you pass to individual listeners and events when creating them.
+Default options that you don't have to set all the time or that control certain things. Note that these are also options that you pass to individual listeners and events when
+creating them.
 
 ```js
 defaultOptions === {
@@ -576,11 +607,11 @@ defaultOptions === {
       replace:             false, // replace/hijack any existing global or local listeners defined earlier.
     },
     stopHere:            false, // stop invoking other callbacks when we hit this listener
-    timeout:              0,     // [alias: expire] stop listening for the event after this much time (ms)
-    timeoutCallback:      undefined, // [alias: expiryCallback] call this callback when we stop listening through expire time.
+    timeout:             0,     // [alias: expire] stop listening for the event after this much time (ms)
+    timeoutCallback:     undefined, // [alias: expiryCallback] call this callback when we stop listening through expire time.
     throwOnTimeout:      false,  // throw an exception when the event times out. it will run the timeout callback before throwing exception.
-    race: false,              // does race checking for the provided listeners and will discard the other listeners for the first one that gets invoked in the group of listeners. This only work when listeners are registered with array notation and for "once" listeners only.
-    predicate:             undefined, // function used to check if the payload is what we want before firing the actual callback. Gives chance to continue waiting and listening for event if some condition isn't met. Function should return boolean true to proceed firing the callback(s), or false to continue listening and just ignore the event as if nothing happened (for the affected listener(s)). It's invoked with exact same arguments as the callback. If this throws, the whole promise is rejected as if something went wrong; another way to cancel the listening.
+    race:                false,              // does race checking for the provided listeners and will discard the other listeners for the first one that gets invoked in the group of listeners. This only work when listeners are registered with array notation and for "once" listeners only.
+    predicate:           undefined, // function used to check if the payload is what we want before firing the actual callback. Gives chance to continue waiting and listening for event if some condition isn't met. Function should return boolean true to proceed firing the callback(s), or false to continue listening and just ignore the event as if nothing happened (for the affected listener(s)). It's invoked with exact same arguments as the callback. If this throws, the whole promise is rejected as if something went wrong; another way to cancel the listening.
     catchUp:             100, // catup time (ms) to consider events that occured earlier; false to disable
     once:                false, // only listen for this event once
     isLocallyExclusive:  false, // make this the only listener for this event in local scope (eg: Vue component)
@@ -590,7 +621,7 @@ defaultOptions === {
     verbose:             false, // show more information (including emitter info), uses warning messages as they show callstack.
   },
   
-  eventsOptions:    {
+  eventsOptions: {
     chain:               false, // cause listeners' callbacks to pass each other's outcome as payload; based on range, but not guaranteed
     linger:              500,   // time (ms) to wait for other listeners that may want to catch up to this event.
     bait:                false, // emit and linger this event forever, waiting for just 1 listener that may catch it. sort of a "once" for emitters.
