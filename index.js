@@ -981,26 +981,13 @@ class AsyncEvents {
             }
           } catch (e) {
             // console.debug(`{dim [index/__runListeners()]-983:} e: %o`, e);
+            this.removeOtherRacingListenersCallbacks(listener, eventName);
             this.rejectListener(listener, callbackPromise, finalOutcome, e);
             return finalOutcome;
           }
         }
         
-        if (listener.listenerOptions.race) {
-          /**  __removeListeners for all racingListeners associated with this listener */
-          _.forEach(listener.racingListeners,
-              /**
-               * @param l {object}
-               * @param k {string}
-               */ (l, k) => {
-                if (k !== eventName && !!l) {
-                  // todo log what just happened
-                  this.__removeCallbacks({ eventName: k, subscriberID: l.subscriberID, callback: listener.callback });
-                  clearTimeout(l.timeoutTimeout);
-                }
-              },
-          );
-        }
+        this.removeOtherRacingListenersCallbacks(listener, eventName);
         
         clearTimeout(listener.timeoutTimeout);
         
@@ -1038,6 +1025,25 @@ class AsyncEvents {
     }
     
     return finalOutcome;
+  }
+  
+  
+  /**  __removeListeners for all racingListeners associated with this listener */
+  removeOtherRacingListenersCallbacks (listener, eventName) {
+    if (listener.listenerOptions.race) {
+      _.forEach(listener.racingListeners,
+          /**
+           * @param l {object}
+           * @param k {string}
+           */ (l, k) => {
+            if (k !== eventName && !!l) {
+              // todo log what just happened
+              this.__removeCallbacks({ eventName: k, subscriberID: l.subscriberID, callback: listener.callback });
+              clearTimeout(l.timeoutTimeout);
+            }
+          },
+      );
+    }
   }
   
   
