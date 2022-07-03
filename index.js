@@ -908,7 +908,7 @@ class AsyncEvents {
    * @return {Promise<*>}
    * @private
    */
-  __runListeners ({
+  async __runListeners ({
                     listeners,
                     eventName,
                     payload,
@@ -975,7 +975,7 @@ class AsyncEvents {
         
         if (_.isFunction(listener.listenerOptions.predicate)) {
           try {
-            if (!listener.listenerOptions.predicate(payload, this.__callbackMeta(listener, callbackPromise, eventMeta))) {
+            if (!(await listener.listenerOptions.predicate(payload, this.__callbackMeta(listener, callbackPromise, eventMeta)))) {
               // todo log what just happened
               continue;
             }
