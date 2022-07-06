@@ -773,7 +773,7 @@ class AsyncEvents {
       this.__stashListenerOrEvent(listener, eventName, this.listenersStore, exclusiveListener);
       
       if (listenerOptions.timeout) {
-        listener.timeoutTimeout = setTimeout(() => {
+        listener.timeoutTimeout = setTimeout(async () => {
           let hasCB = _.isFunction(listenerOptions.timeoutCallback);
           if (this.options.debug.all && this.options.debug.addListener || listenerOptions.trace || listenerOptions.verbose) {
             conGrp(`[em-async-events] %c${listenerOptions.once ? 'one-time' : 'regular'} eventName: %o TIMED OUT %c- ${hasCB ? 'called CB' : 'with no timeoutCallback'}...`, 'color:brown;', eventName);
@@ -781,9 +781,11 @@ class AsyncEvents {
             conGrpEnd();
           }
           
-          if (hasCB) listenerOptions.timeoutCallback(listener);
+          if (hasCB) await listenerOptions.timeoutCallback(listener);
           
-          if (listenerOptions.throwOnTimeout) throw new Error(`Event "${eventName}" timed out!`);
+          if (listenerOptions.throwOnTimeout) {
+            this.rejectListener(listener, `Event "${eventName}" timed out!`);
+          }
           
           // noinspection JSCheckFunctionSignatures
           if (listenerOptions.once) this.__removeListeners({ ...listener });
@@ -975,18 +977,16 @@ class AsyncEvents {
           conGrpEnd();
         }
         
-        const callbackPromise = this.__createPromise();
-        
         if (_.isFunction(listener.listenerOptions.predicate)) {
           try {
-            if (!(await listener.listenerOptions.predicate(payload, this.__callbackMeta(listener, callbackPromise, eventMeta)))) {
+            if (!(await listener.listenerOptions.predicate(payload, this.__callbackMeta(listener, undefined, eventMeta)))) {
               // todo log what just happened
               continue;
             }
           } catch (e) {
             // console.debug(`{dim [index/__runListeners()]-983:} e: %o`, e);
             this.removeOtherRacingListenersCallbacks(listener, eventName);
-            this.rejectListener(listener, callbackPromise, finalOutcome, e);
+            this.rejectListener(listener, e);
             return finalOutcome;
           }
         }
@@ -995,6 +995,7 @@ class AsyncEvents {
         
         clearTimeout(listener.timeoutTimeout);
         
+        const callbackPromise = this.__createPromise();
         try {
           if (_.isFunction(listener.callback)) {
             //  check if calls has anything and if we should be doing serial execution
@@ -1016,8 +1017,8 @@ class AsyncEvents {
             this.__removeCallbacks({ eventName, subscriberID: listener.subscriberID, callback: listener.callback });
           }
         } catch (e) {
-          // todo error handling ?
-          this.rejectListener(listener, callbackPromise, finalOutcome, e);
+          // todo error handling, not working because the promise is not being waited for, it's just collecting info and returning that info without waiting, so error happens elsewhere
+          this.rejectListener(listener, e, callbackPromise, finalOutcome);
         }
         
         
@@ -1052,21 +1053,23 @@ class AsyncEvents {
   
   
   /**
-   *
+   * Reject a given listener and optionally given callback as well
    * @param listener
+   * @param err
    * @param callbackPromise
    * @param finalOutcome
-   * @param err
    */
-  rejectListener (listener, callbackPromise, finalOutcome, err) {
-    callbackPromise.settlement = REJECTED;
-    callbackPromise.outcome = finalOutcome;
-    if (listener.listenerOptions.once) {
-      this.__removeCallbacks({
-        eventName:    listener.eventName,
-        subscriberID: listener.subscriberID,
-        callback:     listener.callback,
-      });
+  rejectListener (listener, err, callbackPromise, finalOutcome) {
+    if (callbackPromise) {
+      callbackPromise.settlement = REJECTED;
+      callbackPromise.outcome = finalOutcome;
+      if (listener.listenerOptions.once) {
+        this.__removeCallbacks({
+          eventName:    listener.eventName,
+          subscriberID: listener.subscriberID,
+          callback:     listener.callback,
+        });
+      }
     }
     if (listener.listenerPromise.settlement === PENDING) {
       listener.listenerPromise.settlement = REJECTED;
@@ -1132,7 +1135,7 @@ class AsyncEvents {
       extra:        listener.listenerOptions.extra,
       eventMeta,
       listenerMeta: listener,
-      call_id:      callbackPromise.id,
+      call_id:      !!callbackPromise && callbackPromise.id,
     };
   }
   
