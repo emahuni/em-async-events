@@ -3,7 +3,7 @@
 const _ = require('lodash');
 const isPromise = require('ispromise');
 const lineStack = require('line-stack');
-const Timeout  = require('smart-timeout');
+const Timeout = require('smart-timeout');
 
 const isBrowser = new Function('try {return this===window;}catch(e){return false;}');
 const conGrp = isBrowser() ? console.groupCollapsed : console.warn;
@@ -167,7 +167,8 @@ class AsyncEvents {
         }
       }
       
-      if (listenerOptions.race) return Promise.race(vows); // return a single promise that resolves when one of the promises is resolves todo use Promise.any when using typescript instead, coz race waits for the first reject or resolve read: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/any#description
+      // todo the promise should be the one we can control like other promises we return
+      if (listenerOptions.race) return Promise.race(vows); // return a single promise that resolves when one of the promises is resolved todo use Promise.any when using typescript instead, coz race waits for the first reject or resolve read: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/any#description
       return vows; // return array of promises
     } else {
       return this.__addListener(args);
@@ -754,7 +755,6 @@ class AsyncEvents {
       id:        this.__genUniqID(),
       level,
       timestamp: Date.now(),
-      timeout:   null,
       calls:     [],
     };
     
@@ -774,29 +774,48 @@ class AsyncEvents {
       this.__stashListenerOrEvent(listener, eventName, this.listenersStore, exclusiveListener);
       
       if (listenerOptions.timeout) {
-        listener.timeout = Timeout.instantiate(async () => {
-          let hasCB = _.isFunction(listenerOptions.timeoutCallback);
-          if (this.options.debug.all && this.options.debug.addListener || listenerOptions.trace || listenerOptions.verbose) {
-            conGrp(`[em-async-events] %c${listenerOptions.once ? 'one-time' : 'regular'} eventName: %o TIMED OUT %c- ${hasCB ? 'called CB' : 'with no timeoutCallback'}...`, 'color:brown;', eventName);
-            console.warn(`Listener: %o \n\toriginStack: %o`, listener, listenerOptions.originStack);
-            conGrpEnd();
-          }
-          
-          if (hasCB) await listenerOptions.timeoutCallback(listener);
-          
-          if (listenerOptions.throwOnTimeout) {
-            this.rejectListener(listener, `Event "${eventName}" timed out!`);
-          }
-          
-          // noinspection JSCheckFunctionSignatures
-          if (listenerOptions.once) this.__removeListeners({ ...listener });
-        }, listenerOptions.timeout);
-        listenerPromise.timeout = listener.timeout;
+        this.__instantiateListenerTimeout(listener);
       }
     }
     
     // console.debug(`[index]-622: __addListener() - listener subscriberID: %o, outcome: %o, settlement: %o`, listener.subscriberID, listener.listenerPromise.outcome, listener.listenerPromise.settlement);
     return listener.listenerPromise;
+  }
+  
+  
+  /**
+   * instantiate listener timeout based on listener options
+   * @param listener
+   * @private
+   * @return {Timeout} listener timeout object
+   */
+  __instantiateListenerTimeout (listener) {
+    const { listenerOptions } = listener;
+    
+    listener.listenerPromise.timeout = Timeout.instantiate(async () => {
+      let hasCB = _.isFunction(listenerOptions.timeoutCallback);
+      if (this.options.debug.all && this.options.debug.addListener || listenerOptions.trace || listenerOptions.verbose) {
+        conGrp(`[em-async-events] %c${listenerOptions.once ? 'one-time' : 'regular'} eventName: %o TIMED OUT %c- ${hasCB ? 'called CB' : 'with no timeoutCallback'}...`, 'color:brown;', eventName);
+        console.warn(`Listener: %o \n\toriginStack: %o`, listener, listenerOptions.originStack);
+        conGrpEnd();
+      }
+      
+      if (hasCB) await listenerOptions.timeoutCallback(listener);
+      
+      if (listenerOptions.throwOnTimeout) {
+        this.rejectListener(listener, `Event "${eventName}" timed out!`);
+      }
+      
+      // noinspection JSCheckFunctionSignatures
+      if (listenerOptions.once) {
+        this.__removeListeners({ ...listener });
+      } else {
+        // re-instantiate timeout
+        this.__instantiateListenerTimeout(listener);
+      }
+    }, listenerOptions.timeout);
+    
+    return listener.listenerPromise.timeout;
   }
   
   
@@ -995,7 +1014,10 @@ class AsyncEvents {
         
         this.removeOtherRacingListenersCallbacks(listener, eventName);
         
-        if (listener.timeout) listener.timeout.clear();
+        if (listener.listenerPromise.timeout) {
+          if (listener.listenerOptions.once) listener.listenerPromise.timeout.clear();
+          else listener.listenerPromise.timeout.restart();
+        }
         
         const callbackPromise = this.__createPromise();
         try {
@@ -1046,7 +1068,7 @@ class AsyncEvents {
             if (k !== eventName && !!l) {
               // todo log what just happened
               this.__removeCallbacks({ eventName: k, subscriberID: l.subscriberID, callback: listener.callback });
-              if (l.timeout) l.timeout.clear();
+              if (l.listenerPromise.timeout) l.listenerPromise.timeout.clear();
             }
           },
       );
@@ -1798,7 +1820,7 @@ class AsyncEvents {
     for (let eventN in this.listenersStore) {
       if (eventN === eventName) {
         for (const listener of this.listenersStore[eventN]) {
-          if (listener.timeout) listener.timeout.clear();
+          if (listener.listenerPromise.timeout) listener.listenerPromise.timeout.clear();
           
           if (this.options.debug.all && this.options.debug.eraseEvent || listener.listenerOptions.trace || listener.listenerOptions.verbose) {
             conGrp(`[em-async-events] %c${this.options.eraseEvent} %ceventName: %o`, 'color: CadetBlue;', 'color: grey;', eventName);
