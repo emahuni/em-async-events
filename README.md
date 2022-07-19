@@ -223,6 +223,31 @@ result = await this.$onceEvent('some-event');
 // will wait again for the event to happen without any callbacks associated with it
 ```
 
+The promise has a bit of sugar on it; you can control the promise or its timeout. EG: Instead of awaiting you can access the returned promise's timeout inorder to cancel, restart or get other info such as time remaining before the listener is timeout using promise.timeout (this only applies if timeout option is used);
+
+```js
+  let vow = this.$onceEvent('some-event', (payload, metadata) => {
+    return 'whatever else as the final payload';
+  }, { timeout: 12000, throwOnTimeout: true });
+
+  setTimeout(()=>console.log('time remainging before throw: ', vow.timeout.remaining()), 5000) 
+  // => time remainging before throw: 7000
+
+  await vow;
+  // will not continue after 12000 ms since the timeout will throw an exception
+```
+
+The above vow var also has: 
+```js
+  id, // a unique identifier for the event listener
+  promise, // this promise object
+  resolve, // a manual resolve method for the promise 
+  reject,   // a manual reject method for the promise
+  settlement, // whether the promise is settled or not; PENDING = 0, RESOLVED = 1, REJECTED = -1
+  outcome, // any outcome for the promise, even if it is not yet settled, see chain option
+  timeout  // the timeout object if timeout option was specified. See smart-timeout package for more information
+```
+
 ##### Expiring listeners
 
 ```js

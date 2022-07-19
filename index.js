@@ -3,6 +3,7 @@
 const _ = require('lodash');
 const isPromise = require('ispromise');
 const lineStack = require('line-stack');
+const Timeout  = require('smart-timeout');
 
 const isBrowser = new Function('try {return this===window;}catch(e){return false;}');
 const conGrp = isBrowser() ? console.groupCollapsed : console.warn;
@@ -744,17 +745,17 @@ class AsyncEvents {
     // create listener object
     const listener = {
       eventName,
-      callback:       _.get(exclusiveListener, 'callback', callback),
+      callback:  _.get(exclusiveListener, 'callback', callback),
       listenerOptions,
       racingListeners,
       subscriberID,
       listenerOrigin,
       listenerPromise,
-      id:             this.__genUniqID(),
+      id:        this.__genUniqID(),
       level,
-      timestamp:      Date.now(),
-      timeoutTimeout: null,
-      calls:          [],
+      timestamp: Date.now(),
+      timeout:   null,
+      calls:     [],
     };
     
     if (!!racingListeners) racingListeners[eventName] = listener;
@@ -773,7 +774,7 @@ class AsyncEvents {
       this.__stashListenerOrEvent(listener, eventName, this.listenersStore, exclusiveListener);
       
       if (listenerOptions.timeout) {
-        listener.timeoutTimeout = setTimeout(async () => {
+        listener.timeout = Timeout.instantiate(async () => {
           let hasCB = _.isFunction(listenerOptions.timeoutCallback);
           if (this.options.debug.all && this.options.debug.addListener || listenerOptions.trace || listenerOptions.verbose) {
             conGrp(`[em-async-events] %c${listenerOptions.once ? 'one-time' : 'regular'} eventName: %o TIMED OUT %c- ${hasCB ? 'called CB' : 'with no timeoutCallback'}...`, 'color:brown;', eventName);
@@ -790,11 +791,12 @@ class AsyncEvents {
           // noinspection JSCheckFunctionSignatures
           if (listenerOptions.once) this.__removeListeners({ ...listener });
         }, listenerOptions.timeout);
+        listenerPromise.timeout = listener.timeout;
       }
     }
     
     // console.debug(`[index]-622: __addListener() - listener subscriberID: %o, outcome: %o, settlement: %o`, listener.subscriberID, listener.listenerPromise.outcome, listener.listenerPromise.settlement);
-    return listener.listenerPromise.promise;
+    return listener.listenerPromise.promise; // todo just return the promise not .promise, it's the same thing
   }
   
   
@@ -993,7 +995,7 @@ class AsyncEvents {
         
         this.removeOtherRacingListenersCallbacks(listener, eventName);
         
-        clearTimeout(listener.timeoutTimeout);
+        if (listener.timeout) listener.timeout.clear();
         
         const callbackPromise = this.__createPromise();
         try {
@@ -1044,7 +1046,7 @@ class AsyncEvents {
             if (k !== eventName && !!l) {
               // todo log what just happened
               this.__removeCallbacks({ eventName: k, subscriberID: l.subscriberID, callback: listener.callback });
-              clearTimeout(l.timeoutTimeout);
+              if (l.timeout) l.timeout.clear();
             }
           },
       );
@@ -1235,7 +1237,7 @@ class AsyncEvents {
       
       this.__decayLingeredEvent(ev, eventName, eventOptions, eventMeta);
       
-      return ev.lingeringEventPromise.promise;
+      return ev.lingeringEventPromise.promise; // todo don't use use lingeringEventPromise.promise here, it's the same thing
     }
     
     if (eventMeta.wasConsumed) return Promise.resolve(payload);
@@ -1250,7 +1252,7 @@ class AsyncEvents {
     let timeout = eventOptions.linger;
     if (timeout >= Infinity) timeout = 2147483647; // set to maximum allowed so that we don't have an immediate bailout
     
-    setTimeout((e) => {
+    ev.lingeringEventPromise.timeout = Timeout.instantiate((e) => {
       const consumers = this.pendingEventConsumers(ev);
       if (consumers.length) {
         if (this.options.debug.all && this.options.debug.lingerEvent || eventOptions.verbose) {
@@ -1259,6 +1261,7 @@ class AsyncEvents {
           conGrpEnd();
         }
         
+        // todo don't use listenerPromise.promise, just use listenerPromise, coz it's the same thing
         Promise.all(consumers.map(c => c.listenerPromise.promise)).then((vows) => {
           // console.debug(`[index]-1011: () - vows: %o`, vows);
           this.__settleLingeredEvent(ev, eventOptions, eventName);
@@ -1796,7 +1799,7 @@ class AsyncEvents {
     for (let eventN in this.listenersStore) {
       if (eventN === eventName) {
         for (const listener of this.listenersStore[eventN]) {
-          clearTimeout(listener.timeoutTimeout);
+          if (listener.timeout) listener.timeout.clear();
           
           if (this.options.debug.all && this.options.debug.eraseEvent || listener.listenerOptions.trace || listener.listenerOptions.verbose) {
             conGrp(`[em-async-events] %c${this.options.eraseEvent} %ceventName: %o`, 'color: CadetBlue;', 'color: grey;', eventName);
@@ -1864,8 +1867,8 @@ class AsyncEvents {
   __createPromise () {
     let _RESOLVE, _REJECT;
     const promise = new Promise((resolve, reject) => {
-      _RESOLVE = resolve;
-      _REJECT = reject;
+      _RESOLVE = resolve; // todo this should run other code before finally resolving
+      _REJECT = reject; // todo this should run other code before finally rejecting
     });
     
     // we can use this in userland to figure out if promise is settled, it's outcome, or manually resolve or reject it...
@@ -1876,6 +1879,7 @@ class AsyncEvents {
       reject:     _REJECT,
       settlement: PENDING,
       outcome:    undefined,
+      timeout:    undefined,
     });
   }
 }
