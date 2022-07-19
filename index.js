@@ -796,7 +796,7 @@ class AsyncEvents {
     }
     
     // console.debug(`[index]-622: __addListener() - listener subscriberID: %o, outcome: %o, settlement: %o`, listener.subscriberID, listener.listenerPromise.outcome, listener.listenerPromise.settlement);
-    return listener.listenerPromise.promise; // todo just return the promise not .promise, it's the same thing
+    return listener.listenerPromise;
   }
   
   
@@ -1237,7 +1237,7 @@ class AsyncEvents {
       
       this.__decayLingeredEvent(ev, eventName, eventOptions, eventMeta);
       
-      return ev.lingeringEventPromise.promise; // todo don't use use lingeringEventPromise.promise here, it's the same thing
+      return ev.lingeringEventPromise;
     }
     
     if (eventMeta.wasConsumed) return Promise.resolve(payload);
@@ -1261,8 +1261,7 @@ class AsyncEvents {
           conGrpEnd();
         }
         
-        // todo don't use listenerPromise.promise, just use listenerPromise, coz it's the same thing
-        Promise.all(consumers.map(c => c.listenerPromise.promise)).then((vows) => {
+        Promise.all(consumers.map(c => c.listenerPromise)).then((vows) => {
           // console.debug(`[index]-1011: () - vows: %o`, vows);
           this.__settleLingeredEvent(ev, eventOptions, eventName);
           if (consumers.length && this.options.debug.all && this.options.debug.lingerEvent || eventOptions.verbose) {
