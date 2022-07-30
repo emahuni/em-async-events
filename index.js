@@ -115,7 +115,7 @@ class AsyncEvents {
    * @param listenerOptions
    * @param subscriberID
    * @param listenerOrigin
-   * @return {Promise|array<Promise>} - allows waiting for invocation of event with a promise only once (use if you want to continue execution where you adding the listener only when promise is fulfilled)
+   * @return {Promise|array<Promise>} - allows waiting for invocation of event with a promise only once (use if you want to continue execution only when promise is fulfilled)
    */
   onEvent (eventName, callback, listenerOptions, subscriberID = this._uniqID, listenerOrigin) {
     if (!_.isString(eventName) && !_.isArray(eventName)) throw new Error(`[index]-91: onEvent() - eventName should be specified as an string or array of strings representing event name(s)!`);
@@ -128,8 +128,8 @@ class AsyncEvents {
     listenerOptions = _.merge({}, this.options.listenersOptions, listenerOptions);
     if (listenerOptions.isAsync) this.__showDeprecationWarning('isAsync', 'All events and listeners are now async.');
     
-    // if this event doesn't have  a callback, then just create one that returns the given payload
-    if (!_.isFunction(callback) && !_.isArray(callback)) callback = (payload) => payload;
+    // if this event doesn't have  a callback, then just create one that returns undefined
+    if (!_.isFunction(callback) && !_.isArray(callback)) callback = () => undefined;
     
     const args = {
       eventName,
