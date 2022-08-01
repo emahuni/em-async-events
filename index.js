@@ -792,7 +792,7 @@ class AsyncEvents {
   __instantiateListenerTimeout (listener) {
     const { listenerOptions } = listener;
     
-    listener.listenerPromise.timeout = Timeout.instantiate(async () => {
+    listener.listenerPromise.timeout = Timeout.instantiate(listener.id, async () => {
       let hasCB = _.isFunction(listenerOptions.timeoutCallback);
       if (this.options.debug.all && this.options.debug.addListener || listenerOptions.trace || listenerOptions.verbose) {
         conGrp(`[em-async-events] %c${listenerOptions.once ? 'one-time' : 'regular'} eventName: %o TIMED OUT %c- ${hasCB ? 'called CB' : 'with no timeoutCallback'}...`, 'color:brown;', eventName);
@@ -811,11 +811,19 @@ class AsyncEvents {
         this.__removeListeners({ ...listener });
       } else {
         // re-instantiate timeout
-        this.__instantiateListenerTimeout(listener);
+        listener.listenerPromise.timeout.reset();
       }
     }, listenerOptions.timeout);
     
     return listener.listenerPromise.timeout;
+  }
+  
+  
+  __clearOrResetTimeout (listener) {
+    if (listener.listenerPromise.timeout) {
+      if (listener.listenerOptions.once) listener.listenerPromise.timeout.clear();
+      else listener.listenerPromise.timeout.reset();
+    }
   }
   
   
@@ -895,7 +903,7 @@ class AsyncEvents {
       conGrpEnd();
     }
     
-    payload = this.__runListeners({
+    const outcome = this.__runListeners({
       listeners, eventName, payload, eventOptions, eventOrigin, eventMeta,
     });
     
@@ -918,7 +926,7 @@ class AsyncEvents {
         if (eventOptions.rejectUnconsumed) return Promise.reject(`Event "${eventName}" NOT consumed!`);
         else return Promise.resolve();
       } else {
-        return Promise.resolve(payload);
+        return Promise.resolve(outcome);
       }
     }
   }
@@ -1014,10 +1022,7 @@ class AsyncEvents {
         
         this.removeOtherRacingListenersCallbacks(listener, eventName);
         
-        if (listener.listenerPromise.timeout) {
-          if (listener.listenerOptions.once) listener.listenerPromise.timeout.clear();
-          else listener.listenerPromise.timeout.restart();
-        }
+        this.__clearOrResetTimeout(listener);
         
         const callbackPromise = this.__createPromise();
         try {
@@ -1068,7 +1073,7 @@ class AsyncEvents {
             if (k !== eventName && !!l) {
               // todo log what just happened
               this.__removeCallbacks({ eventName: k, subscriberID: l.subscriberID, callback: listener.callback });
-              if (l.listenerPromise.timeout) l.listenerPromise.timeout.clear();
+              this.__clearOrResetTimeout(l);
             }
           },
       );
@@ -1219,12 +1224,15 @@ class AsyncEvents {
             conGrpEnd();
           }
           
-          return exclusiveLingeredEvent.lingeringEventPromise.resolve(payload);
+          return this.__settleLingeredEvent(exclusiveLingeredEvent, eventOptions, eventName);
         } else if (this.options.debug.all && this.options.debug.lingerEvent || eventOptions.trace || eventOptions.verbose) {
           conGrp(`[em-async-events] %cREPLACING EXCLUSIVE lingered event %c- eventName: %o`, 'color: brown;', 'color: grey;', eventName);
           console.warn(`eventMeta: %o \n\toriginStack: %o`, eventMeta, eventOptions.originStack);
           conGrpEnd();
         }
+        
+        // since this is to be replaced we need to clear the timeout
+        exclusiveLingeredEvent.lingeringEventPromise.timeout.clear();
       }
       
       // bailout if baited but consumed event
@@ -1274,7 +1282,8 @@ class AsyncEvents {
     let timeout = eventOptions.linger;
     if (timeout >= Infinity) timeout = 2147483647; // set to maximum allowed so that we don't have an immediate bailout
     
-    ev.lingeringEventPromise.timeout = Timeout.instantiate((e) => {
+    ev.lingeringEventPromise.timeout = Timeout.instantiate(ev.eventMeta.id, (e) => {
+      // todo use e instead of ev
       const consumers = this.pendingEventConsumers(ev);
       if (consumers.length) {
         if (this.options.debug.all && this.options.debug.lingerEvent || eventOptions.verbose) {
@@ -1312,6 +1321,8 @@ class AsyncEvents {
       if (eventOptions.rejectUnconsumed) ev.lingeringEventPromise.reject(`Lingered Event "${eventName}" NOT consumed!`);
       else ev.lingeringEventPromise.resolve();
     }
+    
+    ev.lingeringEventPromise.timeout.clear();
   }
   
   

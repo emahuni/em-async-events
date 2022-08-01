@@ -30,7 +30,7 @@
     "ispromise": "^1.1.0",
     "line-stack": "^0.1",
     "lodash": "^4.17",
-    "smart-timeout": "^2.6.1"
+    "smart-timeout": "^2.7.1"
   },
   "devDependencies": {
     "@types/chai-as-promised": "^7.1.4",
