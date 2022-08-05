@@ -111,10 +111,10 @@ class AsyncEvents {
   /**
    * add event listener
    * @param eventName
-   * @param callback
-   * @param listenerOptions
-   * @param subscriberID
-   * @param listenerOrigin
+   * @param [callback]
+   * @param [listenerOptions]
+   * @param [subscriberID]
+   * @param [listenerOrigin]
    * @return {Promise|array<Promise>} - allows waiting for invocation of event with a promise only once (use if you want to continue execution only when promise is fulfilled)
    */
   onEvent (eventName, callback, listenerOptions, subscriberID = this._uniqID, listenerOrigin) {
@@ -179,10 +179,10 @@ class AsyncEvents {
   /**
    * add event listener that only listens for event once and removed once executed
    * @param eventName
-   * @param callback
-   * @param listenerOptions
-   * @param subscriberID
-   * @param listenerOrigin
+   * @param [callback]
+   * @param [listenerOptions]
+   * @param [subscriberID]
+   * @param [listenerOrigin]
    * @return {Promise<*>|array<Promise<*>>} - allows waiting for invocation of event with a promise only once (use if you want to continue execution where you adding the listener only when promise is fulfilled)
    * */
   onceEvent (eventName, callback, listenerOptions, subscriberID = this._uniqID, listenerOrigin) {
@@ -196,18 +196,19 @@ class AsyncEvents {
   /**
    * emit event and run callbacks subscribed to the event
    * @param eventName
-   * @param payload
-   * @param eventOptions
-   * @param emitterID
-   * @param eventOrigin
+   * @param [payload]
+   * @param [eventOptions]
+   * @param [emitterID]
+   * @param [eventOrigin]
    * @return {Promise<*>|array<Promise>}
    */
   emitEvent (eventName, payload, eventOptions, emitterID = this._uniqID, eventOrigin) {
+    const originStack = _.pick(lineStack.skipByFilename('em-async-events'), ['filename', 'method']);
+    
     if (!_.isString(eventName) && !_.isArray(eventName)) throw new Error(`[index]-160: emitEvent() - eventName should be specified as an string or array of strings representing event name(s)!`);
     
     eventOptions = _.merge({}, this.options.eventsOptions, eventOptions);
-    
-    eventOptions.originStack = _.pick(lineStack.skipByFilename('em-async-events'), ['filename', 'method']);
+    eventOptions.originStack = originStack; // to be deprecated in favour of eventMeta.originStack
     
     if (eventOptions.isAsync) this.__showDeprecationWarning('isAsync', 'All events and listeners are now async.');
     
@@ -222,6 +223,7 @@ class AsyncEvents {
     
     const eventMeta = {
       eventOrigin,
+      originStack,
       emitterID,
       stopNow:     false,
       wasConsumed: false,
@@ -691,9 +693,11 @@ class AsyncEvents {
    * @param racingListeners
    */
   __addListener ({ eventName, callback, listenerOptions, subscriberID, listenerOrigin, racingListeners }) {
+    const originStack = _.pick(lineStack.skipByFilename('em-async-events'), ['filename', 'method']);
+    
     let isExclusiveCallbackListener = false;
     
-    listenerOptions.originStack = _.pick(lineStack.skipByFilename('em-async-events'), ['filename', 'method']);
+    listenerOptions.originStack = originStack;  // to be deprecated in favour of (listener||listenerMeta).originStack
     
     /** backwards compatibility */
     if (!!listenerOptions.expire && !listenerOptions.timeout) listenerOptions.timeout = listenerOptions.expire;
@@ -710,13 +714,13 @@ class AsyncEvents {
         if (this.options.debug.all && this.options.debug.addListener || listenerOptions.trace || listenerOptions.verbose) {
           conGrp(`[em-async-events] %cABORTING (exclusive ${(isExclusiveCallbackListener ? 'callback' : 'listener')} exists) ${listenerOptions.once ? this.options.onceEvent : this.options.onEvent} %ceventName: %o Exclusive Listener Origin: %o, Requesting Origin: %o`, 'color:brown;', 'color: grey;', eventName, _.get(exclusiveListener.listenerOrigin, '$options.name', '???'), _.get(listenerOrigin, '$options.name', '???'));
           // if (listenerOptions.verbose)
-          console.warn(`Exclusive Listener: %o, \n\toriginStack: %o`, exclusiveListener, listenerOptions.originStack);
+          console.warn(`Exclusive Listener: %o, \n\toriginStack: %o`, exclusiveListener, originStack);
           conGrpEnd();
         }
         throw new Error(`[index]-595: __addListener("${eventName}") - ABORTING (exclusive ${(isExclusiveCallbackListener ? 'callback' : 'listener')} exists in "${exclusiveListener.listenerOrigin.$options.name}")`);
       } else {
         conGrp(`[em-async-events] %cREPLACING existing listener %c- eventName: %o because of exclusivity options...`, 'color: brown;', 'color: grey;', eventName);
-        console.warn(`listenerOptions: %o \n\toriginStack: %o`, listenerOptions, listenerOptions.originStack);
+        console.warn(`listenerOptions: %o \n\toriginStack: %o`, listenerOptions, originStack);
         conGrpEnd();
       }
     }
@@ -751,6 +755,7 @@ class AsyncEvents {
       racingListeners,
       subscriberID,
       listenerOrigin,
+      originStack,
       listenerPromise,
       id:        this.__genUniqID(),
       level,
@@ -762,7 +767,7 @@ class AsyncEvents {
     
     if (this.options.debug.all && this.options.debug.addListener || listenerOptions.trace || listenerOptions.verbose) {
       conGrp(`[em-async-events] %c${listenerOptions.once ? this.options.onceEvent : this.options.onEvent} %c(addListener) - eventName: %o origin: %o - level: %o`, 'color: green', 'color: grey;', eventName, _.get(listenerOrigin, '$options.name', '???'), level);
-      if (listenerOptions.verbose) console.warn(`Listener: %o \n\toriginStack: %o`, listener, listenerOptions.originStack);
+      if (listenerOptions.verbose) console.warn(`Listener: %o \n\toriginStack: %o`, listener, originStack);
       conGrpEnd();
     }
     
@@ -796,7 +801,7 @@ class AsyncEvents {
       let hasCB = _.isFunction(listenerOptions.timeoutCallback);
       if (this.options.debug.all && this.options.debug.addListener || listenerOptions.trace || listenerOptions.verbose) {
         conGrp(`[em-async-events] %c${listenerOptions.once ? 'one-time' : 'regular'} eventName: %o TIMED OUT %c- ${hasCB ? 'called CB' : 'with no timeoutCallback'}...`, 'color:brown;', eventName);
-        console.warn(`Listener: %o \n\toriginStack: %o`, listener, listenerOptions.originStack);
+        console.warn(`Listener: %o \n\toriginStack: %o`, listener, listener.originStack);
         conGrpEnd();
       }
       
@@ -899,7 +904,7 @@ class AsyncEvents {
     
     if (this.options.debug.all && this.options.debug.emitEvent || eventOptions.trace || eventOptions.verbose) {
       conGrp(`[em-async-events] %c${this.options.emitEvent} %ceventName: %o, origin: %o - level: %o, range: %o, \n\tpayload: %o`, 'color: green', 'color: grey;', eventName, _.get(eventOrigin, '$options.name', '???'), level, eventOptions.range, payload);
-      if (eventOptions.verbose) console.warn(`eventMeta: %o \n\toriginStack: %o`, eventMeta, eventOptions.originStack);
+      if (eventOptions.verbose) console.warn(`eventMeta: %o \n\toriginStack: %o`, eventMeta, eventMeta.originStack);
       conGrpEnd();
     }
     
@@ -918,7 +923,7 @@ class AsyncEvents {
       if (!eventMeta.wasConsumed) {
         if (this.options.debug.all && this.options.debug.emitEvent || eventOptions.trace || eventOptions.verbose) {
           conGrp(`[em-async-events] %ceventName: %o wasn't consumed! %cCheck the event name correctness, or adjust its "linger" time or the listeners' "catchUp" time to bust event race conditions.`, 'color:brown;', eventName, 'color: grey;');
-          console.warn(`eventMeta: %o \n\toriginStack: %o`, eventMeta, eventOptions.originStack);
+          console.warn(`eventMeta: %o \n\toriginStack: %o`, eventMeta, eventMeta.originStack);
           conGrpEnd();
         }
         
@@ -997,10 +1002,10 @@ class AsyncEvents {
         if (this.options.debug.all && this.options.debug.invokeListener || listener.listenerOptions.trace || eventOptions.verbose || listener.listenerOptions.verbose) {
           conGrp(`[em-async-events] %c${listener.listenerOptions.once ? this.options.onceEvent : this.options.onEvent}(Invoke Listener Callback) %c- eventName: %o, payload: %o, \n\tlistener origin: %o - level: %o, \n\teventOrigin: %o - level: %o,\n\toutcome: %o, stoppingHere: %o`, 'color: green', 'color: grey;', eventName, payload, _.get(listener.listenerOrigin, '$options.name', '???'), listener.level, _.get(eventOrigin, '$options.name', '???'), eventMeta.level, finalOutcome, stopHere);
           if (eventOptions.verbose || listener.listenerOptions.verbose) {
-            console.warn(`Listener: %o \n\toriginStack: %o`, listener, listener.listenerOptions.originStack);
+            console.warn(`Listener: %o \n\toriginStack: %o`, listener, listener.originStack);
             if (!eventOptions.trace && !eventOptions.verbose) {
               // show event info if we event didn't
-              console.debug(`%c Event: %ceventName: %o, origin: %o - level: %o, range: %o, \n\teventMeta: %o \n\toriginStack: %o`, 'color: green', 'color: grey;', eventName, _.get(eventOrigin, '$options.name', '???'), eventMeta.level, eventOptions.range, eventMeta, eventOptions.originStack);
+              console.debug(`%c Event: %ceventName: %o, origin: %o - level: %o, range: %o, \n\teventMeta: %o \n\toriginStack: %o`, 'color: green', 'color: grey;', eventName, _.get(eventOrigin, '$options.name', '???'), eventMeta.level, eventOptions.range, eventMeta, eventMeta.originStack);
             }
           }
           conGrpEnd();
@@ -1220,14 +1225,14 @@ class AsyncEvents {
         if (!eventOptions.replace) {
           if (this.options.debug.all && this.options.debug.lingerEvent || eventOptions.trace || eventOptions.verbose) {
             conGrp(`[em-async-events] %cDISCARDING EXCLUSIVE lingered event %c- eventName: %o`, 'color: brown;', 'color: grey;', eventName);
-            console.warn(`eventMeta: %o \n\toriginStack: %o`, eventMeta, eventOptions.originStack);
+            console.warn(`eventMeta: %o \n\toriginStack: %o`, eventMeta, eventMeta.originStack);
             conGrpEnd();
           }
           
           return this.__settleLingeredEvent(exclusiveLingeredEvent, eventOptions, eventName);
         } else if (this.options.debug.all && this.options.debug.lingerEvent || eventOptions.trace || eventOptions.verbose) {
           conGrp(`[em-async-events] %cREPLACING EXCLUSIVE lingered event %c- eventName: %o`, 'color: brown;', 'color: grey;', eventName);
-          console.warn(`eventMeta: %o \n\toriginStack: %o`, eventMeta, eventOptions.originStack);
+          console.warn(`eventMeta: %o \n\toriginStack: %o`, eventMeta, eventMeta.originStack);
           conGrpEnd();
         }
         
@@ -1239,7 +1244,7 @@ class AsyncEvents {
       if (eventMeta.wasConsumed && eventOptions.bait) {
         if (this.options.debug.all && this.options.debug.lingerEvent || eventOptions.trace || eventOptions.verbose) {
           conGrp(`[em-async-events] %cABORTING event lingering %c- event was BAITED, but consumed already - eventName: %o`, 'color: brown;', 'color: grey;', eventName);
-          console.warn(`eventMeta: %o \n\toriginStack: %o`, eventMeta, eventOptions.originStack);
+          console.warn(`eventMeta: %o \n\toriginStack: %o`, eventMeta, eventMeta.originStack);
           conGrpEnd();
         }
         
@@ -1248,7 +1253,7 @@ class AsyncEvents {
       
       if (this.options.debug.all && this.options.debug.lingerEvent || eventOptions.trace || eventOptions.verbose) {
         conGrp(`[em-async-events] %cLingering event %c- eventName: %o for %o (ms)`, 'color: CadetBlue;', 'color: grey;', eventName, eventOptions.linger);
-        if (eventOptions.verbose) console.warn(`eventMeta: %o \n\toriginStack: %o`, eventMeta, eventOptions.originStack);
+        if (eventOptions.verbose) console.warn(`eventMeta: %o \n\toriginStack: %o`, eventMeta, eventMeta.originStack);
         conGrpEnd();
       }
       
@@ -1288,7 +1293,7 @@ class AsyncEvents {
       if (consumers.length) {
         if (this.options.debug.all && this.options.debug.lingerEvent || eventOptions.verbose) {
           conGrp(`[em-async-events] %ceventName: %o "linger" time has run out whilst it's still being consumed. It's removed, but its promise will be settled once the consumers finish.`, 'color: grey;', eventName);
-          console.warn(`Consumers: %o, eventMeta: %o \n\toriginStack: %o`, consumers, ev.eventMeta, eventOptions.originStack);
+          console.warn(`Consumers: %o, eventMeta: %o \n\toriginStack: %o`, consumers, ev.eventMeta, ev.eventMeta.originStack);
           conGrpEnd();
         }
         
@@ -1297,7 +1302,7 @@ class AsyncEvents {
           this.__settleLingeredEvent(ev, eventOptions, eventName);
           if (consumers.length && this.options.debug.all && this.options.debug.lingerEvent || eventOptions.verbose) {
             conGrp(`[em-async-events] %ceventName: %o "linger" consumers have finished.`, 'color: grey;', eventName);
-            console.warn(`Consumers: %o, eventMeta: %o \n\toriginStack: %o`, consumers, ev.eventMeta, eventOptions.originStack);
+            console.warn(`Consumers: %o, eventMeta: %o \n\toriginStack: %o`, consumers, ev.eventMeta, ev.eventMeta.originStack);
             conGrpEnd();
           }
         });
@@ -1396,7 +1401,7 @@ class AsyncEvents {
           if (this.options.debug.all && this.options.debug.addListener || listener.listenerOptions.trace || listener.listenerOptions.verbose || eventOptions.verbose) {
             conGrp(`[em-async-events] %ccatchUp - %c"catching up" to a currently lingering lingeringEvent "%o" that has been lingering for %o/%o.`, 'color: green', 'color: grey;', eventName, elapsed, eventOptions.linger);
             if (listener.listenerOptions.verbose) {
-              console.warn(`listener: %o, lingeringEvent: %o \n\toriginStack: %o`, listener, lingeringEvent, listener.listenerOptions.originStack);
+              console.warn(`listener: %o, lingeringEvent: %o \n\toriginStack: %o`, listener, lingeringEvent, listener.originStack);
             }
             conGrpEnd();
           }
@@ -1425,7 +1430,7 @@ class AsyncEvents {
         } else {
           if (this.options.debug.all && this.options.debug.addListener || listener.listenerOptions.trace || listener.listenerOptions.verbose) {
             conGrp(`[em-async-events] %c${listener.listenerOptions.once ? this.options.onceEvent : this.options.onEvent} couldn't "catchUp" to currently lingering event %o for %o (ms).\n\t%cPlease adjust listener options catchUp time from: %o (ms) to something greater than %o (ms), if this is desired.\n<- (that's how long it's roughly taking to get to start listening, against when linger started).`, 'color: brown', eventName, eventOptions.linger, 'color: grey;', listener.listenerOptions.catchUp, elapsed);
-            if (listener.listenerOptions.verbose) console.warn(`Listener: %o \n\toriginStack: %o`, listener, listener.listenerOptions.originStack);
+            if (listener.listenerOptions.verbose) console.warn(`Listener: %o \n\toriginStack: %o`, listener, listener.originStack);
             conGrpEnd();
           }
         }
@@ -1441,7 +1446,7 @@ class AsyncEvents {
         console.warn(`Lingered eventName: %o wasn't consumed! Check the event name correctness, or adjust its "linger" time or the listeners' "catchUp" time to bust event race conditions.`, eventName);
       }
       
-      if (eventOptions.verbose) console.warn(`eventMeta: %o \n\toriginStack: %o`, eventMeta, eventOptions.originStack);
+      if (eventOptions.verbose) console.warn(`eventMeta: %o \n\toriginStack: %o`, eventMeta, eventMeta.originStack);
       conGrpEnd();
     }
     
@@ -1736,7 +1741,7 @@ class AsyncEvents {
           const listener = this.listenersStore[eventName][li];
           const { listenerOrigin, listenerOptions } = listener;
           conGrp(`[em-async-events] %c${this.options.fallSilent || '$fallSilent(removeListener)'} %ceventName: %o origin: %o `, 'color: CadetBlue;', 'color: grey;', eventName, _.get(listenerOrigin, '$options.name', '???'));
-          if (listenerOptions.verbose) console.warn(`Listener: %o \n\toriginStack: %o`, listener, listenerOptions.originStack);
+          if (listenerOptions.verbose) console.warn(`Listener: %o \n\toriginStack: %o`, listener, listener.originStack);
           conGrpEnd();
         }
         
@@ -1812,7 +1817,7 @@ class AsyncEvents {
         const listener = this.listenersStore[eventName][indexOfSubscriber];
         const { listenerOrigin, listenerOptions } = listener;
         conGrp(`[em-async-events] %c${this.options.fallSilent || '$fallSilent(this.__removeCallbacks)'} %ceventName: %o origin: %o `, 'color: CadetBlue;', 'color: grey;', eventName, _.get(listenerOrigin, '$options.name', '???'));
-        if (listenerOptions.verbose) console.warn(`Listener: %o \n\toriginStack: %o`, listener, listenerOptions.originStack);
+        if (listenerOptions.verbose) console.warn(`Listener: %o \n\toriginStack: %o`, listener, listener.originStack);
         conGrpEnd();
       }
       
@@ -1835,7 +1840,7 @@ class AsyncEvents {
           
           if (this.options.debug.all && this.options.debug.eraseEvent || listener.listenerOptions.trace || listener.listenerOptions.verbose) {
             conGrp(`[em-async-events] %c${this.options.eraseEvent} %ceventName: %o`, 'color: CadetBlue;', 'color: grey;', eventName);
-            console.warn(`Listeners: %o \n\toriginStack: %o`, this.listenersStore[eventName], listener.listenerOptions.originStack);
+            console.warn(`Listeners: %o \n\toriginStack: %o`, this.listenersStore[eventName], listener.originStack);
             conGrpEnd();
           }
         }

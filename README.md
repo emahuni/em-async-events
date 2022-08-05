@@ -7,22 +7,23 @@ listeners, and a customizable atomic API. Has a Vue plugin.
 
 ## Features
 
-- **stoppable events and listeners**; stop an event from firing on other callbacks when it hits a specific callback or
-  on the first callback
+- **stoppable events and listeners**; stop an event from firing on other callbacks when it hits a specific callback.
 - **automated event management:**
-    - auto-removal of listeners on destruction.
+    - auto-removal of listeners on **Vue component** destruction (when used with Vue).
     - expirable listeners that listen for a specified time before they are removed.
-- **async events** that get responses from listeners. Returns promise.
-- **async listeners** that can wait for callback(s) to fire the first time before proceeding. Returns promise.
+- **async events** that get responses from listeners through a returned promise.
+- **async listeners** that can wait for callback(s) to fire before resolving a promise.
 - **lingering events;** these are events that are fired and used by current listeners, but wait for newer listeners
   until a specified time before being discarded or wait until its listener is added (bait mode).
+- **listener predicate** used to determine if event should fire or not; allows you to first evaluate the payload before firing the listener callback.
 - **multiple callbacks and events registrations:**
     - handle multiple events with one callback.
     - invoke/fire multiple callbacks from multiple events.
     - register these using atomic statements.
-- **you can use it *without* of Vue!**
+- **you can use it *without* Vue!**
 - **excellent debugging and logging support**: trace and debug everything to quickly see what's going on. Tip: it's so
   useful to turn on `debug.all` option during development, then turn on `trace/verbose` on each event/listener. It helps a lot if you can't figure out what's going on.
+- **and much more**
 
 ## Installation
 
@@ -110,21 +111,23 @@ metadata == {
   eventMeta:    {
     payloads:        [/* array of all previous event callbacks' outcomes (if there're multiple listeners), see below */],
     eventName:       "some-event",
-    eventOptions:    {/*opts passed to event*/ },
-    listenerOptions: {/*opts passed to listener*/ },
-    eventOrigin:     VueComponent /*vue compo that emitted the event when applicable */,
+    eventOptions:    {/* opts passed to event */ },
+    listenerOptions: {/* opts passed to listener */ },
+    eventOrigin:     VueComponent | Object, /* vue compo or object where event was emitted from that emitted the event when applicable */
+    originStack: String, /* string representing stack location where event was emitted from */
     listenersTally:  6 // number of listeners for this event
   },
   listenerMeta: {
-    extra,   // any data passed as extra data when listener was created,
-    eventMeta, // event meta information as above 
+    extra: Any,   // any data passed as extra data when listener was created,
+    eventMeta: {}, // event meta information as above 
     listenerMeta: {  // listener meta information
-      eventName:       "some-event",
-      callback, // the callback
+      eventName: "some-event",
+      callback: Function, // the callback
       listenerOptions: {/*opts passed to listener*/ },
       racingListeners: [/** any listeners that are racing to grab the event */],
-      subscriberID, // a unique identifier for the subscriber
-      listenerOrigin, // where the lister is defined, works for Vue only
+      subscriberID: String, // a unique identifier for the subscriber
+      listenerOrigin: Vuecomponent | Object, /* vue compo or object where listener is defined */
+      originStack: String, /* string representing stack location where listener is defined */
       listenerPromise: { // a promise for the listener
         id,       // promise unique identifier 
         promise, // actual promise for the listener
@@ -133,7 +136,7 @@ metadata == {
         settlement, // whether the promise was settled or not
         outcome, // outcome of the promise settlement
       },
-      id, // a unique identifier for the listener
+      id: String, // a unique identifier for the listener
       level, // the level of the listener 
       timestamp, // when the listener was created
       timeoutTimeout, // listener timeout
