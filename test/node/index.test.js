@@ -36,16 +36,16 @@ const defaultOptionsMatcher = {
       throttle:            `_.isOr|isBoolean|isObject|isNil`,
       isLocallyExclusive:  _.isBoolean,
       isGloballyExclusive: _.isBoolean,
-      replace:    _.isBoolean,
+      replace:             _.isBoolean,
     },
-    timeoutCallback:      `_.isOr|isFunction|isUndefined`,
+    timeoutCallback:     `_.isOr|isFunction|isUndefined`,
     stopHere:            _.isBoolean,
-    timeout:              _.isNumber,
+    timeout:             _.isNumber,
     catchUp:             `_.isOr|isFalse|isNil|isNumber`,
     once:                _.isBoolean,
     isLocallyExclusive:  _.isBoolean,
     isGloballyExclusive: _.isBoolean,
-    replace:    _.isBoolean,
+    replace:             _.isBoolean,
     trace:               _.isBoolean,
     verbose:             _.isBoolean,
   },
@@ -56,7 +56,7 @@ const defaultOptionsMatcher = {
     chain:               _.isBoolean,
     islocallyExclusive:  _.isBoolean,
     isGloballyExclusive: _.isBoolean,
-    replace:    _.isBoolean,
+    replace:             _.isBoolean,
     trace:               _.isBoolean,
     verbose:             _.isBoolean,
     rejectUnconsumed:    _.isBoolean,
@@ -96,6 +96,85 @@ describe(`# em-async-events`, function () {
     beforeAll(async function () {
     });
     
+    
+    
+    describe('## resolves to listener(s) response(s)', function () {
+      it.each([
+        ['listener-payload'],
+        [undefined],
+      ])(`emitEvent resolves to "%s" from listener`, async function (lpay) {
+        const epay = 'emit-payload';
+        const evID = 'on-event-listener';
+        const spy = sinon.spy((p, m) => lpay);
+        
+        ae.onEvent(evID, spy);
+        const res = ae.emitEvent(evID, epay);
+        
+        expect(spy).to.have.been.calledOnceWith(epay);
+        expect(await res).to.be.equal(lpay);
+        
+        ae.eraseEvent(evID);
+      });
+      
+      it(`emitEvent (multiple events) resolves with listeners responses in [] (none respond).`, async function () {
+        const epay = 'emit-payload';
+        const evIDs = ['on-event-listener-1', 'on-event-listener-2', 'on-event-listener-3'];
+        
+        const res = ae.emitEvent(evIDs, epay);
+        
+        expect(await res[0]).to.be.equal(undefined);
+        expect(await res[1]).to.be.equal(undefined);
+        expect(await res[2]).to.be.equal(undefined);
+        
+        ae.eraseEvent(evIDs);
+      });
+      
+      it(`emitEvent (multiple events) resolves with listeners responses in [] (single one that responds).`, async function () {
+        const epay = 'emit-payload';
+        const lpay = 'listeners-payload';
+        const evIDs = ['on-event-listener-1', 'on-event-listener-2', 'on-event-listener-3'];
+        const spy = sinon.spy((p, m) => lpay);
+        
+        ae.onEvent(evIDs[1], spy);
+        const res = ae.emitEvent(evIDs, epay);
+        
+        expect(spy).to.have.been.calledOnceWith(epay);
+        expect(await res[0]).to.be.equal(undefined);
+        expect(await res[1]).to.be.equal(lpay);
+        expect(await res[2]).to.be.equal(undefined);
+        
+        ae.eraseEvent(evIDs);
+      });
+      
+      it.each([
+        ['listeners-payload'],
+        [undefined],
+      ])(`emitEvent (multiple events) resolves with "%s" in all listeners as an array of promises.`, async function (lpay) {
+        const epay = 'emit-payload';
+        const evIDs = ['on-event-listener-1', 'on-event-listener-2', 'on-event-listener-3'];
+        const lpay1 = lpay && lpay + 1 || undefined;
+        const lpay2 = lpay && lpay + 2 || undefined;
+        const spy = sinon.spy((p, m) => lpay);
+        const spy1 = sinon.spy((p, m) => lpay1);
+        const spy2 = sinon.spy((p, m) => lpay2);
+        
+        ae.onEvent(evIDs[0], spy);
+        ae.onEvent(evIDs[1], spy1);
+        ae.onEvent(evIDs[2], spy2);
+        const res = ae.emitEvent(evIDs, epay);
+        
+        expect(spy).to.have.been.calledOnceWith(epay);
+        expect(spy1).to.have.been.calledOnceWith(epay);
+        expect(spy2).to.have.been.calledOnceWith(epay);
+        expect(await res[0]).to.be.equal(lpay);
+        expect(await res[1]).to.be.equal(lpay1);
+        expect(await res[2]).to.be.equal(lpay2);
+        
+        ae.eraseEvent(evIDs);
+      });
+    });
+    
+    
     it(`emitted events "once-event" and "on-event" separately, and returned unresolved promises.`, async function () {
       console.time('once-event');
       vowEmit_onceEvent = ae.emitEvent('once-event', payload_onceEvent);
@@ -105,8 +184,6 @@ describe(`# em-async-events`, function () {
       expect(isPromise((vowEmit_onceEvent))).to.be.true;
       expect(isPromise((vowEmit_onEvent))).to.be.true;
     });
-    
-    
     
     describe(`# "once-event" event `, function () {
       it(`ran "onceEventSpy" once and listener was removed`, async function () {
