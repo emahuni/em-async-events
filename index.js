@@ -1,6 +1,6 @@
 'use strict';
 
-const _ = require('lodash');
+const _ = require('lodash'); // todo use @emahuni/clone-deep for cloneDeep instead (can clone Vue components, and handle circular objects)
 const isPromise = require('ispromise');
 const lineStack = require('line-stack');
 const Timeout = require('smart-timeout');
@@ -238,18 +238,37 @@ class AsyncEvents {
       eventMeta,
     };
     
-    let vows = [];
     
     if (_.isArray(eventName)) {
+      let vows = [];
+      
       for (let evName of eventName) {
         const params = { ...args, eventName: evName, payload };
-        vows.push(this.__runEvent_linger(params));
+        const outcome = this.__runEvent(params);
+        
+        /** linger */
+        if (eventMeta.stopNow) {
+          vows.push(outcome);
+        } else {
+          vows.push(this.__lingerEvent({
+            eventName, payload: eventOptions.chain ? _.last(eventMeta.payloads) : outcome, eventOptions, eventMeta,
+          }));
+        }
       }
       
       return vows;
     }
     
-    return this.__runEvent_linger(args);
+    
+    const outcome = this.__runEvent(args);
+    /** linger */
+    if (eventMeta.stopNow) {
+      return outcome;
+    } else {
+      return this.__lingerEvent({
+        eventName, payload: outcome, eventOptions, eventMeta,
+      });
+    }
     // }
   }
   
@@ -885,7 +904,7 @@ class AsyncEvents {
    * @param eventMeta
    * @return {Promise}
    */
-  __runEvent_linger ({ eventName, payload, eventOptions, eventOrigin, eventMeta }) {
+  __runEvent ({ eventName, payload, eventOptions, eventOrigin, eventMeta }) {
     /** run event */
     let listeners = this.listenersStore[eventName];
     let listenersTally = listeners && listeners.length;
@@ -914,25 +933,18 @@ class AsyncEvents {
     
     
     
-    /** linger */
-    if (!eventMeta.stopNow) {
-      return this.__lingerEvent({
-        eventName, payload: _.last(eventMeta.payloads), eventOptions, eventMeta,
-      });
-    } else {
-      if (!eventMeta.wasConsumed) {
-        if (this.options.debug.all && this.options.debug.emitEvent || eventOptions.trace || eventOptions.verbose) {
-          conGrp(`[em-async-events] %ceventName: %o wasn't consumed! %cCheck the event name correctness, or adjust its "linger" time or the listeners' "catchUp" time to bust event race conditions.`, 'color:brown;', eventName, 'color: grey;');
-          console.warn(`eventMeta: %o \n\toriginStack: %o`, eventMeta, eventMeta.originStack);
-          conGrpEnd();
-        }
-        
-        // todo use createPromise promise.resolve()/reject() then return the promise object for all returned promises to maintain a uniform response. make a __resolvePromise, __rejectPromise private method that handles these
-        if (eventOptions.rejectUnconsumed) return Promise.reject(`Event "${eventName}" NOT consumed!`);
-        else return Promise.resolve();
-      } else {
-        return Promise.resolve(outcome);
+    if (!eventMeta.wasConsumed) {
+      if (this.options.debug.all && this.options.debug.emitEvent || eventOptions.trace || eventOptions.verbose) {
+        conGrp(`[em-async-events] %ceventName: %o wasn't consumed! %cCheck the event name correctness, or adjust its "linger" time or the listeners' "catchUp" time to bust event race conditions.`, 'color:brown;', eventName, 'color: grey;');
+        console.warn(`eventMeta: %o \n\toriginStack: %o`, eventMeta, eventMeta.originStack);
+        conGrpEnd();
       }
+      
+      // todo use createPromise promise.resolve()/reject() then return the promise object for all returned promises to maintain a uniform response. make a __resolvePromise, __rejectPromise private method that handles these
+      if (eventOptions.rejectUnconsumed) return Promise.reject(`Event "${eventName}" NOT consumed!`);
+      else return Promise.resolve();
+    } else {
+      return Promise.resolve(outcome);
     }
   }
   
@@ -1033,6 +1045,7 @@ class AsyncEvents {
         try {
           if (_.isFunction(listener.callback)) {
             //  check if calls has anything and if we should be doing serial execution
+            // todo this is not clear what it actually is for or does
             if (listener.calls.length && listener.listenerOptions.callbacks.serialExecution) {
               finalOutcome = Promise.all(listener.calls.map(c => c.promise))
                                     .then((outcome) => {
@@ -1043,7 +1056,7 @@ class AsyncEvents {
               finalOutcome = this.__runCallbackPromise(listener, callbackPromise, payload, eventMeta);
             }
             
-            if (eventMeta.chain) payload = finalOutcome;
+            if (eventMeta.chain) payload = finalOutcome; // todo shouldn't this be listener.listenerOptions.chain?
           }
           
           

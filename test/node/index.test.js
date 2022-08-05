@@ -38,11 +38,14 @@ const defaultOptionsMatcher = {
       isGloballyExclusive: _.isBoolean,
       replace:             _.isBoolean,
     },
+    originStack:         `_.isAny`,
     timeoutCallback:     `_.isOr|isFunction|isUndefined`,
+    throwOnTimeout:      _.isBoolean,
     stopHere:            _.isBoolean,
     timeout:             _.isNumber,
     catchUp:             `_.isOr|isFalse|isNil|isNumber`,
     once:                _.isBoolean,
+    race:                _.isBoolean,
     isLocallyExclusive:  _.isBoolean,
     isGloballyExclusive: _.isBoolean,
     replace:             _.isBoolean,
@@ -136,7 +139,7 @@ describe(`# em-async-events`, function () {
         const spy = sinon.spy((p, m) => lpay);
         
         ae.onEvent(evIDs[1], spy);
-        const res = ae.emitEvent(evIDs, epay);
+        const res = ae.emitEvent(evIDs, epay, { linger: false });
         
         expect(spy).to.have.been.calledOnceWith(epay);
         expect(await res[0]).to.be.equal(undefined);

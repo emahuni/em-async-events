@@ -650,7 +650,7 @@ defaultOptions === {
   },
   
   eventsOptions: {
-    chain:               false, // cause listeners' callbacks to pass each other's outcome as payload; based on range, but not guaranteed
+    chain:               false, // run cause listeners' callbacks to pass each other's outcome as payload; based on range, but not guaranteed
     linger:              500,   // time (ms) to wait for other listeners that may want to catch up to this event.
     bait:                false, // emit and linger this event forever, waiting for just 1 listener that may catch it. sort of a "once" for emitters.
     isLocallyExclusive:  false, // make this the only lingering event with this name in local scope (eg: Vue component)
