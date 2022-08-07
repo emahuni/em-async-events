@@ -277,7 +277,7 @@ class AsyncEvents {
     } else {
       return this.__lingerEvent({
         eventName,
-        payload: outcome,
+        payload,
         eventOptions,
         eventMeta: _eventMeta,
       });

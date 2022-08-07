@@ -129,16 +129,20 @@ describe(`# em-async-events`, function () {
         const epay = 'emit-payload';
         const evID = 'on-event-listener';
         let count = 0;
-        const cb = (p, m) => lresCount(lres, ++count);
+        const spy = sinon.spy((p, m) => lresCount(lres, ++count));
+        const spy1 = sinon.spy((p, m) => lresCount(lres, ++count));
         
         const res = ae.emitEvent(evID, epay, { linger: 200 });
         await wait(69);
-        ae.onEvent(evID, cb, { catchUp: true });
+        ae.onEvent(evID, spy, { catchUp: true });
         await wait(69);
-        ae.onceEvent(evID, cb, { catchUp: true });
+        ae.onceEvent(evID, spy1, { catchUp: true });
         
         const outcome = await res;
         expect(outcome).to.be.equal(lresCount(lres, count));
+        
+        expect(spy).to.have.been.calledOnceWith(epay);
+        expect(spy1).to.have.been.calledOnceWith(epay);
         
         ae.eraseEvent(evID);
       });
