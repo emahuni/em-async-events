@@ -3,6 +3,9 @@ const { expect, _, jexpect, sinon } = require('../helpers/setup.js');
 const isPromise = require('ispromise');
 const AsyncEvents = require('../../index');
 
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const lresCount = (lres, c) => !!lres ? lres + c : lres;
+
 let ae = new AsyncEvents();
 
 const onceEventSpyResponse = 'once-event-spy-response';
@@ -103,18 +106,39 @@ describe(`# em-async-events`, function () {
     
     describe('## resolves to listener(s) response(s)', function () {
       it.each([
-        ['listener-payload'],
+        ['listener-response'],
         [undefined],
-      ])(`emitEvent resolves to "%s" from listener`, async function (lpay) {
+      ])(`emitEvent resolves to "%s" from listener`, async function (lres) {
         const epay = 'emit-payload';
         const evID = 'on-event-listener';
-        const spy = sinon.spy((p, m) => lpay);
+        const spy = sinon.spy((p, m) => lres);
         
         ae.onEvent(evID, spy);
         const res = ae.emitEvent(evID, epay);
         
         expect(spy).to.have.been.calledOnceWith(epay);
-        expect(await res).to.be.equal(lpay);
+        expect(await res).to.be.equal(lres);
+        
+        ae.eraseEvent(evID);
+      });
+      
+      it.each([
+        ['listener-response'],
+        [undefined],
+      ])(`emitEvent resolves to "%s" from listener that catches up`, async function (lres) {
+        const epay = 'emit-payload';
+        const evID = 'on-event-listener';
+        let count = 0;
+        const cb = (p, m) => lresCount(lres, ++count);
+        
+        const res = ae.emitEvent(evID, epay, { linger: 200 });
+        await wait(69);
+        ae.onEvent(evID, cb, { catchUp: true });
+        await wait(69);
+        ae.onceEvent(evID, cb, { catchUp: true });
+        
+        const outcome = await res;
+        expect(outcome).to.be.equal(lresCount(lres, count));
         
         ae.eraseEvent(evID);
       });
@@ -137,16 +161,16 @@ describe(`# em-async-events`, function () {
         [false],
       ])(`emitEvent (multiple events) resolves with listeners responses in [] (single one that responds); lingering: %s.`, async function (linger) {
         const epay = 'emit-payload';
-        const lpay = 'listeners-response';
+        const lres = 'listeners-response';
         const evIDs = ['on-event-listener-1', 'on-event-listener-2', 'on-event-listener-3'];
-        const spy = sinon.spy((p, m) => lpay);
+        const spy = sinon.spy((p, m) => lres);
         
         ae.onEvent(evIDs[1], spy);
         const res = ae.emitEvent(evIDs, epay, { linger });
         
         expect(spy).to.have.been.calledOnceWith(epay);
         expect(await res[0]).to.be.equal(undefined);
-        expect(await res[1]).to.be.equal(lpay);
+        expect(await res[1]).to.be.equal(lres);
         expect(await res[2]).to.be.equal(undefined);
         
         ae.eraseEvent(evIDs);
@@ -155,14 +179,12 @@ describe(`# em-async-events`, function () {
       it.each([
         ['listeners-response'],
         [undefined],
-      ])(`emitEvent (multiple events) resolves with "%s" in all listeners as an array of promises.`, async function (lpay) {
+      ])(`emitEvent (multiple events) resolves with "%s" in all listeners as an array of promises.`, async function (lres) {
         const epay = 'emit-payload';
         const evIDs = ['on-event-listener-1', 'on-event-listener-2', 'on-event-listener-3'];
-        const lpay1 = lpay && lpay + 1 || undefined;
-        const lpay2 = lpay && lpay + 2 || undefined;
-        const spy = sinon.spy((p, m) => lpay);
-        const spy1 = sinon.spy((p, m) => lpay1);
-        const spy2 = sinon.spy((p, m) => lpay2);
+        const spy = sinon.spy((p, m) => lres);
+        const spy1 = sinon.spy((p, m) => lresCount(lres,1));
+        const spy2 = sinon.spy((p, m) => lresCount(lres,2));
         
         ae.onEvent(evIDs[0], spy);
         ae.onEvent(evIDs[1], spy1);
@@ -172,9 +194,9 @@ describe(`# em-async-events`, function () {
         expect(spy).to.have.been.calledOnceWith(epay);
         expect(spy1).to.have.been.calledOnceWith(epay);
         expect(spy2).to.have.been.calledOnceWith(epay);
-        expect(await res[0]).to.be.equal(lpay);
-        expect(await res[1]).to.be.equal(lpay1);
-        expect(await res[2]).to.be.equal(lpay2);
+        expect(await res[0]).to.be.equal(lres);
+        expect(await res[1]).to.be.equal(lresCount(lres,1));
+        expect(await res[2]).to.be.equal(lresCount(lres,2));
         
         ae.eraseEvent(evIDs);
       });
