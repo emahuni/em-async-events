@@ -46,7 +46,8 @@ class AsyncEvents {
       listenersOptions: {
         extra:               undefined,
         callbacks:           {
-          serialExecution:     false,
+          serialExecution: false, // todo rename to serial
+          // chain: false, // todo implement (implicates serial)
           debounce:            null,
           throttle:            null,
           isLocallyExclusive:  false,
@@ -68,7 +69,12 @@ class AsyncEvents {
         verbose:             false,
       },
       eventsOptions:    {
-        chain:               false,
+        // serial: false,     // todo implement
+        chain: false,
+        /*listeners:           { // todo implement
+          serial: false,
+          chain: false,
+        },*/
         linger:              500,
         bait:                false,
         isLocallyExclusive:  false,
@@ -251,7 +257,7 @@ class AsyncEvents {
           vows.push(outcome);
         } else {
           vows.push(this.__lingerEvent({
-            eventName, payload: eventOptions.chain ? _.last(eventMeta.payloads) : outcome, eventOptions, eventMeta,
+            eventName, payload: eventOptions.chain ? _.last(eventMeta.payloads) : payload, eventOptions, eventMeta,
           }));
         }
       }
@@ -266,7 +272,7 @@ class AsyncEvents {
       return outcome;
     } else {
       return this.__lingerEvent({
-        eventName, payload: outcome, eventOptions, eventMeta,
+        eventName, payload, eventOptions, eventMeta,
       });
     }
     // }

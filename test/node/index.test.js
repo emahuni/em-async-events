@@ -57,7 +57,7 @@ const defaultOptionsMatcher = {
     range:               _.isString,
     bait:                _.isBoolean,
     chain:               _.isBoolean,
-    islocallyExclusive:  _.isBoolean,
+    isLocallyExclusive:  _.isBoolean,
     isGloballyExclusive: _.isBoolean,
     replace:             _.isBoolean,
     trace:               _.isBoolean,
