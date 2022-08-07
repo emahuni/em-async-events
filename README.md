@@ -109,12 +109,13 @@ argument, eg:
 metadata == {
   extra:        'extra payload (not event related) from listener adding line. see below',
   eventMeta:    {
-    payloads:        [/* array of all previous event callbacks' outcomes (if there're multiple listeners), see below */],
+    consumers:       [/* array of all listeners that consumed this event */],
+    wasConsumed:     Boolean, // if this event was ever consumed
     eventName:       "some-event",
     eventOptions:    {/* opts passed to event */ },
     listenerOptions: {/* opts passed to listener */ },
     eventOrigin:     VueComponent | Object, /* vue compo or object where event was emitted from that emitted the event when applicable */
-    originStack: String, /* string representing stack location where event was emitted from */
+    originStack:     String, /* string representing stack location where event was emitted from */
     listenersTally:  6 // number of listeners for this event
   },
   listenerMeta: {
@@ -178,7 +179,7 @@ async function eventCallback1 (payload) {
 
 async function eventCallback2 (payload, metadata) {
   return { blah: 'any new payload of any type for this callback to pass back' };
-  // you can get reponses from all callbacks in metadata.payloads[]
+  // you can get reponses from all callbacks in metadata.eventMeta.consumers.*.listenerPromise
 }
 
 ```
@@ -650,7 +651,7 @@ defaultOptions === {
   },
   
   eventsOptions: {
-    chain:               false, // run cause listeners' callbacks to pass each other's outcome as payload; based on range, but not guaranteed
+    chain:               false, // run cause events to pass each other's outcome as payload, implies serial (todo)
     linger:              500,   // time (ms) to wait for other listeners that may want to catch up to this event.
     bait:                false, // emit and linger this event forever, waiting for just 1 listener that may catch it. sort of a "once" for emitters.
     isLocallyExclusive:  false, // make this the only lingering event with this name in local scope (eg: Vue component)

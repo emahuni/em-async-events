@@ -27,6 +27,7 @@
   },
   "homepage": "https://github.com/emahuni/em-async-events#readme",
   "dependencies": {
+    "@emahuni/clone-deep": "^5.1.0",
     "ispromise": "^1.1.0",
     "line-stack": "^0.1",
     "lodash": "^4.17",

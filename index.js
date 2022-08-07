@@ -1,6 +1,7 @@
 'use strict';
 
-const _ = require('lodash'); // todo use @emahuni/clone-deep for cloneDeep instead (can clone Vue components, and handle circular objects)
+const _ = require('lodash'); // todo tree shake what you need only
+const cloneDeep = require('@emahuni/clone-deep');
 const isPromise = require('ispromise');
 const lineStack = require('line-stack');
 const Timeout = require('smart-timeout');
@@ -227,21 +228,18 @@ class AsyncEvents {
     
     if (!Array.isArray(eventOptions.extras)) eventOptions.extras = [];
     
-    const eventMeta = {
-      eventOrigin,
+    const _eventMeta = {
       originStack,
       emitterID,
-      stopNow:     false,
-      wasConsumed: false,
-      extras:      eventOptions.extras,
-    };
-    
-    const args = {
-      eventName,
-      payload,
-      eventOptions,
-      eventOrigin,
-      eventMeta,
+      stopNow: false,
+      get wasConsumed () { return !!_.size(this.consumers); },
+      extras: eventOptions.extras,
+      // set in __runEvent
+      id:             undefined,
+      eventName:      undefined,
+      consumers:      undefined,
+      eventTimestamp: undefined,
+      eventOptions:   undefined,
     };
     
     
@@ -249,15 +247,21 @@ class AsyncEvents {
       let vows = [];
       
       for (let evName of eventName) {
-        const params = { ...args, eventName: evName, payload };
+        const params = cloneDeep({ eventName: evName, payload, eventOptions, eventMeta: _eventMeta });
+        /** we didn't want to clone this */
+        params.eventOrigin = eventOrigin;
+        params.eventMeta.eventOrigin = eventOrigin;
         const outcome = this.__runEvent(params);
         
         /** linger */
-        if (eventMeta.stopNow) {
+        if (params.eventMeta.stopNow) {
           vows.push(outcome);
         } else {
           vows.push(this.__lingerEvent({
-            eventName, payload: eventOptions.chain ? _.last(eventMeta.payloads) : payload, eventOptions, eventMeta,
+            eventName: evName,
+            payload: eventOptions.chain && params.eventMeta.wasConsumed ? (_.last(params.eventMeta.consumers).listenerPromise) : payload,
+            eventOptions,
+            eventMeta: params.eventMeta,
           }));
         }
       }
@@ -265,14 +269,17 @@ class AsyncEvents {
       return vows;
     }
     
-    
-    const outcome = this.__runEvent(args);
+    _eventMeta.eventOrigin = eventOrigin;
+    const outcome = this.__runEvent({ eventName, payload, eventOptions, eventOrigin, eventMeta: _eventMeta });
     /** linger */
-    if (eventMeta.stopNow) {
+    if (_eventMeta.stopNow) {
       return outcome;
     } else {
       return this.__lingerEvent({
-        eventName, payload, eventOptions, eventMeta,
+        eventName,
+        payload: outcome,
+        eventOptions,
+        eventMeta: _eventMeta,
       });
     }
     // }
@@ -920,9 +927,8 @@ class AsyncEvents {
       id:             this.__genUniqID(),
       eventName,
       consumers:      [],
-      payloads:       [payload],
       eventTimestamp: Date.now(),
-      eventOptions:   _.cloneDeep(eventOptions),
+      eventOptions:   cloneDeep(eventOptions),
       level,
       listenersTally,
     });
@@ -1051,7 +1057,6 @@ class AsyncEvents {
         try {
           if (_.isFunction(listener.callback)) {
             //  check if calls has anything and if we should be doing serial execution
-            // todo this is not clear what it actually is for or does
             if (listener.calls.length && listener.listenerOptions.callbacks.serialExecution) {
               finalOutcome = Promise.all(listener.calls.map(c => c.promise))
                                     .then((outcome) => {
@@ -1145,8 +1150,6 @@ class AsyncEvents {
   __runCallbackPromise (listener, callbackPromise, payload, eventMeta) {
     listener.calls.push(callbackPromise);
     
-    eventMeta.wasConsumed = true;
-    
     // todo should we replace exclusive listeners?
     // const exclusiveListener = this.__getExclusiveListener(listener.eventName, this.listenersStore); // todo ???
     
@@ -1212,9 +1215,6 @@ class AsyncEvents {
       listener.listenerPromise.settlement = RESOLVED;
       listener.listenerPromise.resolve(outcome);
     }
-    
-    eventMeta.payloads.push(outcome);
-    if (eventMeta.payloads.length >= this.options.maxCachedPayloads) eventMeta.payloads.shift();
     
     listener.calls.splice(_.findIndex(listener.calls, c => c.id === callbackPromise.id), 1);
     return outcome;
@@ -1294,7 +1294,7 @@ class AsyncEvents {
       return ev.lingeringEventPromise;
     }
     
-    if (eventMeta.wasConsumed) return Promise.resolve(payload);
+    if (eventMeta.wasConsumed) return _.last(eventMeta.consumers).listenerPromise;
     else if (eventOptions.rejectUnconsumed) return Promise.reject(`Un-lingered Event "${eventName}" was NOT consumed!`);
     
     return Promise.resolve();
@@ -1340,7 +1340,7 @@ class AsyncEvents {
   __settleLingeredEvent (ev, eventOptions, eventName) {
     // finally resolve/reject lingering event promise
     if (ev.eventMeta.wasConsumed) {
-      ev.lingeringEventPromise.resolve(ev.payload);
+      ev.lingeringEventPromise.resolve(_.last(ev.eventMeta.consumers).listenerPromise);
     } else {
       if (eventOptions.rejectUnconsumed) ev.lingeringEventPromise.reject(`Lingered Event "${eventName}" NOT consumed!`);
       else ev.lingeringEventPromise.resolve();
@@ -1426,7 +1426,7 @@ class AsyncEvents {
           }
           
           // the reason here is that we need it to pass thru the levels logic too
-          payload = this.__runListeners({
+          const outcome = this.__runListeners({
             payload,
             listeners: [listener],
             eventName,
@@ -1436,12 +1436,12 @@ class AsyncEvents {
           });
           
           if (eventMeta.wasConsumed) {
-            lingeringEvent.payload = payload;
+            if (eventOptions.chain) lingeringEvent.payload = outcome;
             
             // todo bait logic should be done only when all listeners have taken the bait, since we can add multiple listeners per onEvent/onceEvent
             if (eventOptions.bait) {
               lingeringEvent.lingeringEventPromise.settlement = RESOLVED;
-              lingeringEvent.lingeringEventPromise.resolve(payload);
+              lingeringEvent.lingeringEventPromise.resolve(outcome);
               // noinspection JSUnfilteredForInLoop
               this.__removeLingeringEventAtIndex(eventName, ei, eventOptions, eventMeta);
             }

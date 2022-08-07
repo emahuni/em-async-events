@@ -132,14 +132,17 @@ describe(`# em-async-events`, function () {
         ae.eraseEvent(evIDs);
       });
       
-      it(`emitEvent (multiple events) resolves with listeners responses in [] (single one that responds).`, async function () {
+      it.each([
+        [500],
+        [false],
+      ])(`emitEvent (multiple events) resolves with listeners responses in [] (single one that responds); lingering: %s.`, async function (linger) {
         const epay = 'emit-payload';
-        const lpay = 'listeners-payload';
+        const lpay = 'listeners-response';
         const evIDs = ['on-event-listener-1', 'on-event-listener-2', 'on-event-listener-3'];
         const spy = sinon.spy((p, m) => lpay);
         
         ae.onEvent(evIDs[1], spy);
-        const res = ae.emitEvent(evIDs, epay, { linger: false });
+        const res = ae.emitEvent(evIDs, epay, { linger });
         
         expect(spy).to.have.been.calledOnceWith(epay);
         expect(await res[0]).to.be.equal(undefined);
@@ -150,7 +153,7 @@ describe(`# em-async-events`, function () {
       });
       
       it.each([
-        ['listeners-payload'],
+        ['listeners-response'],
         [undefined],
       ])(`emitEvent (multiple events) resolves with "%s" in all listeners as an array of promises.`, async function (lpay) {
         const epay = 'emit-payload';
@@ -367,7 +370,8 @@ describe(`# em-async-events`, function () {
       
       
       describe(`# "on-event" lingering`, function () {
-        test(`"vowEmit_onEvent" and "vowEmit_onEvent2" resolve to the event's last callback payload.`, async function () {
+        test(`"vowEmit_onEvent" and "vowEmit_onEvent2" resolve to the event's last callback output.`, async function () {
+          // todo fix this or the tests
           expect(await vowEmit_onEvent).to.be.equal(payload_onEvent);
           expect(await vowEmit_onEvent2).to.be.equal(payload_onEvent2);
         });
@@ -428,9 +432,11 @@ describe(`# em-async-events`, function () {
         expect(await vows[0]).to.be.equal(200);
       });
       test(`second event promise`, async function () {
+        // todo fix this or the tests
         expect(await vows[1]).to.be.equal(350);
       });
       test(`third event promise`, async function () {
+        // todo fix this or the tests
         expect(await vows[2]).to.be.equal(450);
       });
     });
