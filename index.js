@@ -127,8 +127,8 @@ class AsyncEvents {
   onEvent (eventName, callback, listenerOptions, subscriberID = this._uniqID, listenerOrigin) {
     if (!_.isString(eventName) && !_.isArray(eventName)) throw new Error(`[index]-91: onEvent() - eventName should be specified as an string or array of strings representing event name(s)!`);
     
-    if (!_.isFunction(callback) && !_.isArray(callback) && _.isNil(listenerOptions)) {
-      listenerOptions = callback;
+    if (_.isPlainObject(callback)) {
+      if (_.isNil(listenerOptions)) listenerOptions = callback;
       callback = undefined;
     }
     
@@ -164,6 +164,7 @@ class AsyncEvents {
       
       const vows = [];
       for (let eventNameIndex = 0, len = eventName.length; eventNameIndex < len; eventNameIndex++) {
+        // noinspection JSObjectNullOrUndefined
         for (let callbackIndex = 0, _len = callback.length; callbackIndex < _len; callbackIndex++) {
           vows.push(this.__addListener({
             ...args,
@@ -259,7 +260,7 @@ class AsyncEvents {
         } else {
           vows.push(this.__lingerEvent({
             eventName: evName,
-            payload: eventOptions.chain && params.eventMeta.wasConsumed ? (_.last(params.eventMeta.consumers).listenerPromise) : payload,
+            payload:   eventOptions.chain && params.eventMeta.wasConsumed ? (_.last(params.eventMeta.consumers).listenerPromise) : payload,
             eventOptions,
             eventMeta: params.eventMeta,
           }));
@@ -474,7 +475,7 @@ class AsyncEvents {
    * get store subjects
    * @param {object} store - the store to check
    * @param {string|array<string>} [subjects] - subjects to check. Just eventIDs. If undefined or empty then it checks if store is empty.
-   * @return {array}
+   * @return {PartialObject<Object>}
    * @private
    */
   __storeGet (store, subjects) {
@@ -494,6 +495,7 @@ class AsyncEvents {
     this.options = _.defaultsDeep(options, this.options);
     
     // turn off debugging if we are not going to show devtools/in production
+    // noinspection JSUnresolvedVariable
     if (!Vue.config.devtools) this.options.debug.all = false;
     
     let asyncEventsProp = this.options.asyncEvents;
@@ -529,6 +531,7 @@ class AsyncEvents {
          */
         $localListeners () {
           return _.reduce(AE_this.listenersStore, (acc, lis, k) => {
+            // noinspection JSUnresolvedVariable
             const lolis = lis.filter(lol => lol.subscriberID === this._uid);
             if (lolis.length) acc[k] = lolis;
             return acc;
@@ -540,6 +543,7 @@ class AsyncEvents {
          */
         $localLingeredEvents () {
           return _.reduce(AE_this.lingeringEventsStore, (acc, ev, k) => {
+            // noinspection JSUnresolvedVariable
             const loev = ev.filter(loe => loe.eventMeta.emitterID === this._uid);
             if (loev.length) acc[k] = loev;
             return acc;
@@ -553,6 +557,7 @@ class AsyncEvents {
       },
     });
     
+    // noinspection JSUnresolvedVariable
     /**
      * plugin local state
      */
@@ -604,6 +609,7 @@ class AsyncEvents {
      * @param listenerOptions
      */
     Vue.prototype[onEventProp] = function (eventName, callback, listenerOptions) {
+      // noinspection JSUnresolvedVariable
       return AE_this.onEvent(eventName, callback, listenerOptions, this._uid, this);
     };
     
@@ -615,6 +621,7 @@ class AsyncEvents {
      * @param listenerOptions
      */
     Vue.prototype[onceEventProp] = function (eventName, callback, listenerOptions) {
+      // noinspection JSUnresolvedVariable
       return AE_this.onceEvent(eventName, callback, listenerOptions, this._uid, this);
     };
     
@@ -626,6 +633,7 @@ class AsyncEvents {
      * @return {Promise<*>|array<Promise>}
      */
     Vue.prototype[emitEventProp] = function (eventName, payload, eventOptions) {
+      // noinspection JSUnresolvedVariable
       return AE_this.emitEvent(eventName, payload, eventOptions, this._uid, this);
     };
     
@@ -654,6 +662,7 @@ class AsyncEvents {
      * @param callback {Function|Array<Function>|undefined} the callback/Array of callbacks that should be unsubscribed
      */
     Vue.prototype[fallSilentProp] = function (eventName, callback) {
+      // noinspection JSUnresolvedVariable
       return AE_this.fallSilent(this._uid, eventName, callback);
     };
     
@@ -670,6 +679,7 @@ class AsyncEvents {
       if (!eventIDs) return false;
       if (!_.isArray(eventIDs)) eventIDs = [eventIDs];
       let listeners = _.flatten(_.filter(source, (v, k) => eventIDs.includes(k)));
+      // noinspection JSUnresolvedVariable
       listeners = _.filter(listeners, (listener) => _.get(listener, `${origin}._uid`) === vm._uid);
       return !!listeners.length;
     }
@@ -723,6 +733,7 @@ class AsyncEvents {
    * @param subscriberID
    * @param listenerOrigin
    * @param racingListeners
+   * @return {Promise}
    */
   __addListener ({ eventName, callback, listenerOptions, subscriberID, listenerOrigin, racingListeners }) {
     const originStack = _.pick(lineStack.skipByFilename('em-async-events'), ['filename', 'method']);
@@ -733,6 +744,7 @@ class AsyncEvents {
     
     /** backwards compatibility */
     if (!!listenerOptions.expire && !listenerOptions.timeout) listenerOptions.timeout = listenerOptions.expire;
+    // noinspection JSUnresolvedVariable
     if (!!listenerOptions.expiryCallback && !listenerOptions.timeoutCallback) listenerOptions.timeoutCallback = listenerOptions.expiryCallback;
     
     // todo move this to a method and fix this to work correctly for callbacks...
@@ -749,7 +761,7 @@ class AsyncEvents {
           console.warn(`Exclusive Listener: %o, \n\toriginStack: %o`, exclusiveListener, originStack);
           conGrpEnd();
         }
-        throw new Error(`[index]-595: __addListener("${eventName}") - ABORTING (exclusive ${(isExclusiveCallbackListener ? 'callback' : 'listener')} exists in "${exclusiveListener.listenerOrigin.$options.name}")`);
+        throw new Error(`[index]-595: __addListener("${eventName}") - ABORTING (exclusive ${(isExclusiveCallbackListener ? 'callback' : 'listener')} exists in "${_.get(exclusiveListener.listenerOrigin, '$options.name', exclusiveListener.originStack)}")`);
       } else {
         conGrp(`[em-async-events] %cREPLACING existing listener %c- eventName: %o because of exclusivity options...`, 'color: brown;', 'color: grey;', eventName);
         console.warn(`listenerOptions: %o \n\toriginStack: %o`, listenerOptions, originStack);
@@ -816,6 +828,7 @@ class AsyncEvents {
     }
     
     // console.debug(`[index]-622: __addListener() - listener subscriberID: %o, outcome: %o, settlement: %o`, listener.subscriberID, listener.listenerPromise.outcome, listener.listenerPromise.settlement);
+    // noinspection JSValidateTypes
     return listener.listenerPromise;
   }
   
@@ -827,7 +840,7 @@ class AsyncEvents {
    * @return {Timeout} listener timeout object
    */
   __instantiateListenerTimeout (listener) {
-    const { listenerOptions } = listener;
+    const { listenerOptions, eventName } = listener;
     
     listener.listenerPromise.timeout = Timeout.instantiate(listener.id, async () => {
       let hasCB = _.isFunction(listenerOptions.timeoutCallback);
@@ -1318,6 +1331,7 @@ class AsyncEvents {
         
         Promise.all(consumers.map(c => c.listenerPromise)).then((vows) => {
           // console.debug(`[index]-1011: () - vows: %o`, vows);
+          // todo how do we use vows here
           this.__settleLingeredEvent(ev, eventOptions, eventName);
           if (consumers.length && this.options.debug.all && this.options.debug.lingerEvent || eventOptions.verbose) {
             conGrp(`[em-async-events] %ceventName: %o "linger" consumers have finished.`, 'color: grey;', eventName);
@@ -1389,6 +1403,7 @@ class AsyncEvents {
    * Get the exclusive event for the given eventID
    * @param {object} eventMeta - the event meta
    * @param {string} eventMeta.eventName - the event id associated with the event we want to check exclusives for
+   * @param {string} eventMeta.emitterID - the emitter id associated with the event we want to check exclusives for
    * @param {object} store - the store to get it from
    * @return {object} - the exclusive event object
    * @private
@@ -1487,32 +1502,32 @@ class AsyncEvents {
     let
         /**
          * use listeners going up
-         * @type {number}
+         * @type {number|null}
          */
         up = null,
         /**
          * use listeners going down
-         * @type {number}
+         * @type {number|null}
          */
         down = null,
         /**
          * stop at the first listener
-         * @type {boolean}
+         * @type {boolean|null}
          */
         stop = null,
         /**
          * serve listeners in the same component as emitter ONLY
-         * @type {boolean}
+         * @type {boolean|null}
          */
         selfOnly = null,
         /**
          * serve listeners in the same component as emitter AS WELL
-         * @type {boolean}
+         * @type {boolean|null}
          */
         self = null,
         /**
          * serve listeners on the same component as emitter ONLY
-         * @type {boolean}
+         * @type {boolean|null}
          */
         siblings = null;
     
@@ -1523,6 +1538,7 @@ class AsyncEvents {
     } else {
       let tokens = lr.split(/[- ,;]/);
       for (let token of tokens) {
+        // noinspection FallThroughInSwitchStatementJS
         switch (token) {
           case'self':
             self = true;
@@ -1888,11 +1904,12 @@ class AsyncEvents {
   
   /**
    * get the component hierarchy level of a given Vue component
-   * @param origin
+   * @param origin {Object}
    * @return {number}
    */
   __getOriginLevel (origin) {
     let level = 0, compo = origin;
+    // noinspection JSUnresolvedVariable
     while (compo && compo.$parent) {
       level++;
       compo = compo.$parent;
