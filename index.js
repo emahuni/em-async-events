@@ -1080,7 +1080,7 @@ class AsyncEvents {
               finalOutcome = this.__runCallbackPromise(listener, callbackPromise, payload, eventMeta);
             }
             
-            if (eventMeta.chain) payload = finalOutcome; // todo shouldn't this be listener.listenerOptions.chain?
+            if (eventMeta.eventOptions.chain) payload = finalOutcome; // todo shouldn't this be listener.listenerOptions.chain?
           }
           
           
