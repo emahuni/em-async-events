@@ -1142,17 +1142,17 @@ class AsyncEvents {
         const callbackPromise = listener.calls[0].wasInvoked ? this.__createPromise() : listener.calls[0];
         try {
           if (_.isFunction(listener.callback)) {
-            //  check if calls has anything and if we should be doing serial execution
-            if (listener.calls.length && listener.listenerOptions.callbacks.serialExecution) {
-              finalOutcome = Promise.all(listener.calls)
-                                    .then((outcome) => {
-                                      // todo how should we use outcome here?
-                                      return this.__runCallbackPromise(listener, callbackPromise, payload, eventMeta);
-                                    });
+            if (listener.listenerOptions.callbacks.serialExecution && listener.calls.length && listener.calls[0].wasInvoked) {
+              // wait for pending calls to complete before continuing execution to the next callback
+              finalOutcome = Promise.all(listener.calls).then(() => {
+                return this.__runCallbackPromise(listener, callbackPromise, payload, eventMeta);
+              });
+              // .catch(rej); // todo check error handling here
             } else {
               finalOutcome = this.__runCallbackPromise(listener, callbackPromise, payload, eventMeta);
             }
             
+            // todo this is not correct to be done here
             if (eventMeta.eventOptions.chain) payload = finalOutcome; // todo shouldn't this be listener.listenerOptions.chain?
           }
           
