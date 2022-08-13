@@ -46,7 +46,7 @@ const defaultOptionsMatcher = {
     throwOnTimeout:      _.isBoolean,
     stopHere:            _.isBoolean,
     timeout:             _.isNumber,
-    catchUp:             `_.isOr|isFalse|isNil|isNumber`,
+    catchup:             `_.isOr|isFalse|isNil|isNumber`,
     once:                _.isBoolean,
     race:                _.isBoolean,
     isLocallyExclusive:  _.isBoolean,
@@ -134,9 +134,9 @@ describe(`# em-async-events`, function () {
         
         const res = ae.emitEvent(evID, epay, { linger: 200 });
         await wait(69);
-        ae.onEvent(evID, spy, { catchUp: true });
+        ae.onEvent(evID, spy, { catchup: true });
         await wait(69);
-        ae.onceEvent(evID, spy1, { catchUp: true });
+        ae.onceEvent(evID, spy1, { catchup: true });
         
         const outcome = await res;
         expect(outcome).to.be.equal(lresCount(lres, count));

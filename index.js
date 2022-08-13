@@ -59,7 +59,7 @@ class AsyncEvents {
         timeout:             0,
         timeoutCallback:     undefined,
         throwOnTimeout:      false,
-        catchUp:             100, // a value of true will catch-up whatever lingering event is there.
+        catchup:             100, // a value of true will catch-up whatever lingering event is there.
         once:                false,
         race:                false,
         predicate:           undefined,
@@ -134,6 +134,10 @@ class AsyncEvents {
     
     listenerOptions = _.merge({}, this.options.listenersOptions, listenerOptions);
     if (listenerOptions.isAsync) this.__showDeprecationWarning('isAsync', 'All events and listeners are now async.');
+    if (listenerOptions.catchUp) {
+      listenerOptions.catchup = listenerOptions.catchUp;
+      // this.__showDeprecationWarning('catchUp', 'use catchup instead..');
+    }
     
     // if this event doesn't have  a callback, then just create one that returns undefined
     if (!_.isFunction(callback) && !_.isArray(callback)) callback = () => undefined;
@@ -818,7 +822,7 @@ class AsyncEvents {
     // results that happen here will be sent thru the listener promise chain.
     this.__invokeLingeredEventsAtAddListener({ eventName, listener });
     
-    // only add to listeners if the it's not once or isn't settled yet.
+    // only add to listeners if it's not once or isn't settled yet.
     if (!listenerOptions.once || listener.listenerPromise.settlement === PENDING) {
       this.__stashListenerOrEvent(listener, eventName, this.listenersStore, exclusiveListener);
       
@@ -960,7 +964,7 @@ class AsyncEvents {
     
     if (!eventMeta.wasConsumed) {
       if (this.options.debug.all && this.options.debug.emitEvent || eventOptions.trace || eventOptions.verbose) {
-        conGrp(`[em-async-events] %ceventName: %o wasn't consumed! %cCheck the event name correctness, or adjust its "linger" time or the listeners' "catchUp" time to bust event race conditions.`, 'color:brown;', eventName, 'color: grey;');
+        conGrp(`[em-async-events] %ceventName: %o wasn't consumed! %cCheck the event name correctness, or adjust its "linger" time or the listeners' "catchup" time to bust event race conditions.`, 'color:brown;', eventName, 'color: grey;');
         console.warn(`eventMeta: %o \n\toriginStack: %o`, eventMeta, eventMeta.originStack);
         conGrpEnd();
       }
@@ -1419,21 +1423,21 @@ class AsyncEvents {
    * @param listener
    */
   __invokeLingeredEventsAtAddListener ({ eventName, listener }) {
-    // console.debug(`[index]-908: __invokeLingeredEventsAtAddListener() - listener subscriberID: %o, hasLingeringEvent? %o, catchUp? %o`, listener.subscriberID, this.hasLingeringEvents(eventName), !!listener.listenerOptions.catchUp);
+    // console.debug(`[index]-908: __invokeLingeredEventsAtAddListener() - listener subscriberID: %o, hasLingeringEvent? %o, catchup? %o`, listener.subscriberID, this.hasLingeringEvents(eventName), !!listener.listenerOptions.catchup);
     // check if listener has an events lingering for it, if so then trigger these events on listener to handle
-    if (!!listener.listenerOptions.catchUp && this.hasLingeringEvents(eventName)) {
+    if (!!listener.listenerOptions.catchup && this.hasLingeringEvents(eventName)) {
       for (let ei in this.lingeringEventsStore[eventName]) {
         // noinspection JSUnfilteredForInLoop
         const lingeringEvent = this.lingeringEventsStore[eventName][ei];
         let { payload, eventMeta } = lingeringEvent;
         
-        // is listener catchUp within range?
+        // is listener catchup within range?
         const elapsed = Date.now() - eventMeta.eventTimestamp;
         const { eventOptions, eventOrigin } = eventMeta;
-        if (listener.listenerOptions.catchUp === true || listener.listenerOptions.catchUp >= elapsed) {
+        if (listener.listenerOptions.catchup === true || listener.listenerOptions.catchup >= elapsed) {
           
           if (this.options.debug.all && this.options.debug.addListener || listener.listenerOptions.trace || listener.listenerOptions.verbose || eventOptions.verbose) {
-            conGrp(`[em-async-events] %ccatchUp - %c"catching up" to a currently lingering lingeringEvent "%o" that has been lingering for %o/%o.`, 'color: green', 'color: grey;', eventName, elapsed, eventOptions.linger);
+            conGrp(`[em-async-events] %ccatchup - %c"catching up" to a currently lingering lingeringEvent "%o" that has been lingering for %o/%o.`, 'color: green', 'color: grey;', eventName, elapsed, eventOptions.linger);
             if (listener.listenerOptions.verbose) {
               console.warn(`listener: %o, lingeringEvent: %o \n\toriginStack: %o`, listener, lingeringEvent, listener.originStack);
             }
@@ -1463,7 +1467,7 @@ class AsyncEvents {
           }
         } else {
           if (this.options.debug.all && this.options.debug.addListener || listener.listenerOptions.trace || listener.listenerOptions.verbose) {
-            conGrp(`[em-async-events] %c${listener.listenerOptions.once ? this.options.onceEvent : this.options.onEvent} couldn't "catchUp" to currently lingering event %o for %o (ms).\n\t%cPlease adjust listener options catchUp time from: %o (ms) to something greater than %o (ms), if this is desired.\n<- (that's how long it's roughly taking to get to start listening, against when linger started).`, 'color: brown', eventName, eventOptions.linger, 'color: grey;', listener.listenerOptions.catchUp, elapsed);
+            conGrp(`[em-async-events] %c${listener.listenerOptions.once ? this.options.onceEvent : this.options.onEvent} couldn't "catchup" to currently lingering event %o for %o (ms).\n\t%cPlease adjust listener options catchup time from: %o (ms) to something greater than %o (ms), if this is desired.\n<- (that's how long it's roughly taking to get to start listening, against when linger started).`, 'color: brown', eventName, eventOptions.linger, 'color: grey;', listener.listenerOptions.catchup, elapsed);
             if (listener.listenerOptions.verbose) console.warn(`Listener: %o \n\toriginStack: %o`, listener, listener.originStack);
             conGrpEnd();
           }
@@ -1477,7 +1481,7 @@ class AsyncEvents {
     if (this.options.debug.all && this.options.debug.lingerEvent || eventOptions.trace || eventOptions.verbose) {
       conGrp(`[em-async-events] %cremove lingering event %c- eventName: %o on index: %o`, 'color: CadetBlue;', 'color: grey;', eventName, index);
       if (!eventMeta.wasConsumed) {
-        console.warn(`Lingered eventName: %o wasn't consumed! Check the event name correctness, or adjust its "linger" time or the listeners' "catchUp" time to bust event race conditions.`, eventName);
+        console.warn(`Lingered eventName: %o wasn't consumed! Check the event name correctness, or adjust its "linger" time or the listeners' "catchup" time to bust event race conditions.`, eventName);
       }
       
       if (eventOptions.verbose) console.warn(`eventMeta: %o \n\toriginStack: %o`, eventMeta, eventMeta.originStack);

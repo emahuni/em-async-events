@@ -348,7 +348,7 @@ make sure that events can fire and wait for listeners to pop in within a certain
 - To Disable lingering on a specific event, set `linger: false` on event options when emitting. Figures < 0 or falsy
   will cause the default options `eventsOptions.linger` time to be applied. And if falsy also, it will disable lingering
   altogether.
-- You can regulate each listener's linger catching up using `catchUp` time on listeners' options.
+- You can regulate each listener's linger catching up using `catchup` or `catchUp` time on listeners' options.
 - ~~globalLinger~~ - was deprecated in favour of using the default options' `eventsOptions.linger` option.
 - `$localLingeredEvents` are lingering events in the current scope (in Vue Component). This is meant for Vue and you can
   see these in devtools (computed).
@@ -359,29 +359,29 @@ eg: Linger for 5000ms for new listeners of the event.
     this.$emitEvent('some-event3', { test: 'one' }, { linger: 5000 });
 ```
 
-##### CatchUp
+##### catchup
 
-To adjust how long a listener can catch up to an event use `catchUp` time defined in listener options.
+To adjust how long a listener can catch up to an event use `catchup` time defined in listener options.
 
 - the event doesn't have to be a lingered event coz every event is lingered by default.
-- if `catchUp` is falsy, then the listener won't catch up to any lingering event at all.
-- if `catchUp` is `true`, then the listener will catch up to any lingering event regardless of when it was emitted.
+- if `catchup` is falsy, then the listener won't catch up to any lingering event at all.
+- if `catchup` is `true`, then the listener will catch up to any lingering event regardless of when it was emitted.
 
 For example to catch up an event that happened not more than 100 milliseconds ago (without using `linger` option when
 emitting the event):
 
 ```js
-  this.$onEvent('some-event', (payload) => {/*...*/}, { catchUp: 100 });
+  this.$onEvent('some-event', (payload) => {/*...*/}, { catchup: 100 });
 // or catch up no matter what
-this.$onEvent('some-event', (payload) => {/*...*/}, { catchUp: true });
+this.$onEvent('some-event', (payload) => {/*...*/}, { catchup: true });
  ``` 
 
 For example to NOT catch up an event at all (if we missed the event don't use the lingered one):
 
 ```js
-  this.$onEvent('some-event', (payload) => {/*...*/}, { catchUp: 0 });
+  this.$onEvent('some-event', (payload) => {/*...*/}, { catchup: 0 });
 // or
-this.$onEvent('some-event', (payload) => {/*...*/}, { catchUp: false });
+this.$onEvent('some-event', (payload) => {/*...*/}, { catchup: false });
  ```
 
 ##### Exclusive events
@@ -641,7 +641,7 @@ defaultOptions === {
     throwOnTimeout:      false,  // throw an exception when the event times out. it will run the timeout callback before throwing exception.
     race:                false,              // does race checking for the provided listeners and will discard the other listeners for the first one that gets invoked in the group of listeners. This only work when listeners are registered with array notation and for "once" listeners only.
     predicate:           undefined, // function used to check if the payload is what we want before firing the actual callback. Gives chance to continue waiting and listening for event if some condition isn't met. Function should return boolean true to proceed firing the callback(s), or false to continue listening and just ignore the event as if nothing happened (for the affected listener(s)). It's invoked with exact same arguments as the callback. If this throws, the whole promise is rejected as if something went wrong; another way to cancel the listening.
-    catchUp:             100, // catup time (ms) to consider events that occured earlier; false to disable
+    catchup:             100, // catup time (ms) to consider events that occured earlier; false to disable
     once:                false, // only listen for this event once
     isLocallyExclusive:  false, // make this the only listener for this event in local scope (eg: Vue component)
     isGloballyExclusive: false, // make this the only listener for this event everywhere
