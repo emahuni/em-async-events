@@ -49,7 +49,7 @@ class AsyncEvents {
      *    race: boolean,
      *    replace: boolean,
      *    callbacks: {
-     *      serialExecution: boolean,
+     *      serial: boolean,
      *      debounce: null,
      *      throttle: null,
      *      replace: boolean,
@@ -74,7 +74,7 @@ class AsyncEvents {
     const listenersOptions = {
       extra:               undefined,
       callbacks:           {
-        serialExecution: false, // todo rename to serial
+        serial: false, // todo rename to serial
         // chain: false, // todo implement (implicates serial)
         debounce:            null,
         throttle:            null,
@@ -801,6 +801,8 @@ class AsyncEvents {
     if (!!listenerOptions.expire && !listenerOptions.timeout) listenerOptions.timeout = listenerOptions.expire;
     // noinspection JSUnresolvedVariable
     if (!!listenerOptions.expiryCallback && !listenerOptions.timeoutCallback) listenerOptions.timeoutCallback = listenerOptions.expiryCallback;
+    // noinspection JSUnresolvedVariable
+    if (!!listenerOptions.callbacks.serialExecution) listenerOptions.callbacks.serial = listenerOptions.callbacks.serialExecution;
     
     // todo move this to a method and fix this to work correctly for callbacks...
     const exclusiveListener = (this.listenersStore[eventName] || []).find(l => {
@@ -1142,7 +1144,7 @@ class AsyncEvents {
         const callbackPromise = listener.calls[0].wasInvoked ? this.__createPromise() : listener.calls[0];
         try {
           if (_.isFunction(listener.callback)) {
-            if (listener.listenerOptions.callbacks.serialExecution && listener.calls.length && listener.calls[0].wasInvoked) {
+            if (listener.listenerOptions.callbacks.serial && listener.calls.length && listener.calls[0].wasInvoked) {
               // wait for pending calls to complete before continuing execution to the next callback
               finalOutcome = Promise.all(listener.calls).then(() => {
                 return this.__runCallbackPromise(listener, callbackPromise, payload, eventMeta);

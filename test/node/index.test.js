@@ -28,7 +28,7 @@ const defaultOptionsMatcher = {
   listenersOptions: {
     extra:               `_.isAny`,
     callbacks:           {
-      serialExecution:     _.isBoolean,
+      serial:              _.isBoolean,
       debounce:            `_.isOr|isBoolean|isObject|isNil`,
       throttle:            `_.isOr|isBoolean|isObject|isNil`,
       isLocallyExclusive:  _.isBoolean,
@@ -412,7 +412,7 @@ describe(`# em-async-events`, function () {
     });
     
     test(`serial listener callback invocation. runs 3 events in series, with gaps between them that should take at least 650ms.`, async function () {
-      ae.onEvent('serial-event', serialSpy, { callbacks: { serialExecution: false } });
+      ae.onEvent('serial-event', serialSpy, { callbacks: { serial: false } });
       
       const startTime = Date.now();
       {

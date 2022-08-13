@@ -278,7 +278,7 @@ before even starting. They don't pass outcomes to each here, they are just indep
   the same time using the same callback function.
 
 ```js
-this.$onEvent('some-event', eventCallback3, { callbacks: { serialExecution: true } });
+this.$onEvent('some-event', eventCallback3, { callbacks: { serial: true } });
 this.$emitEvent('some-event', 'payload');
 this.$emitEvent('some-event', 'payload1');
 this.$emitEvent('some-event', 'payload2');
@@ -624,7 +624,7 @@ defaultOptions === {
   listenersOptions: {
     extra:               undefined, // pass extra information to emitters or other callbacks using this. Get it in listeners from the second param (metadata). Get it from events through eventOptions.extras array; so define an options obj you can access.
     callbacks:           {
-      serialExecution:     false, // don't execute callbacks at once; queue them up.
+      serial:     false, // don't execute callbacks at once; queue them up. [alias: serialExecution]
       debounce:            null, // lodash debounce opts; {wait, leading, trailing, maxWait}
       throttle:            null, // lodash throttle opts; {wait, leading, trailing}
       isLocallyExclusive:  false, // make this the only listener that runs THIS CALLBACK for this event in local scope (eg: Vue component)
@@ -637,7 +637,7 @@ defaultOptions === {
     throwOnTimeout:      false,  // throw an exception when the event times out. it will run the timeout callback before throwing exception.
     race:                false,              // does race checking for the provided listeners and will discard the other listeners for the first one that gets invoked in the group of listeners. This only work when listeners are registered with array notation and for "once" listeners only.
     predicate:           undefined, // function used to check if the payload is what we want before firing the actual callback. Gives chance to continue waiting and listening for event if some condition isn't met. Function should return boolean true to proceed firing the callback(s), or false to continue listening and just ignore the event as if nothing happened (for the affected listener(s)). It's invoked with exact same arguments as the callback. If this throws, the whole promise is rejected as if something went wrong; another way to cancel the listening.
-    catchup:             100, // catup time (ms) to consider events that occured earlier; false to disable
+    catchup:             100, // catup time (ms) to consider events that occured earlier; false to disable [alias: catchUp]
     once:                false, // only listen for this event once
     isLocallyExclusive:  false, // make this the only listener for this event in local scope (eg: Vue component)
     isGloballyExclusive: false, // make this the only listener for this event everywhere
