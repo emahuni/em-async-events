@@ -215,7 +215,7 @@ class AsyncEvents {
    * @return {Promise<*>|array<Promise>}
    */
   emitEvent (eventName, payload, eventOptions, emitterID = this._uniqID, eventOrigin) {
-    const originStack = _.pick(lineStack.skipByFilename('em-async-events'), ['filename', 'method']);
+    const originStack = _.pick(lineStack.skipByFilename('em-async-events'), ['filename', 'method', 'line']);
     
     if (!_.isString(eventName) && !_.isArray(eventName)) throw new Error(`[index]-160: emitEvent() - eventName should be specified as an string or array of strings representing event name(s)!`);
     
@@ -740,7 +740,7 @@ class AsyncEvents {
    * @return {Promise}
    */
   __addListener ({ eventName, callback, listenerOptions, subscriberID, listenerOrigin, racingListeners }) {
-    const originStack = _.pick(lineStack.skipByFilename('em-async-events'), ['filename', 'method']);
+    const originStack = _.pick(lineStack.skipByFilename('em-async-events'), ['filename', 'method', 'line']);
     
     let isExclusiveCallbackListener = false;
     
