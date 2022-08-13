@@ -252,8 +252,9 @@ class AsyncEvents {
       let vows = [];
       
       for (let evName of eventName) {
-        const params = cloneDeep({ eventName: evName, payload, eventOptions, eventMeta: _eventMeta });
+        const params = cloneDeep({ eventName: evName, eventOptions, eventMeta: _eventMeta });
         /** we didn't want to clone this */
+        params.payload = payload;
         params.eventOrigin = eventOrigin;
         params.eventMeta.eventOrigin = eventOrigin;
         const outcome = this.__runEvent(params);
@@ -264,7 +265,7 @@ class AsyncEvents {
         } else {
           vows.push(this.__lingerEvent({
             eventName: evName,
-            payload:   eventOptions.chain && params.eventMeta.wasConsumed ? (_.last(params.eventMeta.consumers).listenerPromise) : payload,
+            payload:   eventOptions.chain && params.eventMeta.wasConsumed ? outcome : payload,
             eventOptions,
             eventMeta: params.eventMeta,
           }));
@@ -1075,7 +1076,7 @@ class AsyncEvents {
           if (_.isFunction(listener.callback)) {
             //  check if calls has anything and if we should be doing serial execution
             if (listener.calls.length && listener.listenerOptions.callbacks.serialExecution) {
-              finalOutcome = Promise.all(listener.calls.map(c => c.promise))
+              finalOutcome = Promise.all(listener.calls)
                                     .then((outcome) => {
                                       // todo how should we use outcome here?
                                       return this.__runCallbackPromise(listener, callbackPromise, payload, eventMeta);
@@ -1224,6 +1225,7 @@ class AsyncEvents {
    */
   __settleCallbackPromise (listener, callbackPromise, outcome, eventMeta) {
     callbackPromise.settlement = RESOLVED;
+    callbackPromise.outcome = outcome;
     callbackPromise.resolve(outcome);
     
     // only capture the first outcome becoz that's what promises do, once resolved or rejected it's settled.
@@ -1233,7 +1235,7 @@ class AsyncEvents {
       listener.listenerPromise.resolve(outcome);
     }
     
-    listener.calls.splice(_.findIndex(listener.calls, c => c.id === callbackPromise.id), 1);
+    // listener.calls.splice(_.findIndex(listener.calls, c => c.id === callbackPromise.id), 1);
     return outcome;
   }
   
@@ -1311,7 +1313,7 @@ class AsyncEvents {
       return ev.lingeringEventPromise;
     }
     
-    if (eventMeta.wasConsumed) return _.last(eventMeta.consumers).listenerPromise;
+    if (eventMeta.wasConsumed) return _.last(_.last(eventMeta.consumers).calls);
     else if (eventOptions.rejectUnconsumed) return Promise.reject(`Un-lingered Event "${eventName}" was NOT consumed!`);
     
     return Promise.resolve();
@@ -1333,9 +1335,9 @@ class AsyncEvents {
           conGrpEnd();
         }
         
-        Promise.all(consumers.map(c => c.listenerPromise)).then((vows) => {
-          // console.debug(`[index]-1011: () - vows: %o`, vows);
-          // todo how do we use vows here
+        Promise.all(consumers.map(c => c.calls)).then((res) => {
+          // console.debug(`[index]-1011: () - res: %o`, res);
+          // todo how do we use res here
           this.__settleLingeredEvent(ev, eventOptions, eventName);
           if (consumers.length && this.options.debug.all && this.options.debug.lingerEvent || eventOptions.verbose) {
             conGrp(`[em-async-events] %ceventName: %o "linger" consumers have finished.`, 'color: grey;', eventName);
@@ -1358,7 +1360,7 @@ class AsyncEvents {
   __settleLingeredEvent (ev, eventOptions, eventName) {
     // finally resolve/reject lingering event promise
     if (ev.eventMeta.wasConsumed) {
-      ev.lingeringEventPromise.resolve(_.last(ev.eventMeta.consumers).listenerPromise);
+      ev.lingeringEventPromise.resolve(_.last(_.last(ev.eventMeta.consumers).calls));
     } else {
       if (eventOptions.rejectUnconsumed) ev.lingeringEventPromise.reject(`Lingered Event "${eventName}" NOT consumed!`);
       else ev.lingeringEventPromise.resolve();
@@ -1377,7 +1379,7 @@ class AsyncEvents {
   __eventConsumersAtState (ev, state) {
     const consumers = this.__eventConsumers(ev);
     if (_.isNil(state)) return consumers;
-    return consumers.filter(c => c.listenerPromise.settlement === state);
+    return consumers.filter(con => con.calls.some(c => c.settlement === state));
   }
   
   
@@ -1951,7 +1953,6 @@ class AsyncEvents {
     // we can use this in userland to figure out if promise is settled, it's outcome, or manually resolve or reject it...
     return _.merge(promise, {
       id:         this.__genUniqID(),
-      promise,
       resolve:    _RESOLVE,
       reject:     _REJECT,
       settlement: PENDING,

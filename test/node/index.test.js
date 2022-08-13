@@ -21,14 +21,8 @@ const onceEventSpy2 = sinon.spy((p, m) => {
 
 const onEventSpyResponse = 'on-event-spy-response';
 const onEventSpy = sinon.spy((p, m) => {
-  return p;
+  return onEventSpyResponse
 });
-
-const onEventSpy2 = sinon.spy((p, m) => {
-  return p;
-});
-
-const asyncEventSpy = sinon.spy();
 
 const defaultOptionsMatcher = {
   listenersOptions: {
@@ -231,7 +225,7 @@ describe(`# em-async-events`, function () {
         }));
       });
       
-      it(`"onEventSpy" return the appropriate response`, async function () {
+      it(`"onceEventSpy" return the appropriate response`, async function () {
         expect(onceEventSpy).to.have.returned(onceEventSpyResponse);
       });
     });
@@ -253,7 +247,7 @@ describe(`# em-async-events`, function () {
       });
       
       it(`"onEventSpy" returned the appropriate response`, async function () {
-        expect(onEventSpy).to.have.returned(payload_onEvent);
+        expect(onEventSpy).to.have.returned(onEventSpyResponse);
       });
       
       test(`if "on-event" event is emitted again, it runs "onEventSpy" again and preserves listener.`, async function () {
@@ -283,7 +277,7 @@ describe(`# em-async-events`, function () {
             expect(consumers).to.have.lengthOf(1);
           });
           
-          test(`listener "vowOnceEvent1" is a promise after listening to "once-event" lingering event.`, async function () {
+          test(`listener "vowOnceEvent1" is a promise after listening to (and resolve with) "once-event" lingering event.`, async function () {
             vowOnceEvent1 = ae.onceEvent('once-event', undefined, undefined, 111);
             expect(isPromise(vowOnceEvent1)).to.be.true;
           });
