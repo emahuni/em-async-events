@@ -118,32 +118,29 @@ metadata == {
     originStack:     String, /* string representing stack location where event was emitted from */
     listenersTally:  6 // number of listeners for this event
   },
-  listenerMeta: {
-    extra: Any,   // any data passed as extra data when listener was created,
-    eventMeta: {}, // event meta information as above 
-    listenerMeta: {  // listener meta information
-      eventName: "some-event",
-      callback: Function, // the callback
-      listenerOptions: {/*opts passed to listener*/ },
-      racingListeners: [/** any listeners that are racing to grab the event */],
-      subscriberID: String, // a unique identifier for the subscriber
-      listenerOrigin: Vuecomponent | Object, /* vue compo or object where listener is defined */
-      originStack: String, /* string representing stack location where listener is defined */
-      listenerPromise: { // a promise for the listener
-        id,       // promise unique identifier 
-        resolve, // function to resolve the promise
-        reject, // function to reject the promise
-        settlement, // whether the promise was settled or not
-        outcome, // outcome of the promise settlement
-      },
-      id: String, // a unique identifier for the listener
-      level, // the level of the listener 
-      timestamp, // when the listener was created
-      timeoutTimeout, // listener timeout
-      calls // any calls that were made to the listener callback
+  listenerMeta: { // listener meta information
+    eventName: "some-event",
+    callback: Function, // the callback
+    listenerOptions: {/*opts passed to listener*/ },
+    racingListeners: [/** any listeners that are racing to grab the event */],
+    subscriberID: String, // a unique identifier for the subscriber
+    listenerOrigin: Vuecomponent | Object, /* vue compo or object where listener is defined */
+    originStack: String, /* string representing stack location where listener is defined */
+    id: String, // a unique identifier for the listener
+    level: String, // the level of the listener 
+    timestamp: String, // when the listener was created
+    timeout: SmartTimeout, // listener timeout if defined in options, based on smart-timeout
+    calls: Array(CallbackPromise), // any calls that were made to the listener callback as promises that can be waited on
+    listenerPromise: { // a promise for the listener, this is also the first call promise
+      id: String,       // promise unique identifier 
+      resolve: Function, // function to resolve the promise
+      reject: Function, // function to reject the promise
+      settlement: Boolean, // whether the promise was settled or not
+      outcome: Any, // outcome of the promise settlement
+      wasInvoked: Boolean, // whether the callback was invoked
     },
-    call_id, // call id
-  }
+  }, 
+  call_id: String, // call id
 };
 ```
 

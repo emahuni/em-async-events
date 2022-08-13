@@ -42,50 +42,100 @@ class AsyncEvents {
     
     this.__vueReservedProps = ['$options', '$parent', '$root', '$children', '$refs', '$vnode', '$slots', '$scopedSlots', '$createElement', '$attrs', '$listeners', '$el'];
     
+    /**
+     * @typedef {
+     *  {
+     *    stopHere: boolean,
+     *    race: boolean,
+     *    replace: boolean,
+     *    callbacks: {
+     *      serialExecution: boolean,
+     *      debounce: null,
+     *      throttle: null,
+     *      replace: boolean,
+     *      isGloballyExclusive: boolean,
+     *      isLocallyExclusive: boolean
+     *    },
+     *    isLocallyExclusive: boolean,
+     *    timeout: number,
+     *    verbose: boolean,
+     *    timeoutCallback: undefined,
+     *    predicate: undefined,
+     *    trace: boolean,
+     *    once: boolean,
+     *    throwOnTimeout: boolean,
+     *    catchup: number,
+     *    extra: undefined,
+     *    isGloballyExclusive: boolean
+     *  }
+     * } ListenerOptions
+     */
+    /** @type ListenerOptions */
+    const listenersOptions = {
+      extra:               undefined,
+      callbacks:           {
+        serialExecution: false, // todo rename to serial
+        // chain: false, // todo implement (implicates serial)
+        debounce:            null,
+        throttle:            null,
+        isLocallyExclusive:  false,
+        isGloballyExclusive: false,
+        replace:             false,
+      },
+      stopHere:            false,
+      timeout:             0,
+      timeoutCallback:     undefined,
+      throwOnTimeout:      false,
+      catchup:             100, // a value of true will catch-up whatever lingering event is there.
+      once:                false,
+      race:                false,
+      predicate:           undefined,
+      isLocallyExclusive:  false,
+      isGloballyExclusive: false,
+      replace:             false,
+      trace:               false,
+      verbose:             false,
+    };
+    
+    /**
+     * @typedef {
+     *  {
+     *    chain: boolean,
+     *    trace: boolean,
+     *    rejectUnconsumed: boolean,
+     *    bait: boolean,
+     *    linger: number,
+     *    replace: boolean,
+     *    range: string,
+     *    isGloballyExclusive: boolean,
+     *    isLocallyExclusive: boolean,
+     *    verbose: boolean
+     *  }
+     * } EventOptions
+     */
+    /** @type EventOptions */
+    const eventsOptions = {
+      // serial: false,     // todo implement
+      chain: false,
+      /*listeners:           { // todo implement
+        serial: false,
+        chain: false,
+      },*/
+      linger:              500,
+      bait:                false,
+      isLocallyExclusive:  false,
+      isGloballyExclusive: false,
+      replace:             false,
+      range:               'first-parent',
+      trace:               false,
+      verbose:             false,
+      rejectUnconsumed:    false,
+    };
+    
     this.options = _.defaultsDeep(options, {
       ...NAMES,
-      listenersOptions: {
-        extra:               undefined,
-        callbacks:           {
-          serialExecution: false, // todo rename to serial
-          // chain: false, // todo implement (implicates serial)
-          debounce:            null,
-          throttle:            null,
-          isLocallyExclusive:  false,
-          isGloballyExclusive: false,
-          replace:             false,
-        },
-        stopHere:            false,
-        timeout:             0,
-        timeoutCallback:     undefined,
-        throwOnTimeout:      false,
-        catchup:             100, // a value of true will catch-up whatever lingering event is there.
-        once:                false,
-        race:                false,
-        predicate:           undefined,
-        isLocallyExclusive:  false,
-        isGloballyExclusive: false,
-        replace:             false,
-        trace:               false,
-        verbose:             false,
-      },
-      eventsOptions:    {
-        // serial: false,     // todo implement
-        chain: false,
-        /*listeners:           { // todo implement
-          serial: false,
-          chain: false,
-        },*/
-        linger:              500,
-        bait:                false,
-        isLocallyExclusive:  false,
-        isGloballyExclusive: false,
-        replace:             false,
-        range:               'first-parent',
-        trace:               false,
-        verbose:             false,
-        rejectUnconsumed:    false,
-      },
+      listenersOptions,
+      eventsOptions,
       
       maxCachedPayloads: 5,
       
@@ -209,7 +259,7 @@ class AsyncEvents {
    * emit event and run callbacks subscribed to the event
    * @param eventName
    * @param [payload]
-   * @param [eventOptions]
+   * @param [eventOptions] {EventOptions}
    * @param [emitterID]
    * @param [eventOrigin]
    * @return {Promise<*>|array<Promise>}
@@ -219,8 +269,8 @@ class AsyncEvents {
     
     if (!_.isString(eventName) && !_.isArray(eventName)) throw new Error(`[index]-160: emitEvent() - eventName should be specified as an string or array of strings representing event name(s)!`);
     
+    /** @type EventOptions */
     eventOptions = _.merge({}, this.options.eventsOptions, eventOptions);
-    eventOptions.originStack = originStack; // to be deprecated in favour of eventMeta.originStack
     
     if (eventOptions.isAsync) this.__showDeprecationWarning('isAsync', 'All events and listeners are now async.');
     
@@ -776,8 +826,6 @@ class AsyncEvents {
     
     // todo we can add level to add listener options for non-vue usage
     const level = listenerOrigin ? this.__getOriginLevel(listenerOrigin) : 0;
-    // create a promise that can be waited for by listener
-    const listenerPromise = this.__createPromise();
     
     // todo test and doc debounce callback using lodash debounce if debounce is specified in options. debounce: {wait,leading,trailing, maxWait}
     if (_.isObject(listenerOptions.callbacks.debounce)) {
@@ -796,7 +844,28 @@ class AsyncEvents {
       });
     }
     
+    // create a promise that can be waited for by listener, this is the first callbackPromise,
+    const listenerPromise = this.__createPromise();
+    
     // create listener object
+    /**
+     * @typedef {
+     *  {
+     *    originStack: PartialObject<{file: string, filename: string, method: string, line: number, callSites: CallSite[]}|void>,
+     *    level: (number|number),
+     *    calls: CallbackPromise[],
+     *    racingListeners: Listener[],
+     *    listenerOrigin: {object},
+     *    eventName: string,
+     *    callback: Function,
+     *    subscriberID: string,
+     *    listenerOptions: ListenerOptions,
+     *    id: string,
+     *    timestamp: number
+     *  }
+     *} Listener
+     */
+    /** @type Listener */
     const listener = {
       eventName,
       callback:  _.get(exclusiveListener, 'callback', callback),
@@ -805,12 +874,17 @@ class AsyncEvents {
       subscriberID,
       listenerOrigin,
       originStack,
-      listenerPromise,
       id:        this.__genUniqID(),
       level,
       timestamp: Date.now(),
-      calls:     [],
+      timeout:   undefined,
+      calls:     [listenerPromise],
+      listenerPromise,
     };
+    
+    if (listenerOptions.timeout) {
+      this.__instantiateListenerTimeout(listener);
+    }
     
     if (!!racingListeners) racingListeners[eventName] = listener;
     
@@ -824,17 +898,12 @@ class AsyncEvents {
     this.__invokeLingeredEventsAtAddListener({ eventName, listener });
     
     // only add to listeners if it's not once or isn't settled yet.
-    if (!listenerOptions.once || listener.listenerPromise.settlement === PENDING) {
+    if (!listenerOptions.once || listener.calls[0].settlement === PENDING) {
       this.__stashListenerOrEvent(listener, eventName, this.listenersStore, exclusiveListener);
-      
-      if (listenerOptions.timeout) {
-        this.__instantiateListenerTimeout(listener);
-      }
     }
     
-    // console.debug(`[index]-622: __addListener() - listener subscriberID: %o, outcome: %o, settlement: %o`, listener.subscriberID, listener.listenerPromise.outcome, listener.listenerPromise.settlement);
-    // noinspection JSValidateTypes
-    return listener.listenerPromise;
+    // console.debug(`[index]-622: __addListener() - listener subscriberID: %o, outcome: %o, settlement: %o`, listener.subscriberID, listener.calls[0].outcome, listener.calls[0].settlement);
+    return listener.calls[0];
   }
   
   
@@ -847,7 +916,7 @@ class AsyncEvents {
   __instantiateListenerTimeout (listener) {
     const { listenerOptions, eventName } = listener;
     
-    listener.listenerPromise.timeout = Timeout.instantiate(listener.id, async () => {
+    listener.timeout = Timeout.instantiate(listener.id, async () => {
       let hasCB = _.isFunction(listenerOptions.timeoutCallback);
       if (this.options.debug.all && this.options.debug.addListener || listenerOptions.trace || listenerOptions.verbose) {
         conGrp(`[em-async-events] %c${listenerOptions.once ? 'one-time' : 'regular'} eventName: %o TIMED OUT %c- ${hasCB ? 'called CB' : 'with no timeoutCallback'}...`, 'color:brown;', eventName);
@@ -858,7 +927,7 @@ class AsyncEvents {
       if (hasCB) await listenerOptions.timeoutCallback(listener);
       
       if (listenerOptions.throwOnTimeout) {
-        this.rejectListener(listener, `Event "${eventName}" timed out!`);
+        this.__rejectCallbackPromise(listener, `Event "${eventName}" timed out!`);
       }
       
       // noinspection JSCheckFunctionSignatures
@@ -866,18 +935,18 @@ class AsyncEvents {
         this.__removeListeners({ ...listener });
       } else {
         // re-instantiate timeout
-        listener.listenerPromise.timeout.reset();
+        listener.timeout.reset();
       }
     }, listenerOptions.timeout);
     
-    return listener.listenerPromise.timeout;
+    return listener.timeout;
   }
   
   
   __clearOrResetTimeout (listener) {
-    if (listener.listenerPromise.timeout) {
-      if (listener.listenerOptions.once) listener.listenerPromise.timeout.clear();
-      else listener.listenerPromise.timeout.reset();
+    if (listener.timeout) {
+      if (listener.listenerOptions.once) listener.timeout.clear();
+      else listener.timeout.reset();
     }
   }
   
@@ -1061,7 +1130,7 @@ class AsyncEvents {
           } catch (e) {
             // console.debug(`{dim [index/__runListeners()]-983:} e: %o`, e);
             this.removeOtherRacingListenersCallbacks(listener, eventName);
-            this.rejectListener(listener, e);
+            this.__rejectCallbackPromise(listener, e);
             return finalOutcome;
           }
         }
@@ -1070,7 +1139,7 @@ class AsyncEvents {
         
         this.__clearOrResetTimeout(listener);
         
-        const callbackPromise = this.__createPromise();
+        const callbackPromise = listener.calls[0].wasInvoked ? this.__createPromise() : listener.calls[0];
         try {
           if (_.isFunction(listener.callback)) {
             //  check if calls has anything and if we should be doing serial execution
@@ -1087,13 +1156,14 @@ class AsyncEvents {
             if (eventMeta.eventOptions.chain) payload = finalOutcome; // todo shouldn't this be listener.listenerOptions.chain?
           }
           
-          
-          if (listener.listenerOptions.once && listener.listenerPromise.settlement !== PENDING) {
+          // check if the initial listener callback promise (this tracks the listener promise returned to (on|once)Event) is still pending
+          // once listeners only have one calls, so listener.calls[0] and callbackPromise is the same thing always for them
+          if (listener.listenerOptions.once && callbackPromise.settlement !== PENDING) {
             this.__removeCallbacks({ eventName, subscriberID: listener.subscriberID, callback: listener.callback });
           }
         } catch (e) {
           // todo error handling, not working because the promise is not being waited for, it's just collecting info and returning that info without waiting, so error happens elsewhere
-          this.rejectListener(listener, e, callbackPromise, finalOutcome);
+          this.__rejectCallbackPromise(listener, e, callbackPromise, finalOutcome);
         }
         
         
@@ -1128,13 +1198,18 @@ class AsyncEvents {
   
   
   /**
-   * Reject a given listener and optionally given callback as well
+   * Reject a given callbackPromise
+   * @private
    * @param listener
    * @param err
-   * @param callbackPromise
-   * @param finalOutcome
+   * @param [callbackPromise] {CallbackPromise} if none is provided then it uses listener.calls[0]
+   * @param [finalOutcome]
    */
-  rejectListener (listener, err, callbackPromise, finalOutcome) {
+  __rejectCallbackPromise (listener, err, callbackPromise, finalOutcome) {
+    if (!callbackPromise) {
+      callbackPromise = listener.calls[0];
+    }
+    
     if (callbackPromise) {
       callbackPromise.settlement = REJECTED;
       callbackPromise.outcome = finalOutcome;
@@ -1145,12 +1220,7 @@ class AsyncEvents {
           callback:     listener.callback,
         });
       }
-    }
-    if (listener.listenerPromise.settlement === PENDING) {
-      listener.listenerPromise.settlement = REJECTED;
-      // rejects with previous finalOutcome.
-      listener.listenerPromise.outcome = finalOutcome;
-      listener.listenerPromise.reject(err);
+      callbackPromise.reject(err);
     }
   }
   
@@ -1158,14 +1228,15 @@ class AsyncEvents {
   /**
    * run listener callback promise
    * @param listener
-   * @param callbackPromise
+   * @param callbackPromise {CallbackPromise}
    * @param payload
    * @param eventMeta
    * @return {*}
    * @private
    */
   __runCallbackPromise (listener, callbackPromise, payload, eventMeta) {
-    listener.calls.push(callbackPromise);
+    if (listener.calls[0].wasInvoked) listener.calls.push(callbackPromise);
+    callbackPromise.wasInvoked = true;
     
     // todo should we replace exclusive listeners?
     // const exclusiveListener = this.__getExclusiveListener(listener.eventName, this.listenersStore); // todo ???
@@ -1184,7 +1255,6 @@ class AsyncEvents {
     
     if (isPromise(finalOutcome)) {
       // todo check error handling of promise here
-      // noinspection BadExpressionStatementJS
       return finalOutcome.then((outcome) => {
         if (listener.listenerOptions.once) this.__removeListeners({ ...listener });
         return this.__settleCallbackPromise(listener, callbackPromise, outcome, eventMeta);
@@ -1216,25 +1286,18 @@ class AsyncEvents {
   /**
    * Settle callback promise
    * @param listener
-   * @param callbackPromise
+   * @param callbackPromise {CallbackPromise}
    * @param outcome
    * @param eventMeta
    * @return {*}
    * @private
    */
   __settleCallbackPromise (listener, callbackPromise, outcome, eventMeta) {
+    // only capture the first outcome becoz that's what promises do, once resolved or rejected it's settled.
     callbackPromise.settlement = RESOLVED;
     callbackPromise.outcome = outcome;
     callbackPromise.resolve(outcome);
     
-    // only capture the first outcome becoz that's what promises do, once resolved or rejected it's settled.
-    if (listener.listenerPromise.settlement === PENDING) {
-      listener.listenerPromise.outcome = outcome;
-      listener.listenerPromise.settlement = RESOLVED;
-      listener.listenerPromise.resolve(outcome);
-    }
-    
-    // listener.calls.splice(_.findIndex(listener.calls, c => c.id === callbackPromise.id), 1);
     return outcome;
   }
   
@@ -1878,7 +1941,7 @@ class AsyncEvents {
     for (let eventN in this.listenersStore) {
       if (eventN === eventName) {
         for (const listener of this.listenersStore[eventN]) {
-          if (listener.listenerPromise.timeout) listener.listenerPromise.timeout.clear();
+          if (listener.timeout) listener.timeout.clear();
           
           if (this.options.debug.all && this.options.debug.eraseEvent || listener.listenerOptions.trace || listener.listenerOptions.verbose) {
             conGrp(`[em-async-events] %c${this.options.eraseEvent} %ceventName: %o`, 'color: CadetBlue;', 'color: grey;', eventName);
@@ -1940,9 +2003,12 @@ class AsyncEvents {
   
   
   /**
+   * @typedef  CallbackPromise {Promise & {resolve: Function, reject: Function, id: string, outcome: undefined, settlement: number, wasInvoked: boolean}}
+   */
+  /**
    * create a promise to keep track of what is going on
-   * @return {{resolve, reject, promise: Promise, id: string, outcome: undefined, settlement: number}}
    * @private
+   * @return {CallbackPromise}
    */
   __createPromise () {
     let _RESOLVE, _REJECT;
@@ -1951,7 +2017,7 @@ class AsyncEvents {
       _REJECT = reject; // todo this should run other code before finally rejecting
     });
     
-    // we can use this in userland to figure out if promise is settled, it's outcome, or manually resolve or reject it...
+    // we can use this in user-land to figure out if promise is settled, it's outcome, or manually resolve or reject it...
     return _.merge(promise, {
       id:         this.__genUniqID(),
       resolve:    _RESOLVE,
@@ -1959,6 +2025,7 @@ class AsyncEvents {
       settlement: PENDING,
       outcome:    undefined,
       timeout:    undefined,
+      wasInvoked: false,
     });
   }
 }
