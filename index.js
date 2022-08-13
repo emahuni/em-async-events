@@ -277,7 +277,7 @@ class AsyncEvents {
     
     _eventMeta.eventOrigin = eventOrigin;
     const outcome = this.__runEvent({ eventName, payload, eventOptions, eventOrigin, eventMeta: _eventMeta });
-    /** linger */
+    
     if (_eventMeta.stopNow) {
       return outcome;
     } else {
@@ -937,9 +937,10 @@ class AsyncEvents {
    */
   __runEvent ({ eventName, payload, eventOptions, eventOrigin, eventMeta }) {
     /** run event */
+    const level = this.__getOriginLevel(eventOrigin);
     let listeners = this.listenersStore[eventName];
     let listenersTally = listeners && listeners.length;
-    const level = this.__getOriginLevel(eventOrigin);
+    let stop;
     
     _.merge(eventMeta, {
       id:             this.__genUniqID(),
@@ -951,6 +952,18 @@ class AsyncEvents {
       listenersTally,
     });
     
+    if (!!eventOrigin) {
+      ({ listeners, stop } = this.__getListenersInRange({
+        listeners,
+        eventName,
+        payload,
+        eventOptions,
+        eventOrigin,
+        eventMeta,
+        eventLevel: level,
+      }));
+    }
+    
     if (this.options.debug.all && this.options.debug.emitEvent || eventOptions.trace || eventOptions.verbose) {
       conGrp(`[em-async-events] %c${this.options.emitEvent} %ceventName: %o, origin: %o - level: %o, range: %o, \n\tpayload: %o`, 'color: green', 'color: grey;', eventName, _.get(eventOrigin, '$options.name', '???'), level, eventOptions.range, payload);
       if (eventOptions.verbose) console.warn(`eventMeta: %o \n\toriginStack: %o`, eventMeta, eventMeta.originStack);
@@ -958,10 +971,8 @@ class AsyncEvents {
     }
     
     const outcome = this.__runListeners({
-      listeners, eventName, payload, eventOptions, eventOrigin, eventMeta,
+      listeners, eventName, payload, eventOptions, eventOrigin, eventMeta, stop,
     });
-    
-    
     
     if (!eventMeta.wasConsumed) {
       if (this.options.debug.all && this.options.debug.emitEvent || eventOptions.trace || eventOptions.verbose) {
@@ -987,6 +998,7 @@ class AsyncEvents {
    * @param eventOptions
    * @param eventOrigin
    * @param eventMeta
+   * @param [stop] {boolean|null}
    * @return {Promise<*>}
    * @private
    */
@@ -997,6 +1009,7 @@ class AsyncEvents {
                           eventOptions,
                           eventOrigin,
                           eventMeta,
+                          stop,
                         }) {
     let finalOutcome;
     let listenersTally = listeners && listeners.length;
@@ -1004,20 +1017,6 @@ class AsyncEvents {
     // console.debug(`[em-async-events] index-564: - eventName: %o, \n\teventOrigin: %o, \n\t_listeners: %o\n\teventMeta: %o`, eventName, eventOrigin, listeners, eventMeta);
     
     if (listenersTally) {
-      let stop;
-      
-      if (!!eventOrigin) {
-        ({ listeners, stop } = this.__getListenersInRange({
-          listeners,
-          eventName,
-          payload,
-          eventOptions,
-          eventOrigin,
-          eventMeta,
-          eventLevel: eventMeta.level,
-        }));
-      }
-      
       let stopHere = false;
       
       // sort them out according to age specs if there.
@@ -1461,6 +1460,7 @@ class AsyncEvents {
             
             // todo bait logic should be done only when all listeners have taken the bait, since we can add multiple listeners per onEvent/onceEvent
             if (eventOptions.bait) {
+              // todo investigate if lingeringEventPromise is not repetition of something
               lingeringEvent.lingeringEventPromise.settlement = RESOLVED;
               lingeringEvent.lingeringEventPromise.resolve(outcome);
               // noinspection JSUnfilteredForInLoop
@@ -1503,6 +1503,7 @@ class AsyncEvents {
    * @param eventOrigin
    * @param listeners
    * @param eventLevel
+   * @return {{stop:boolean|null, listeners: object[]}}
    */
   __getListenersInRange ({ eventName, eventMeta, eventOptions, eventOrigin, listeners, eventLevel }) {
     let

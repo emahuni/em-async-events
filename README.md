@@ -131,7 +131,6 @@ metadata == {
       originStack: String, /* string representing stack location where listener is defined */
       listenerPromise: { // a promise for the listener
         id,       // promise unique identifier 
-        promise, // actual promise for the listener
         resolve, // function to resolve the promise
         reject, // function to reject the promise
         settlement, // whether the promise was settled or not
