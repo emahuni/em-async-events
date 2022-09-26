@@ -1009,7 +1009,7 @@ class AsyncEvents {
   __runEvent ({ eventName, payload, eventOptions, eventOrigin, eventMeta }) {
     /** run event */
     const level = this.__getOriginLevel(eventOrigin);
-    let listeners = this.listenersStore[eventName];
+    let listeners = this.listenersStore[eventName] || [];
     let listenersTally = listeners && listeners.length;
     let stop;
     
@@ -1886,7 +1886,7 @@ class AsyncEvents {
    * @private
    */
   __findCallback (callback, eventName, subscriberID) {
-    return this.listenersStore[eventName].find(function (l) {
+    return (this.listenersStore[eventName] || []).find(function (l) {
       return (!l.subscriberID || l.subscriberID === subscriberID) && l.callback === callback;
     });
   }
@@ -1901,7 +1901,7 @@ class AsyncEvents {
    * @private
    */
   __findIndexOfCallback (callback, eventName, subscriberID) {
-    return this.listenersStore[eventName].findIndex(function (l) {
+    return (this.listenersStore[eventName] || []).findIndex(function (l) {
       return (!l.subscriberID || l.subscriberID === subscriberID) && l.callback === callback;
     });
   }
